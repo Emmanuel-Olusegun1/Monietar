@@ -94,11 +94,11 @@ interface Logo {
           </div>
           
           <div className="flex items-center gap-4">
-            <Link href="/signin" className="text-gray-800 hover:text-[#059669]/60 font-medium transition-colors duration-200 hidden md:block">
+            <Link href="/auth?mode=signin" className="text-gray-800 hover:text-[#059669]/60 font-medium transition-colors duration-200 hidden md:block">
               Sign In
             </Link>
             <Link 
-              href="/signup" 
+              href="/auth?mode=signup"
               className="bg-gradient-to-r from-[#059669] to-[#059669]/60 text-white px-6 py-3 rounded-md font-medium hover:shadow-lg transition-all duration-300 shadow-md"
             >
               Get Started
@@ -118,7 +118,7 @@ interface Logo {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
             <Link
-              href="/signup"
+              href="/auth?mode=signup"
               className="bg-[#059669] text-white px-8 py-4 rounded-md font-medium hover:bg-[#059669]/70 hover:shadow-xl transition-all duration-300"
             >
               Get Started For Free
