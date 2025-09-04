@@ -6,6 +6,15 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
+
+// Define a type for social media objects
+interface SocialMedia {
+    name: string;
+    icon: string;
+    rule?: "evenodd" | "nonzero" | "inherit";
+  }
+
+  
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
