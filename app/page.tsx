@@ -12,6 +12,7 @@ function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [currency, setCurrency] = useState<'NGN' | 'XOF'>('NGN');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -124,7 +125,7 @@ function Home() {
                   </a>
                 </div>
               </motion.div>
-              <motion.div className="flex items-center gap text-sm text-gray-500" variants={fadeIn}>
+              <motion.div className="flex items-center gap text-[10px] md:text-sm text-gray-500" variants={fadeIn}>
                 <span className="flex items-center">
                   
                   Free Core Features
@@ -163,13 +164,13 @@ function Home() {
                     </div>
                     <div className="p-6">
                       <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-lg font-semibold text-white">Financial Dashboard</h2>
+                        <h2 className="text-sm font-semibold text-white">Financial Dashboard</h2>
                         <span className="text-sm text-emerald-400">Last 30 Days</span>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-emerald-900/50 p-4 rounded-xl">
                           <p className="text-sm text-emerald-300">Income</p>
-                          <p className="text-2xl font-bold text-white">₦452,800</p>
+                          <p className="text-lg md:text-2xl font-bold text-white">₦452,800</p>
                           <p className="text-xs text-emerald-400 flex items-center">
                             <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
@@ -179,7 +180,7 @@ function Home() {
                         </div>
                         <div className="bg-red-900/50 p-4 rounded-xl">
                           <p className="text-sm text-red-300">Expenses</p>
-                          <p className="text-2xl font-bold text-white">₦283,500</p>
+                          <p className="text-lg md:text-2xl font-bold text-white">₦283,500</p>
                           <p className="text-xs text-red-400 flex items-center">
                             <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
@@ -320,18 +321,20 @@ function Home() {
           settings: {
             slidesToShow: 2,
             slidesToScroll: 1,
+            dots: false
           }
         },
         {
-          breakpoint: 768,
+          breakpoint: 640,
           settings: {
             slidesToShow: 1,
             slidesToScroll: 1,
+            dots:false
           }
         }
       ]}
       customPaging={(i) => (
-        <div className="w-3 h-3 mt-8 rounded-md bg-gray-300 transition-all duration-300"></div>
+        <div className="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300 mt-8"></div>
       )}
       appendDots={dots => (
         <div>
@@ -342,65 +345,45 @@ function Home() {
       {[
         { 
           name: 'Adeola S.', 
-          role: 'Fashion Boutique, Lagos', 
-          emoji: '👔', 
+          role: 'Fashion Boutique, Lagos',
           quote: 'Nimbus revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!',
-          rating: 5
         },
         { 
           name: 'Chukwuma E.', 
-          role: 'Restaurant, Benin City', 
-          emoji: '🍲', 
+          role: 'Restaurant, Benin City',
           quote: 'No more payroll stress! Nimbus gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate.',
-          rating: 5
         },
         { 
           name: 'Fatima O.', 
-          role: 'Tech Startup, Abuja', 
-          emoji: '💻', 
+          role: 'Tech Startup, Abuja',
           quote: 'As a growing startup, cash flow management was our biggest challenge. Nimbus helped us secure funding by providing professional financial forecasts.',
-          rating: 5
         },
         { 
           name: 'Kwame A.', 
-          role: 'Agriculture Export, Accra', 
-          emoji: '🌱', 
+          role: 'Agriculture Export, Accra',
           quote: 'The multi-currency support is fantastic for our export business. We can now track finances in both local and foreign currencies seamlessly.',
-          rating: 4
         }
       ].map((testimonial, i) => (
-        <div key={i} className="px-4 outline-none">
-          <motion.div
-            className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-full"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: i * 0.1 }}
-            whileHover={{ y: -5 }}
-          >
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-emerald-50 rounded-md flex items-center justify-center mr-4">
-                <span className="text-xl">{testimonial.emoji}</span>
+        <div key={i} className="px-2 outline-none w-screen h-full">
+          <div className=" h-[15rem]">
+            <motion.div
+              className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-full flex flex-col"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              whileHover={{ y: -5 }}
+            >
+              <div className="flex items-center mb-4">
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-xl text-[#059669] truncate">{testimonial.name}</h4>
+                  <p className="text-gray-600 text-sm truncate">{testimonial.role}</p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-semibold text-gray-900">{testimonial.name}</h4>
-                <p className="text-gray-600 text-sm">{testimonial.role}</p>
-              </div>
-            </div>
-            <div className="flex mb-4">
-              {Array.from({ length: testimonial.rating }).map((_, j) => (
-                <svg key={j} className="w-5 h-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              ))}
-              {Array.from({ length: 5 - testimonial.rating }).map((_, j) => (
-                <svg key={j} className="w-5 h-5 text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-              ))}
-            </div>
-            <p className="text-gray-700 italic">"{testimonial.quote}"</p>
-          </motion.div>
+             
+              <p className="text-gray-700 italic flex-grow">"{testimonial.quote}"</p>
+            </motion.div>
+          </div>
         </div>
       ))}
     </Slider>
@@ -518,120 +501,166 @@ function Home() {
 
       {/* Pricing Section */}
       <section id="pricing" className="py-16 px-4 bg-gray-50">
-        <div className="container mx-auto max-w-7xl">
-          <motion.div 
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
+  <div className="container mx-auto max-w-7xl">
+    <motion.div 
+      className="text-center mb-16"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+    >
+      <h2 className="text-4xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
+      <p className="text-xl text-gray-600 max-w-3xl mx-auto">Choose the plan that works for your business needs.</p>
+      
+      {/* Currency Toggle */}
+      <div className="flex justify-center mt-8">
+        <div className="bg-white rounded-full p-1 shadow-sm border border-gray-200 inline-flex">
+          <button
+            onClick={() => setCurrency('NGN')}
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              currency === 'NGN' 
+                ? 'bg-emerald-500 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
           >
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">Choose the plan that works for your business needs.</p>
-          </motion.div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Free Plan */}
-            <motion.div
-              className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Free Forever</h3>
-                <div className="flex items-baseline justify-center">
-                  <span className="text-4xl font-bold text-gray-900">₦0</span>
-                  <span className="text-gray-600">/month</span>
-                </div>
-                <p className="text-gray-600 mt-2">Perfect for getting started</p>
-              </div>
-              <ul className="space-y-4 mb-8">
-                {['Basic income/expense tracking', '90-day cash flow forecasting', 'AI-powered insights', 'Email support', '1 business account'].map((feature, i) => (
-                  <li key={i} className="flex items-center">
-                    <svg className="w-5 h-5 text-emerald-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              <button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 rounded-lg transition-colors">
-                Get Started Free
-              </button>
-            </motion.div>
-            
-            {/* Pro Plan - Coming Soon */}
-            <motion.div
-              className="bg-white p-8 rounded-2xl shadow-lg border-2 border-emerald-500 relative"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-4 py-1 rounded-bl-lg rounded-tr-lg">
-                COMING SOON
-              </div>
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Pro</h3>
-                <div className="flex items-baseline justify-center">
-                  <span className="text-4xl font-bold text-gray-900">₦5,000</span>
-                  <span className="text-gray-600">/month</span>
-                </div>
-                <p className="text-gray-600 mt-2">For growing businesses</p>
-              </div>
-              <ul className="space-y-4 mb-8">
-                {['Everything in Free', 'Advanced analytics & reports', 'Multi-business management', 'Priority support', 'Custom financial goals', 'Export capabilities'].map((feature, i) => (
-                  <li key={i} className="flex items-center">
-                    <svg className="w-5 h-5 text-emerald-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              <button className="w-full bg-gray-300 text-gray-600 font-medium py-3 rounded-lg cursor-not-allowed">
-                Coming Soon
-              </button>
-            </motion.div>
-            
-            {/* Business Plan - Coming Soon */}
-            <motion.div
-              className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 relative"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-4 py-1 rounded-bl-lg rounded-tr-lg">
-                COMING SOON
-              </div>
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Business</h3>
-                <div className="flex items-baseline justify-center">
-                  <span className="text-4xl font-bold text-gray-900">₦12,000</span>
-                  <span className="text-gray-600">/month</span>
-                </div>
-                <p className="text-gray-600 mt-2">For established businesses</p>
-              </div>
-              <ul className="space-y-4 mb-8">
-                {['Everything in Pro', 'Unlimited business accounts', 'Dedicated account manager', 'Custom integrations', 'Team collaboration', 'White-label reports'].map((feature, i) => (
-                  <li key={i} className="flex items-center">
-                    <svg className="w-5 h-5 text-emerald-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              <button className="w-full bg-gray-300 text-gray-600 font-medium py-3 rounded-lg cursor-not-allowed">
-                Coming Soon
-              </button>
-            </motion.div>
-          </div>
+            Nigeria (₦)
+          </button>
+          <button
+            onClick={() => setCurrency('XOF')}
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+              currency === 'XOF' 
+                ? 'bg-emerald-500 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Benin Republic (CFA)
+          </button>
         </div>
-      </section>
+      </div>
+    </motion.div>
+    
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Free Plan */}
+      <motion.div
+        className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        <div className="text-center mb-6">
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">Free Forever</h3>
+          <div className="flex items-baseline justify-center">
+            <span className="text-4xl font-bold text-gray-900">
+              {currency === 'NGN' ? '₦0' : '0 CFA'}
+            </span>
+            <span className="text-gray-600">/month</span>
+          </div>
+          <p className="text-gray-600 mt-2">Perfect for getting started</p>
+        </div>
+        <ul className="space-y-4 mb-8">
+          {['Basic income/expense tracking', '90-day cash flow forecasting', 'AI-powered insights', 'Email support', '1 business account'].map((feature, i) => (
+            <li key={i} className="flex items-center">
+              <svg className="w-5 h-5 text-emerald-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+        <button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 rounded-lg transition-colors">
+          Get Started Free
+        </button>
+      </motion.div>
+      
+      {/* Pro Plan - Coming Soon */}
+      <motion.div
+        className="bg-white p-8 rounded-2xl shadow-lg border-2 border-emerald-500 relative"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-4 py-1 rounded-bl-lg rounded-tr-lg">
+          COMING SOON
+        </div>
+        <div className="text-center mb-6">
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">Pro</h3>
+          <div className="flex items-baseline justify-center">
+            <span className="text-4xl font-bold text-gray-900">
+              {currency === 'NGN' ? '₦5,000' : '8,000 CFA'}
+            </span>
+            <span className="text-gray-600">/month</span>
+          </div>
+          <p className="text-gray-600 mt-2">For growing businesses</p>
+          {currency === 'XOF' && (
+            <p className="text-sm text-emerald-600 mt-1">≈ ₦5,000</p>
+          )}
+        </div>
+        <ul className="space-y-4 mb-8">
+          {['Everything in Free', 'Advanced analytics & reports', 'Multi-business management', 'Priority support', 'Custom financial goals', 'Export capabilities'].map((feature, i) => (
+            <li key={i} className="flex items-center">
+              <svg className="w-5 h-5 text-emerald-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+        <button className="w-full bg-gray-300 text-gray-600 font-medium py-3 rounded-lg cursor-not-allowed">
+          Coming Soon
+        </button>
+      </motion.div>
+      
+      {/* Business Plan - Coming Soon */}
+      <motion.div
+        className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 relative"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+      >
+        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-4 py-1 rounded-bl-lg rounded-tr-lg">
+          COMING SOON
+        </div>
+        <div className="text-center mb-6">
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">Business</h3>
+          <div className="flex items-baseline justify-center">
+            <span className="text-4xl font-bold text-gray-900">
+              {currency === 'NGN' ? '₦12,000' : '19,200 CFA'}
+            </span>
+            <span className="text-gray-600">/month</span>
+          </div>
+          <p className="text-gray-600 mt-2">For established businesses</p>
+          {currency === 'XOF' && (
+            <p className="text-sm text-emerald-600 mt-1">≈ ₦12,000</p>
+          )}
+        </div>
+        <ul className="space-y-4 mb-8">
+          {['Everything in Pro', 'Unlimited business accounts', 'Dedicated account manager', 'Custom integrations', 'Team collaboration', 'White-label reports'].map((feature, i) => (
+            <li key={i} className="flex items-center">
+              <svg className="w-5 h-5 text-emerald-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+        <button className="w-full bg-gray-300 text-gray-600 font-medium py-3 rounded-lg cursor-not-allowed">
+          Coming Soon
+        </button>
+      </motion.div>
+    </div>
+    
+    {/* Currency Note */}
+    <div className="text-center mt-12">
+      <p className="text-gray-600 text-sm">
+        * Prices in CFA Francs are approximate. Actual charges will be processed in your local currency.
+        {currency === 'XOF' && ' 1 CFA ≈ 0.625 NGN'}
+      </p>
+    </div>
+  </div>
+</section>
 
       {/* FAQ Section */}
       <section id="faq" className="py-16 px-4 bg-white">
