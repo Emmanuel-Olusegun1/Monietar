@@ -62,7 +62,7 @@ function Home() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       </div>
-      <span className="text-xl font-bold text-gray-900">Finlytic</span>
+      <span className="text-xl font-bold text-gray-900">Fintar</span>
     </motion.div>
 
     {/* Desktop Navigation */}
@@ -131,7 +131,7 @@ function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
-                <span className="text-xl font-bold text-gray-900">Finlytic</span>
+                <span className="text-xl font-bold text-gray-900">Fintar</span>
               </div>
               <button
                 onClick={() => setIsMenuOpen(false)}
@@ -193,7 +193,7 @@ function Home() {
                 className="text-lg text-gray-600 mb-8 max-w-2xl"
                 variants={fadeIn}
               >
-                Finlytic empowers African SMEs with AI-driven cash flow managagement system with financial insights for smarter decisions and sustainable growth.
+                Fintar empowers African SMEs with AI-driven cash flow managagement system with financial insights for smarter decisions and sustainable growth.
               </motion.p>
               <motion.div className="mb-6" variants={fadeIn}>
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -246,7 +246,7 @@ function Home() {
                         <div className="w-3 h-3 rounded-md bg-yellow-500"></div>
                         <div className="w-3 h-3 rounded-md bg-green-500"></div>
                       </div>
-                      <span className="text-xs text-gray-400">dashboard.Finlytic.com</span>
+                      <span className="text-xs text-gray-400">dashboard.fintar.com</span>
                     </div>
                     <div className="p-6">
                       <div className="flex justify-between items-center mb-6">
@@ -319,7 +319,7 @@ function Home() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Finlytic?</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Fintar?</h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">Empowering small businesses with intuitive, AI-driven tools.</p>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -432,17 +432,17 @@ function Home() {
         { 
           name: 'Adeola S.', 
           role: 'Fashion Boutique, Lagos',
-          quote: 'Finlytic revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!',
+          quote: 'Fintar revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!',
         },
         { 
           name: 'Chukwuma E.', 
           role: 'Restaurant, Benin City',
-          quote: 'No more payroll stress! Finlytic gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate.',
+          quote: 'No more payroll stress! Fintar gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate.',
         },
         { 
           name: 'Fatima O.', 
           role: 'Tech Startup, Abuja',
-          quote: 'As a growing startup, cash flow management was our biggest challenge. Finlytic helped us secure funding by providing professional financial forecasts.',
+          quote: 'As a growing startup, cash flow management was our biggest challenge. Fintar helped us secure funding by providing professional financial forecasts.',
         },
         { 
           name: 'Kwame A.', 
@@ -518,7 +518,7 @@ function Home() {
           { 
             icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', 
             title: 'API Integrations', 
-            desc: 'Seamless integration with accounting software and banks API integration for automated transaction updates.' 
+            desc: 'Seamless integration with accounting software and bank API integration for automated transaction updates.' 
           },
           { 
             icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 
@@ -533,7 +533,7 @@ function Home() {
           { 
             icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z', 
             title: 'Customizable Dashboards', 
-            desc: 'Tailored views for different business needs using a drag-and-drop widgets for personalized layouts.' 
+            desc: 'Tailored views for different business needs using drag-and-drop widgets for personalized layouts.' 
           },
           { 
             icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', 
@@ -759,17 +759,17 @@ function Home() {
             transition={{ duration: 0.5 }}
           >
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
-            <p className="text-xl text-gray-600">Everything you need to know about Finlytic</p>
+            <p className="text-xl text-gray-600">Everything you need to know about fintar</p>
           </motion.div>
           
           <div className="space-y-4">
             {[
               {
-                question: "Is Finlytic really free?",
+                question: "Is fintar really free?",
                 answer: "Yes! Our core features are completely free forever. We believe every African business should have access to powerful financial tools. We'll offer premium features in the future, but the core functionality will always remain free."
               },
               {
-                question: "How does Finlytic protect my financial data?",
+                question: "How does Fintar protect my financial data?",
                 answer: "We take security seriously. All data is encrypted in transit and at rest. We're GDPR compliant and never share your data with third parties without your explicit permission. Our security practices are regularly audited by independent experts."
               },
               {
@@ -781,8 +781,8 @@ function Home() {
                 answer: "We're planning to launch our premium tier in Q2 2024. Early adopters who join our waitlist will get special pricing and early access to these features."
               },
               {
-                question: "Can I use Finlytic on my mobile phone?",
-                answer: "Absolutely! Finlytic is designed to work perfectly on mobile devices. We'll also be launching dedicated iOS and Android apps in the near future."
+                question: "Can I use Fintar on my mobile phone?",
+                answer: "Absolutely! Fintar is designed to work perfectly on mobile devices. We'll also be launching dedicated iOS and Android apps in the near future."
               }
             ].map((faq, index) => (
               <motion.div
@@ -858,7 +858,7 @@ function Home() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900">Email</h4>
-                    <p className="text-gray-600">hello@useFinlytic.com</p>
+                    <p className="text-gray-600">hello@usefintar.com</p>
                   </div>
                 </div>
                 
@@ -959,7 +959,7 @@ function Home() {
             </svg>
           </div>
           <div>
-            <span className="text-2xl font-bold text-white block">Finlytic</span>
+            <span className="text-2xl font-bold text-white block">fintar</span>
             <span className="text-emerald-400 text-sm">Financial Intelligence</span>
           </div>
         </div>
@@ -1048,7 +1048,7 @@ function Home() {
           {['About', 'Careers', 'Contact', 'Privacy', 'Terms'].map((item) => (
             <li key={item}>
               <a 
-                href={item === 'Contact' ? 'mailto:hello@useFinlytic.com' : `#${item.toLowerCase()}`}
+                href={item === 'Contact' ? 'mailto:hello@usefintar.com' : `#${item.toLowerCase()}`}
                 className="text-gray-400 hover:text-white transition-all duration-300 hover:translate-x-1 inline-block text-sm"
               >
                 {item}
@@ -1066,7 +1066,7 @@ function Home() {
       <div className="flex flex-col md:flex-row justify-between text-gray-400 items-center space-y-4 md:space-y-0">
         {/* Countries */}
         <div className="text-sm ">
-        <span>© {new Date().getFullYear()} Finlytic. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} Fintar. All rights reserved.</span>
         </div>
         
         {/* Copyright and Links */}
