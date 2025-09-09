@@ -62,7 +62,7 @@ function Home() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       </div>
-      <span className="text-xl font-bold text-gray-900">Nimbus</span>
+      <span className="text-xl font-bold text-gray-900">Finlytic</span>
     </motion.div>
 
     {/* Desktop Navigation */}
@@ -131,7 +131,7 @@ function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
-                <span className="text-xl font-bold text-gray-900">Nimbus</span>
+                <span className="text-xl font-bold text-gray-900">Finlytic</span>
               </div>
               <button
                 onClick={() => setIsMenuOpen(false)}
@@ -193,7 +193,7 @@ function Home() {
                 className="text-lg text-gray-600 mb-8 max-w-2xl"
                 variants={fadeIn}
               >
-                Nimbus empowers African SMEs with AI-driven cash flow managagement system with financial insights for smarter decisions and sustainable growth.
+                Finlytic empowers African SMEs with AI-driven cash flow managagement system with financial insights for smarter decisions and sustainable growth.
               </motion.p>
               <motion.div className="mb-6" variants={fadeIn}>
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -246,7 +246,7 @@ function Home() {
                         <div className="w-3 h-3 rounded-md bg-yellow-500"></div>
                         <div className="w-3 h-3 rounded-md bg-green-500"></div>
                       </div>
-                      <span className="text-xs text-gray-400">dashboard.nimbus.com</span>
+                      <span className="text-xs text-gray-400">dashboard.Finlytic.com</span>
                     </div>
                     <div className="p-6">
                       <div className="flex justify-between items-center mb-6">
@@ -319,7 +319,7 @@ function Home() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Nimbus?</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Finlytic?</h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">Empowering small businesses with intuitive, AI-driven tools.</p>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -432,17 +432,17 @@ function Home() {
         { 
           name: 'Adeola S.', 
           role: 'Fashion Boutique, Lagos',
-          quote: 'Nimbus revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!',
+          quote: 'Finlytic revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!',
         },
         { 
           name: 'Chukwuma E.', 
           role: 'Restaurant, Benin City',
-          quote: 'No more payroll stress! Nimbus gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate.',
+          quote: 'No more payroll stress! Finlytic gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate.',
         },
         { 
           name: 'Fatima O.', 
           role: 'Tech Startup, Abuja',
-          quote: 'As a growing startup, cash flow management was our biggest challenge. Nimbus helped us secure funding by providing professional financial forecasts.',
+          quote: 'As a growing startup, cash flow management was our biggest challenge. Finlytic helped us secure funding by providing professional financial forecasts.',
         },
         { 
           name: 'Kwame A.', 
@@ -759,17 +759,17 @@ function Home() {
             transition={{ duration: 0.5 }}
           >
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
-            <p className="text-xl text-gray-600">Everything you need to know about Nimbus</p>
+            <p className="text-xl text-gray-600">Everything you need to know about Finlytic</p>
           </motion.div>
           
           <div className="space-y-4">
             {[
               {
-                question: "Is Nimbus really free?",
+                question: "Is Finlytic really free?",
                 answer: "Yes! Our core features are completely free forever. We believe every African business should have access to powerful financial tools. We'll offer premium features in the future, but the core functionality will always remain free."
               },
               {
-                question: "How does Nimbus protect my financial data?",
+                question: "How does Finlytic protect my financial data?",
                 answer: "We take security seriously. All data is encrypted in transit and at rest. We're GDPR compliant and never share your data with third parties without your explicit permission. Our security practices are regularly audited by independent experts."
               },
               {
@@ -781,8 +781,8 @@ function Home() {
                 answer: "We're planning to launch our premium tier in Q2 2024. Early adopters who join our waitlist will get special pricing and early access to these features."
               },
               {
-                question: "Can I use Nimbus on my mobile phone?",
-                answer: "Absolutely! Nimbus is designed to work perfectly on mobile devices. We'll also be launching dedicated iOS and Android apps in the near future."
+                question: "Can I use Finlytic on my mobile phone?",
+                answer: "Absolutely! Finlytic is designed to work perfectly on mobile devices. We'll also be launching dedicated iOS and Android apps in the near future."
               }
             ].map((faq, index) => (
               <motion.div
@@ -858,7 +858,7 @@ function Home() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900">Email</h4>
-                    <p className="text-gray-600">hello@usenimbus.com</p>
+                    <p className="text-gray-600">hello@useFinlytic.com</p>
                   </div>
                 </div>
                 
@@ -959,7 +959,7 @@ function Home() {
             </svg>
           </div>
           <div>
-            <span className="text-2xl font-bold text-white block">Nimbus</span>
+            <span className="text-2xl font-bold text-white block">Finlytic</span>
             <span className="text-emerald-400 text-sm">Financial Intelligence</span>
           </div>
         </div>
@@ -1048,7 +1048,7 @@ function Home() {
           {['About', 'Careers', 'Contact', 'Privacy', 'Terms'].map((item) => (
             <li key={item}>
               <a 
-                href={item === 'Contact' ? 'mailto:hello@usenimbus.com' : `#${item.toLowerCase()}`}
+                href={item === 'Contact' ? 'mailto:hello@useFinlytic.com' : `#${item.toLowerCase()}`}
                 className="text-gray-400 hover:text-white transition-all duration-300 hover:translate-x-1 inline-block text-sm"
               >
                 {item}
@@ -1066,7 +1066,7 @@ function Home() {
       <div className="flex flex-col md:flex-row justify-between text-gray-400 items-center space-y-4 md:space-y-0">
         {/* Countries */}
         <div className="text-sm ">
-        <span>© {new Date().getFullYear()} Nimbus. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} Finlytic. All rights reserved.</span>
         </div>
         
         {/* Copyright and Links */}
