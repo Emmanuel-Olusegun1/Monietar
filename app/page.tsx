@@ -79,14 +79,15 @@ function Home() {
     </nav>
 
     {/* Desktop Sign In Button */}
-    <motion.button
+    <motion.a
+      href="/signin"
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5, delay: 0.2 }}
       className="hidden lg:block bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow"
     >
       Sign In
-    </motion.button>
+    </motion.a>
 
     {/* Mobile Menu Button */}
     <button
@@ -160,9 +161,9 @@ function Home() {
 
             {/* Sign In Button */}
             <div className="pt-8 border-t border-gray-200 mt-8">
-              <button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 rounded-md transition-all duration-200 shadow-sm hover:shadow">
+              <a href='/signin' className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 rounded-md transition-all duration-200 shadow-sm hover:shadow">
                 Sign In
-              </button>
+              </a>
             </div>
           </div>
         </motion.div>
@@ -173,119 +174,39 @@ function Home() {
 
 
       {/* Hero Section */}
-      <section className="pt-24 pb-16 px-4">
-        <div className="container mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <section className="pt-34 px-4 md:pt-34 pb-16 md:px-54 min-h-[80vh] flex flext-col justify-center items-center">
+        <div className="container mx-auto">
+          <div className="flex flext-col justify-center items-center text-center">
             <motion.div variants={stagger} initial="initial" animate="animate">
-              <motion.div 
-                className="inline-flex items-center bg-[#059669]/20 text-[#059669]/60 px-4 py-2 rounded-full mb-6 font-medium"
-                variants={fadeIn}
-              >
-                <span className="mr-2 tex"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 512 512"><path fill="none" stroke="#fcd34d" stroke-linecap="round" stroke-linejoin="round" stroke-width="15" d="m105.7 263.5l107.5 29.9a7.9 7.9 0 0 1 5.4 5.4l29.9 107.5a7.8 7.8 0 0 0 15 0l29.9-107.5a7.9 7.9 0 0 1 5.4-5.4l107.5-29.9a7.8 7.8 0 0 0 0-15l-107.5-29.9a7.9 7.9 0 0 1-5.4-5.4l-29.9-107.5a7.8 7.8 0 0 0-15 0l-29.9 107.5a7.9 7.9 0 0 1-5.4 5.4l-107.5 29.9a7.8 7.8 0 0 0 0 15Z"><animateTransform additive="sum" attributeName="transform" calcMode="spline" dur="6s" keySplines=".42, 0, .58, 1; .42, 0, .58, 1" repeatCount="indefinite" type="rotate" values="-15 256 256; 15 256 256; -15 256 256"/><animate attributeName="opacity" dur="6s" values="1; .75; 1; .75; 1; .75; 1"/></path></svg></span> Early Access Now Open
-              </motion.div>
               <motion.h1 
-                className="text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-6 leading-tight"
+                className="w-full text-4xl lg:text-5xl text-center justify-center items-center xl:text-6xl font-bold text-gray-900 mb-6 leading-tight"
                 variants={fadeIn}
               >
-                Master Your <span className="text-emerald-500">Business Finances</span> with Ease
+                Master Your <span className="text-emerald-500">Business Cash Flow</span> with Ease
               </motion.h1>
               <motion.p 
-                className="text-lg text-gray-600 mb-8 max-w-2xl"
+                className="text-md mx-24 justify-center items-center text-center text-gray-600 mb-8"
                 variants={fadeIn}
               >
-                Fintar empowers African SMEs with AI-driven cash flow managagement system with financial insights for smarter decisions and sustainable growth.
+                Empowering African SMEs with AI-driven cash flow managagement system with financial insights for smarter decisions and sustainable growth.
               </motion.p>
               <motion.div className="mb-6" variants={fadeIn}>
-                <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col justify-center items-center sm:flex-row gap-4">
                 <a
-                    href='#'
+                    href='/signup'
                     className="bg-[#059669]/50 hover:bg-[#059669] flex flex-cols justify-center items-center text-white font-medium px-8 py-4 rounded-md transition-all disabled:opacity-50 shadow-sm hover:shadow"
                   >
                     Get Started For Free
                   </a>
                   <a
-                    href='#'
+                    href='/'
                     className="flex flex-cols justify-center items-center border-2 border-[#059669]/50 hover:border-[#059669] hover:bg-[#059669] hover:text-white text-[#059669] font-medium px-8 py-4 rounded-md transition-all disabled:opacity-50"
                   >
-                    <svg className="mr-2" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 512 512"><path fill="currentColor" d="M256 48C141.31 48 48 141.31 48 256s93.31 208 208 208s208-93.31 208-208S370.69 48 256 48m74.77 217.3l-114.45 69.14a10.78 10.78 0 0 1-16.32-9.31V186.87a10.78 10.78 0 0 1 16.32-9.31l114.45 69.14a10.89 10.89 0 0 1 0 18.6"/></svg>  Watch a Demo
+                    <svg className="mr-2" xmlns="http://www.w3. justify-cenorg/2000/svg" width="32" height="32" viewBox="0 0 512 512"><path fill="currentColor" d="M256 48C141.31 48 48 141.31 48 256s93.31 208 208 208s208-93.31 208-208S370.69 48 256 48m74.77 217.3l-114.45 69.14a10.78 10.78 0 0 1-16.32-9.31V186.87a10.78 10.78 0 0 1 16.32-9.31l114.45 69.14a10.89 10.89 0 0 1 0 18.6"/></svg>  Watch a Demo
                   </a>
                 </div>
               </motion.div>
-              <motion.div className="flex items-center gap text-[10px] md:text-sm text-gray-500" variants={fadeIn}>
-                <span className="flex items-center">
-                  
-                  Free Core Features
-                </span>
-                <span className="flex items-center">
-                <svg className="w-5 h-5 text-emerald-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor">
-                    <path fillRule="evenodd" d="M128 96a32 32 0 1 0 32 32a32 32 0 0 0-32-32m0 48a16 16 0 1 1 16-16a16 16 0 0 1-16 16" clipRule="evenodd" />
-                  </svg>
-                GDPR Compliant
-                </span>
-                <span className="flex items-center">
-                  <svg className="w-5 h-5 text-emerald-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor">
-                    <path fillRule="evenodd" d="M128 96a32 32 0 1 0 32 32a32 32 0 0 0-32-32m0 48a16 16 0 1 1 16-16a16 16 0 0 1-16 16" clipRule="evenodd" />
-                  </svg>
-                  No Credit Card Required
-                </span>
-              </motion.div>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
-            >
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-50 to-indigo-50 rounded-3xl transform rotate-2"></div>
-                <div className="relative bg-white rounded-3xl shadow-2xl border border-gray-100 p-4 transform -rotate-2">
-                  <div className="bg-gray-900 rounded-2xl overflow-hidden">
-                    <div className="p-4 flex items-center justify-between bg-gray-800">
-                      <div className="flex space-x-2">
-                        <div className="w-3 h-3 rounded-md bg-red-500"></div>
-                        <div className="w-3 h-3 rounded-md bg-yellow-500"></div>
-                        <div className="w-3 h-3 rounded-md bg-green-500"></div>
-                      </div>
-                      <span className="text-xs text-gray-400">dashboard.fintar.com</span>
-                    </div>
-                    <div className="p-6">
-                      <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-sm font-semibold text-white">Financial Dashboard</h2>
-                        <span className="text-sm text-emerald-400">Last 30 Days</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-emerald-900/50 p-4 rounded-xl">
-                          <p className="text-sm text-emerald-300">Income</p>
-                          <p className="text-lg md:text-2xl font-bold text-white">₦452,800</p>
-                          <p className="text-xs text-emerald-400 flex items-center">
-                            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                            </svg>
-                            +12.5%
-                          </p>
-                        </div>
-                        <div className="bg-red-900/50 p-4 rounded-xl">
-                          <p className="text-sm text-red-300">Expenses</p>
-                          <p className="text-lg md:text-2xl font-bold text-white">₦283,500</p>
-                          <p className="text-xs text-red-400 flex items-center">
-                            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                            </svg>
-                            +5.2%
-                          </p>
-                        </div>
-                      </div>
-                      <div className="bg-emerald-50/10 p-4 rounded-xl mt-4">
-                        <p className="text-sm text-emerald-300">Projected Balance</p>
-                        <p className="text-2xl font-bold text-white">₦169,300</p>
-                        <div className="w-full bg-gray-700 rounded-md h-2 mt-2">
-                          <div className="bg-emerald-500 h-2 rounded-md" style={{ width: '65%' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              
             </motion.div>
           </div>
         </div>
@@ -376,108 +297,11 @@ function Home() {
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-16 px-4 bg-gray-50">
-  <div className="container mx-auto max-w-7xl">
-    <motion.div 
-      className="text-center mb-16"
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5 }}
-    >
-      <h2 className="text-4xl font-bold text-gray-900 mb-4">Loved by Entrepreneurs</h2>
-      <p className="text-xl text-gray-600">Real stories from African business owners.</p>
-    </motion.div>
-    
-    <Slider
-      dots={false}
-      infinite={true}
-      speed={500}
-      slidesToShow={2}
-      slidesToScroll={1}
-      autoplay={true}
-      autoplaySpeed={5000}
-      pauseOnHover={true}
-      responsive={[
-        {
-          breakpoint: 1024,
-          settings: {
-            slidesToShow: 2,
-            slidesToScroll: 1,
-            dots: false
-          }
-        },
-        {
-          breakpoint: 640,
-          settings: {
-            slidesToShow: 1,
-            slidesToScroll: 1,
-            dots:false
-          }
-        }
-      ]}
-      customPaging={(i) => (
-        <div className="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300 mt-8"></div>
-      )}
-      appendDots={dots => (
-        <div>
-          <ul className="flex justify-center space-x-2 mt-8"> {dots} </ul>
-        </div>
-      )}
-    >
-      {[
-        { 
-          name: 'Adeola S.', 
-          role: 'Fashion Boutique, Lagos',
-          quote: 'Fintar revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!',
-        },
-        { 
-          name: 'Chukwuma E.', 
-          role: 'Restaurant, Benin City',
-          quote: 'No more payroll stress! Fintar gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate.',
-        },
-        { 
-          name: 'Fatima O.', 
-          role: 'Tech Startup, Abuja',
-          quote: 'As a growing startup, cash flow management was our biggest challenge. Fintar helped us secure funding by providing professional financial forecasts.',
-        },
-        { 
-          name: 'Kwame A.', 
-          role: 'Agriculture Export, Accra',
-          quote: 'The multi-currency support is fantastic for our export business. We can now track finances in both local and foreign currencies seamlessly.',
-        }
-      ].map((testimonial, i) => (
-        <div key={i} className="px-2 outline-none w-screen h-full">
-          <div className=" h-[15rem]">
-            <motion.div
-              className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-full flex flex-col"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              whileHover={{ y: -5 }}
-            >
-              <div className="flex items-center mb-4">
-                <div className="min-w-0">
-                  <h4 className="font-semibold text-xl text-[#059669] truncate">{testimonial.name}</h4>
-                  <p className="text-gray-600 text-sm truncate">{testimonial.role}</p>
-                </div>
-              </div>
-             
-              <p className="text-gray-700 italic flex-grow">"{testimonial.quote}"</p>
-            </motion.div>
-          </div>
-        </div>
-      ))}
-    </Slider>
-  </div>
 </section>
 
+
       {/* Premium Coming Soon Section */}
-      <section className="py-16 px-4 relative overflow-hidden">
+<section className="py-16 px-4 relative overflow-hidden">
   {/* Background Image with Overlay */}
   <div className="absolute inset-0 z-0">
     <div 
@@ -500,9 +324,6 @@ function Home() {
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
     >
-      <div className="inline-flex items-center bg-[#059669]/70 text-white px-4 py-2 rounded-md mb-6 font-medium backdrop-blur-sm">
-        <span className="mr-2">🚀</span> Premium Features Coming Soon
-      </div>
       <h2 className="text-4xl font-bold text-white mb-6">Unlock Advanced Financial Insights</h2>
       <p className="text-xl text-white/90 mb-10 max-w-3xl mx-auto">
         We're working on premium features that will take your financial management to the next level.
@@ -586,7 +407,7 @@ function Home() {
 </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-16 px-4 bg-gray-50">
+<section id="pricing" className="py-16 px-4 bg-gray-50">
   <div className="container mx-auto max-w-7xl">
     <motion.div 
       className="text-center mb-16"
@@ -748,6 +569,7 @@ function Home() {
   </div>
 </section>
 
+
       {/* FAQ Section */}
       <section id="faq" className="py-16 px-4 bg-white">
         <div className="container mx-auto max-w-4xl">
@@ -765,8 +587,8 @@ function Home() {
           <div className="space-y-4">
             {[
               {
-                question: "Is fintar really free?",
-                answer: "Yes! Our core features are completely free forever. We believe every African business should have access to powerful financial tools. We'll offer premium features in the future, but the core functionality will always remain free."
+                question: "Is Fintar really free to use?",
+                answer: "Yes! Our core features are completely free forever. We believe every African business should have access to powerful financial tools. The Free tier includes income/expense tracking, 90-day cash flow forecasting, AI-powered insights, and email support. We'll offer premium features in the future, but the core functionality will always remain free."
               },
               {
                 question: "How does Fintar protect my financial data?",
@@ -825,6 +647,104 @@ function Home() {
           </div>
         </div>
       </section>
+
+            {/* Testimonials Section */}
+<section id="testimonials" className="py-16 px-4 bg-gray-50">
+  <div className="container mx-auto max-w-7xl">
+    <motion.div 
+      className="text-center mb-16"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+    >
+      <h2 className="text-4xl font-bold text-gray-900 mb-4">Loved by Entrepreneurs</h2>
+      <p className="text-xl text-gray-600">Real stories from African business owners.</p>
+    </motion.div>
+    
+    <Slider
+      dots={false}
+      infinite={true}
+      speed={500}
+      slidesToShow={2}
+      slidesToScroll={1}
+      autoplay={true}
+      autoplaySpeed={5000}
+      pauseOnHover={true}
+      responsive={[
+        {
+          breakpoint: 1024,
+          settings: {
+            slidesToShow: 2,
+            slidesToScroll: 1,
+            dots: false
+          }
+        },
+        {
+          breakpoint: 640,
+          settings: {
+            slidesToShow: 1,
+            slidesToScroll: 1,
+            dots:false
+          }
+        }
+      ]}
+      customPaging={(i) => (
+        <div className="w-2 h-2 rounded-full bg-gray-300 transition-all duration-300 mt-8"></div>
+      )}
+      appendDots={dots => (
+        <div>
+          <ul className="flex justify-center space-x-2 mt-8"> {dots} </ul>
+        </div>
+      )}
+    >
+      {[
+        { 
+          name: 'Adeola S.', 
+          role: 'Fashion Boutique, Lagos',
+          quote: 'Fintar revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!',
+        },
+        { 
+          name: 'Chukwuma E.', 
+          role: 'Restaurant, Benin City',
+          quote: 'No more payroll stress! Fintar gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate.',
+        },
+        { 
+          name: 'Fatima O.', 
+          role: 'Tech Startup, Abuja',
+          quote: 'As a growing startup, cash flow management was our biggest challenge. Fintar helped us secure funding by providing professional financial forecasts.',
+        },
+        { 
+          name: 'Kwame A.', 
+          role: 'Agriculture Export, Accra',
+          quote: 'The multi-currency support is fantastic for our export business. We can now track finances in both local and foreign currencies seamlessly.',
+        }
+      ].map((testimonial, i) => (
+        <div key={i} className="px-2 outline-none w-screen h-full">
+          <div className=" h-[15rem]">
+            <motion.div
+              className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-full flex flex-col"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              whileHover={{ y: -5 }}
+            >
+              <div className="flex items-center mb-4">
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-xl text-[#059669] truncate">{testimonial.name}</h4>
+                  <p className="text-gray-600 text-sm truncate">{testimonial.role}</p>
+                </div>
+              </div>
+             
+              <p className="text-gray-700 italic flex-grow">"{testimonial.quote}"</p>
+            </motion.div>
+          </div>
+        </div>
+      ))}
+    </Slider>
+  </div>
+</section>
 
       {/* Contact Section */}
       <section id="contact" className="py-16 px-4 bg-gray-50">
@@ -939,7 +859,7 @@ function Home() {
 
 
       {/* Footer */}
-      <footer className="bg-gray-950 text-gray-300 relative overflow-hidden">
+<footer className="bg-gray-950 text-gray-300 relative overflow-hidden">
   {/* Background Decorative Elements */}
   <div className="absolute inset-0 pointer-events-none">
     <div className="absolute -top-20 -left-20 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl"></div>
