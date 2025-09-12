@@ -185,7 +185,7 @@ function Home() {
                 Master Your <span className="text-emerald-500">Business Cash Flow</span> with Ease
               </motion.h1>
               <motion.p 
-                className="text-md mx-24 justify-center items-center text-center text-gray-600 mb-8"
+                className="text-md mx-auto md:mx-24 justify-center items-center text-center text-gray-600 mb-8"
                 variants={fadeIn}
               >
                 Empowering African SMEs with AI-driven cash flow managagement system with financial insights for smarter decisions and sustainable growth.
