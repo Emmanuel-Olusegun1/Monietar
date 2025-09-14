@@ -65,17 +65,17 @@ export default function Testimonials() {
         { 
           name: 'Adeola S.', 
           role: 'Fashion Boutique, Lagos',
-          quote: 'Fintar revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!',
+          quote: 'Monitar revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!',
         },
         { 
           name: 'Chukwuma E.', 
           role: 'Restaurant, Benin City',
-          quote: 'No more payroll stress! Fintar gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate.',
+          quote: 'No more payroll stress! Monitar gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate.',
         },
         { 
           name: 'Fatima O.', 
           role: 'Tech Startup, Abuja',
-          quote: 'As a growing startup, cash flow management was our biggest challenge. Fintar helped us secure funding by providing professional financial forecasts.',
+          quote: 'As a growing startup, cash flow management was our biggest challenge. Monitar helped us secure funding by providing professional financial forecasts.',
         },
         { 
           name: 'Kwame A.', 

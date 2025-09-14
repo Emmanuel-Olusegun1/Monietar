@@ -59,7 +59,7 @@ const features: featureCards [] = [
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Fintar?</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Monitar?</h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">Empowering small businesses with intuitive, AI-driven tools.</p>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

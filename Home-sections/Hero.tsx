@@ -38,7 +38,7 @@ export default function Hero() {
                       <motion.div className="mb-6" variants={fadeIn}>
                         <div className="flex flex-col justify-center items-center sm:flex-row gap-4">
                         <a
-                            href='/signup'
+                            href='/auth/signup'
                             className="bg-[#059669]/50 hover:bg-[#059669] flex flex-cols justify-center items-center text-white font-medium px-8 py-4 rounded-md transition-all disabled:opacity-50 shadow-sm hover:shadow"
                           >
                             Get Started For Free

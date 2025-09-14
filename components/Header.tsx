@@ -20,7 +20,7 @@ export default function Header() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <span className="text-xl font-bold text-gray-900">Fintic</span>
+          <span className="text-xl font-bold text-gray-900">Monitar</span>
         </motion.div>
 
         {/* Desktop Navigation */}
@@ -38,7 +38,7 @@ export default function Header() {
 
         {/* Desktop Sign In Button */}
         <motion.a
-          href="/signin"
+          href="/auth/signin"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -90,7 +90,7 @@ export default function Header() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
                     </div>
-                    <span className="text-xl font-bold text-gray-900">Fintic</span>
+                    <span className="text-xl font-bold text-gray-900">Monitar</span>
                   </div>
                   <button
                     onClick={() => setIsMenuOpen(false)}
@@ -120,7 +120,7 @@ export default function Header() {
                 {/* Sign In Button */}
                 <div className="pt-8 border-t border-gray-200 mt-8">
                   <a 
-                    href="/signin" 
+                    href="/auth/signin" 
                     className="block w-full text-center bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 rounded-md transition-all duration-200 shadow-sm hover:shadow"
                     onClick={() => setIsMenuOpen(false)}
                   >
