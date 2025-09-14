@@ -36,7 +36,7 @@ export default function Trustbar() {
           Trusted by African Businesses
         </p>
         <motion.div 
-          className="grid grid-cols-2 md:grid-cols-4 gap-8 grayscale place-items-center"
+          className="grid grid-cols-2 md:grid-cols-4 gap-8  place-items-center"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
