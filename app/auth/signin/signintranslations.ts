@@ -16,7 +16,7 @@ export const languages = [
       signin: 'Signin',
       orContinue: 'Or continue with',
       signInWithGoogle: 'Sign in with Google',
-      dontHaveAccount: 'Don\'t have an account? Sign up',
+      dontHaveAccount: 'Don\'t have an account?',
       createAccount: 'Create Account',
       signingIn: 'Signing you in...',
       thankYou: 'Welcome back! You\'re signed in.'
@@ -29,7 +29,7 @@ export const languages = [
       signin: 'Connexion',
       orContinue: 'Ou continuer avec',
       signInWithGoogle: 'Se connecter avec Google',
-      dontHaveAccount: 'Vous n\'avez pas de compte ? Inscrivez-vous',
+      dontHaveAccount: 'Vous n\'avez pas de compte ?',
       createAccount: 'Créer un compte',
       signingIn: 'Connexion en cours...',
       thankYou: 'Bon retour ! Vous êtes connecté.'
@@ -42,7 +42,7 @@ export const languages = [
       signin: 'Ingia',
       orContinue: 'Au endelea na',
       signInWithGoogle: 'Ingia na Google',
-      dontHaveAccount: 'Huna akaunti? Jiandikishe',
+      dontHaveAccount: 'Huna akaunti?',
       createAccount: 'Fungua Akaunti',
       signingIn: 'Inakuingiza kwenye akaunti yako...',
       thankYou: 'Karibu tena! Umeshaingia.'
@@ -55,7 +55,7 @@ export const languages = [
       signin: 'Wọle',
       orContinue: 'Tabi tẹsiwaju pẹlu',
       signInWithGoogle: 'Wọle pẹlu Google',
-      dontHaveAccount: 'Ṣe o ko ni akọọlẹ? Forukọsilẹ',
+      dontHaveAccount: 'Ṣe o ko ni akọọlẹ?',
       createAccount: 'Ṣẹda Akọọlẹ',
       signingIn: 'Ṣiṣẹwọle si akọọlẹ rẹ...',
       thankYou: 'Kaabọ pada! O ti wọle.'
@@ -68,7 +68,7 @@ export const languages = [
       signin: 'Banye',
       orContinue: 'Ma ọ bụ gaa n\'ihu na',
       signInWithGoogle: 'Banye na Google',
-      dontHaveAccount: 'Ị nweghị akaụntụ? Debanye aha',
+      dontHaveAccount: 'Ị nweghị akaụntụ?',
       createAccount: 'Mepụta Akaụntụ',
       signingIn: 'Na-ebanye na akaụntụ gị...',
       thankYou: 'Nnabata ọzọ! Ị banyela.'
@@ -81,7 +81,7 @@ export const languages = [
       signin: 'Shiga',
       orContinue: 'Ko ci gaba da',
       signInWithGoogle: 'Shiga da Google',
-      dontHaveAccount: 'Ba ka da asusun? Yi rajista',
+      dontHaveAccount: 'Ba ka da asusun?',
       createAccount: 'Ƙirƙiri Asusun',
       signingIn: 'Shigar da kai cikin asusunka...',
       thankYou: 'Barka da dawowa! Ka shiga.'
