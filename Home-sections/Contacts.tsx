@@ -82,7 +82,7 @@ export default function Pricing() {
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900">Email</h4>
-                  <p className="text-gray-600">hello@useMonitar.com</p>
+                  <p className="text-gray-600">hello@useMonietar.com</p>
                 </div>
               </div>
               

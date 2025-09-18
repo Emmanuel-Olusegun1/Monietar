@@ -58,7 +58,7 @@ export default function Header() {
               </svg>
             </div>
             <div>
-              <span className="text-2xl font-bold text-white block">Monitar</span>
+              <span className="text-2xl font-bold text-white block">Monietar</span>
               <span className="text-emerald-400 text-sm">Financial Intelligence</span>
             </div>
           </div>
@@ -208,7 +208,7 @@ export default function Header() {
         <div className="flex flex-col md:flex-row justify-between text-gray-400 items-center space-y-4 md:space-y-0">
           {/* Copyrights and Links*/}
           <div className="text-sm ">
-          <span>© {new Date().getFullYear()} Monitar. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Monietar. All rights reserved.</span>
           </div>
           
           {/* Credit */}

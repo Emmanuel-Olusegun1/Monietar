@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Monitar | Master Your Business Finances",
+  title: "Monietar | Master Your Business Finances",
   description: "All Your Transaction in one place",
 };
 

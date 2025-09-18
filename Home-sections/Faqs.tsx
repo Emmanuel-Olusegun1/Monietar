@@ -24,17 +24,17 @@ export default function Pricing() {
                 transition={{ duration: 0.5 }}
               >
                 <h2 className="text-4xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
-                <p className="text-xl text-gray-600">Everything you need to know about Monitar</p>
+                <p className="text-xl text-gray-600">Everything you need to know about Monietar</p>
               </motion.div>
               
               <div className="space-y-4">
                 {[
                   {
-                        question: "What is Monitar?",
-                        answer: "Monitar is an AI-powered platform designed to help SMes/SMBs and Startups in Afria manage their cash flow, track income and expenses, create budgets, and gain insights into their financial health."
+                        question: "What is Monietar?",
+                        answer: "Monietar is an AI-powered platform designed to help SMes/SMBs and Startups in Afria manage their cash flow, track income and expenses, create budgets, and gain insights into their financial health."
                   },
                   {
-                    question: "Is Monitar really free to use?",
+                    question: "Is Monietar really free to use?",
                     answer: "Yes! Our core features are completely free forever. We believe every African business should have access to powerful financial tools. The Free tier includes income/expense tracking, Multi-language Support, AI-powered insights, email support and lot more. We'll offer Pro and Premium features in the future, but the core functionality will always remain free."
                   },
                   {
@@ -43,7 +43,7 @@ export default function Pricing() {
                   },
                   {
                     question: "Can I access the system on mobile devices?",
-                    answer: "Absolutely! Monitar Cash Flow Management System is designed to be mobile-friendly, allowing you to track your finances and access insights anytime, anywhere."
+                    answer: "Absolutely! Monietar Cash Flow Management System is designed to be mobile-friendly, allowing you to track your finances and access insights anytime, anywhere."
                   },
                   {
                     question: "When will the Pro tier be available?",
