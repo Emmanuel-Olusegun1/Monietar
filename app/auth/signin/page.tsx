@@ -18,14 +18,29 @@ function SigninContent() {
     email: '',
     password: '',
   });
+  const [supabaseInitialized, setSupabaseInitialized] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const t = translations[currentLanguage.toLowerCase().substring(0, 2) as keyof typeof translations] || translations.en;
 
+  // Check if Supabase is initialized
+  useEffect(() => {
+    try {
+      // This will throw an error if Supabase isn't properly configured
+      supabase.auth.getSession();
+      setSupabaseInitialized(true);
+    } catch (error) {
+      console.error('Supabase not initialized:', error);
+      toast.error('Authentication service is not configured properly');
+    }
+  }, []);
+
   // Handle OAuth callback and store user in database
   useEffect(() => {
     const handleOAuthCallback = async () => {
+      if (!supabaseInitialized) return;
+      
       const code = searchParams.get('code');
       if (code) {
         setIsSigningIn(true);
@@ -70,7 +85,7 @@ function SigninContent() {
       }
     };
     handleOAuthCallback();
-  }, [searchParams, router, t.thankYou]);
+  }, [searchParams, router, t.thankYou, supabaseInitialized]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -81,6 +96,11 @@ function SigninContent() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!supabaseInitialized) {
+      toast.error('Authentication service is not ready');
+      return;
+    }
+    
     setIsSigningIn(true);
     
     const loadingToast = toast.loading('Signing in...');
@@ -128,6 +148,11 @@ function SigninContent() {
   };
 
   const handleGoogleSignin = async () => {
+    if (!supabaseInitialized) {
+      toast.error('Authentication service is not ready');
+      return;
+    }
+    
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -189,23 +214,23 @@ function SigninContent() {
       {/* The image slider section */}
       <div className='flex-1 relative hidden md:block'>
         <Image
-           src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757900862/Finance_Automation_And_Its_Critical_Role_In_Streamlining_Financial_Processes_-_OPEN_Money_Blog_ihfxxe.jpg'
-           alt='cashflow image'
-           fill
+          src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757892444/Financial_Management_for_Entrepreneurs__Tips_and_Tricks_acoxrc.jpg'
+          alt='cashflow image'
+          fill
           className='object-cover'
           priority
         />
       </div>
       
       {/* The main and form section */}
-      <div className='flex-1 flex flex-col justify-center items-center p-4 overflow-auto max-h-screen relative'>
+      <div className='flex-1 flex flex-col justify-center items-center p-4 overflow-auto max极h-screen relative'>
         {/* Language Switcher - Top Right */}
-        <div className="absolute top-4 left-4">
+        <div className="absolute top-4 right-4">
           <button 
             onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
             className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 px-3 py-1 rounded-md hover:bg-gray-100"
           >
-           <svg 
+            <svg 
               xmlns="http://www.w3.org/2000/svg" 
               className="h-5 w-5"
               fill="none" 
@@ -241,7 +266,7 @@ function SigninContent() {
           )}
         </div>
 
-        <h1 className='text-3极l font-bold mb-3'>{t.welcome}</h1>
+        <h1 className='text-3xl font-bold mb-3'>{t.welcome}</h1>
         <p className='mb-8 text-gray-600'>{t.subtitle}</p>
 
         <motion.div
@@ -260,6 +285,7 @@ function SigninContent() {
                 className="w-full px-4 py-3 rounded-sm border-b border-gray-300 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder-gray-400"
                 placeholder={t.email}
                 required
+                disabled={!supabaseInitialized}
               />
             </div>
             
@@ -272,24 +298,25 @@ function SigninContent() {
                 className="w-full px-4 py-3 rounded-sm border-b border-gray-300 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder-gray-400"
                 placeholder={t.password}
                 required
+                disabled={!supabaseInitialized}
               />
             </div>
             
             <button
               type="submit"
-              disabled={isSigningIn}
+              disabled={isSigningIn || !supabaseInitialized}
               className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white font-medium py-3 rounded-lg transition-colors flex items-center hover:cursor-pointer justify-center mb-4"
             >
               {isSigningIn ? (
                 <>
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 极 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   {t.signingIn}
                 </>
               ) : (
-                t.signin
+                supabaseInitialized ? t.signin : 'Loading...'
               )}
             </button>
 
@@ -305,15 +332,16 @@ function SigninContent() {
             <button
               type="button"
               onClick={handleGoogleSignin}
-              disabled={isSigningIn}
+              disabled={isSigningIn || !supabaseInitialized}
               className="w-full flex justify-center items-center gap-2 bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg xmlns="http://www.w3.org/2000/s极" viewBox="0 0 24 24" width="20" height="20">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6极16-4.53z"/>
-              </svg>
+             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
+	            <rect width="48" height="48" fill="none" />
+	            <path fill="#ffc107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917" />
+	            <path fill="#ff3d00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691" />
+	            <path fill="#4caf50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.9 11.9 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44" />
+	            <path fill="#1976d2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
+             </svg>
               {t.signInWithGoogle}
             </button>
 
@@ -333,16 +361,12 @@ function SigninContent() {
 // Main component with Suspense boundary
 export default function Signin() {
   return (
-    <div className="flex-row-reverse">
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
       </div>
     }>
-    
       <SigninContent />
-     
     </Suspense>
-    </div>
   );
 }
