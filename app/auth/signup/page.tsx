@@ -141,7 +141,7 @@ export default function Signup() {
   };
 
   return (
-    <div className='flex w-full h-screen'>
+    <div className='flex flex-row-reverse w-full h-screen'>
       {/* Toast Notifications */}
       <Toaster
         position="top-right"
@@ -176,6 +176,7 @@ export default function Signup() {
       />
       
       {/* The image slider section */}
+      
       <div className='flex-1 relative hidden md:block shadow-lg'>
         <Image
           src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757901059/Junior_Bookkeeper_Finance_Associate_ifwrdq.jpg'
@@ -189,7 +190,7 @@ export default function Signup() {
       {/* The main and form section */}
       <div className='flex-1 flex flex-col justify-center items-center p-4 overflow-auto max-h-screen relative'>
         {/* Language Switcher - Top Right */}
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 left-4">
           <button 
             onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
             className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 px-3 py-1 rounded-md hover:bg-gray-100"
@@ -234,7 +235,7 @@ export default function Signup() {
         <p className='mb-8 text-gray-600'>{t.subtitle}</p>
 
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
           className="w-full max-w-md"
