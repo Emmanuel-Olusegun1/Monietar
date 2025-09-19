@@ -16,7 +16,7 @@ export const translations = {
     signin: 'Signin',
     orContinue: 'Or continue with',
     signInWithGoogle: 'Sign in with Google',
-    dontHaveAccount: 'Don\'t have an account? Sign up',
+    dontHaveAccount: 'Don\'t have an account?',
     createAccount: 'Create Account',
     signingIn: 'Signing you in...',
     thankYou: 'Welcome back! You\'re signed in.'
