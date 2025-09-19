@@ -214,7 +214,7 @@ function SigninContent() {
       {/* The image slider section */}
       <div className='flex-1 relative hidden md:block'>
         <Image
-          src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757892444/Financial_Management_for_Entrepreneurs__Tips_and_Tricks_acoxrc.jpg'
+          src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757900862/Finance_Automation_And_Its_Critical_Role_In_Streamlining_Financial_Processes_-_OPEN_Money_Blog_ihfxxe.jpg'
           alt='cashflow image'
           fill
           className='object-cover'
