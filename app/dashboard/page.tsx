@@ -3,6 +3,6 @@ export default function dashboard() {
 
     return (
 
-        <div>This is the dashboard</div>
+        <div>This is the dashbojkhkjard</div>
     );
 }
