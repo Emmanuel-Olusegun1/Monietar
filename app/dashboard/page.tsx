@@ -100,7 +100,6 @@ interface LanguageOption {
 interface CurrencyOption {
   value: string;
   label: string;
-  icon: React.ComponentType<any>;
 }
 
 interface TimeFilter {
@@ -152,7 +151,7 @@ export default function Dashboard() {
   const [toastMessage, setToastMessage] = useState('');
   const [timeFilter, setTimeFilter] = useState('monthly');
   const [language, setLanguage] = useState('en');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('NGN');
   const [newMessage, setNewMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   
@@ -185,15 +184,19 @@ export default function Dashboard() {
   
   const languagesList: LanguageOption[] = [
     { value: 'en', label: 'English' },
-    { value: 'es', label: 'Spanish' },
-    { value: 'fr', label: 'French' },
-    { value: 'de', label: 'German' }
+  { value: 'fr', label: 'French' },
+  { value: 'sw', label: 'Swahili' },
+  { value: 'yo', label: 'Yoruba' },
+  { value: 'ig', label: 'Igbo' },
+  { value: 'ha', label: 'Hausa' }
   ];
   
   const currencies: CurrencyOption[] = [
-    { value: 'USD', label: 'USD', icon: DollarSign },
-    { value: 'EUR', label: 'EUR', icon: Euro },
-    { value: 'GBP', label: 'GBP', icon: Currency }
+    { value: 'NGN', label: 'NGN'},
+    { value: 'XFA', label: 'XFA'},
+    { value: 'USD', label: 'USD' },
+    { value: 'EUR', label: 'EUR' },
+    { value: 'GBP', label: 'GBP'  }
   ];
   
   const timeFilters: TimeFilter[] = [
@@ -617,7 +620,7 @@ export default function Dashboard() {
                       <Select.Content className="bg-white rounded-xl shadow-lg border border-gray-200 z-50">
                         <Select.Viewport className="p-2">
                           {currencies.map((curr) => {
-                            const IconComponent = curr.icon;
+                            
                             return (
                               <Select.Item
                                 key={curr.value}
@@ -626,7 +629,7 @@ export default function Dashboard() {
                               >
                                 <Select.ItemText>
                                   <div className="flex items-center space-x-2">
-                                    <IconComponent className="w-4 h-4" />
+                                  
                                     <span>{curr.label}</span>
                                   </div>
                                 </Select.ItemText>
