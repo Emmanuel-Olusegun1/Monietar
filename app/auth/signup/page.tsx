@@ -45,7 +45,7 @@ export default function Signup() {
     const loadingToast = toast.loading('Creating your account...');
 
     try {
-      // 1. Create user in Supabase Auth
+      // Create user in Supabase Auth with additional metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -53,6 +53,10 @@ export default function Signup() {
           data: {
             business_name: formData.business_name,
             name: formData.name,
+            user_metadata: {
+              business_name: formData.business_name,
+              name: formData.name,
+            }
           }
         }
       });
@@ -61,51 +65,18 @@ export default function Signup() {
         throw new Error(authError.message);
       }
 
-      // 2. If signup successful, try to create user record in your database
       if (authData.user) {
-        try {
-          const response = await fetch('/api/users', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              id: authData.user.id,
-              email: formData.email,
-              business_name: formData.business_name,
-              name: formData.name,
-            }),
-          });
-
-          if (!response.ok) {
-            console.error('Failed to create user record in database:', await response.text());
-          }
-
-          toast.success(t.thankYou);
-          
-          // Show redirect notification after a short delay
-          setTimeout(() => {
-            toast.loading('Redirecting to dashboard...');
-          }, 1500);
-          
-          // Redirect to dashboard after a longer delay
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 3000);
-        } catch (dbError) {
-          console.error('Database error:', dbError);
-          toast.success(t.thankYou);
-          
-          // Show redirect notification after a short delay
-          setTimeout(() => {
-            toast.loading('Redirecting to dashboard...');
-          }, 1500);
-          
-          // Still redirect to dashboard since auth was successful
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 3000);
-        }
+        toast.success(t.thankYou || 'Account created successfully!');
+        
+        // Show redirect notification after a short delay
+        setTimeout(() => {
+          toast.loading('Redirecting to dashboard...');
+        }, 1500);
+        
+        // Redirect to dashboard after a longer delay
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 3000);
       }
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -122,6 +93,10 @@ export default function Signup() {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
@@ -176,7 +151,6 @@ export default function Signup() {
       />
       
       {/* The image slider section */}
-      
       <div className='flex-1 relative hidden md:block shadow-lg'>
         <Image
           src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757901059/Junior_Bookkeeper_Finance_Associate_ifwrdq.jpg'
@@ -195,7 +169,7 @@ export default function Signup() {
             onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
             className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 px-3 py-1 rounded-md hover:bg-gray-100"
           >
-           <svg 
+            <svg 
               xmlns="http://www.w3.org/2000/svg" 
               className="h-5 w-5"
               fill="none" 
@@ -242,7 +216,7 @@ export default function Signup() {
         >
           <form onSubmit={handleSubmit} className="">
             <div className="mb-6">
-             <input
+              <input
                 type="text"
                 id="business_name"
                 value={formData.business_name}
@@ -254,7 +228,7 @@ export default function Signup() {
             </div>
             
             <div className="mb-6">
-             <input
+              <input
                 type="text"
                 id="name"
                 value={formData.name}
@@ -286,6 +260,7 @@ export default function Signup() {
                 className="w-full px-4 py-3 rounded-sm border-b border-gray-300 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder-gray-400"
                 placeholder={t.password}
                 required
+                minLength={6}
               />
             </div>
             
@@ -298,6 +273,7 @@ export default function Signup() {
                 className="w-full px-4 py-3 rounded-sm border-b border-gray-300 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder-gray-400"
                 placeholder={t.confirmPassword}
                 required
+                minLength={6}
               />
             </div>
             
@@ -310,7 +286,7 @@ export default function Signup() {
                 <>
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0极5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   {t.creatingAccount}
                 </>
@@ -334,13 +310,13 @@ export default function Signup() {
               disabled={isSigningup}
               className="w-full flex justify-center items-center gap-2 bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
-	            <rect width="48" height="48" fill="none" />
-	            <path fill="#ffc107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917" />
-	            <path fill="#ff3d00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691" />
-	            <path fill="#4caf50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.9 11.9 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44" />
-	            <path fill="#1976d2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
-             </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
+                <rect width="48" height="48" fill="none" />
+                <path fill="#ffc107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917" />
+                <path fill="#ff3d00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691" />
+                <path fill="#4caf50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.9 11.9 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44" />
+                <path fill="#1976d2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
+              </svg>
               {t.signUpWithGoogle}
             </button>
 

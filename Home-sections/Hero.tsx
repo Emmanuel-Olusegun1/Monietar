@@ -2,10 +2,15 @@
 
 import { motion } from 'framer-motion';
 import { useState} from 'react';
+import { Plaster } from 'next/font/google';
 
-
+const plaster = Plaster({
+  subsets: ["latin"],
+  weight: "400",
+});
 
 export default function Hero() {
+
 
     const fadeIn = {
         initial: { opacity: 0, y: 20 },
@@ -19,12 +24,12 @@ export default function Hero() {
 
     return(
 
-         <section className="pt-34 px-4 md:pt-34 pb-16 md:px-54 min-h-[80vh] flex flext-col justify-center items-center">
+      <section className="pt-32 px-4 md:pt-32 pb-16 md:px-8 min-h-[80vh] flex flex-col justify-center items-center">
                 <div className="container mx-auto">
                   <div className="flex flext-col justify-center items-center text-center">
                     <motion.div variants={stagger} initial="initial" animate="animate">
                       <motion.h1 
-                        className="w-full text-4xl lg:text-5xl text-center justify-center items-center xl:text-6xl font-bold text-gray-900 mb-6 leading-tight"
+                        className={`w-full text-4xl lg:text-5xl font-plaster text-center justify-center items-center xl:text-6xl font-bold text-gray-900 mb-6 leading-tight  ${plaster.className}`}
                         variants={fadeIn}
                       >
                         Master Your <span className="text-emerald-500">Business Cash Flow</span> with Ease
@@ -60,4 +65,3 @@ export default function Hero() {
 
     );
 }
-

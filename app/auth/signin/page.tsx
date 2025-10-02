@@ -36,45 +36,33 @@ function SigninContent() {
     }
   }, []);
 
-  // Handle OAuth callback and store user in database
+  // Handle OAuth callback
   useEffect(() => {
     const handleOAuthCallback = async () => {
       if (!supabaseInitialized) return;
       
-      const code = searchParams.get('code');
-      if (code) {
+      // Check if this is an OAuth callback by looking for specific parameters
+      const error = searchParams.get('error');
+      const errorDescription = searchParams.get('error_description');
+      
+      if (error) {
+        toast.error(errorDescription || 'Authentication failed');
+        return;
+      }
+
+      // Check if we have a session (OAuth success)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
         setIsSigningIn(true);
         toast.loading('Completing sign in...');
         
         try {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
-            throw error;
-          }
-
-          const user = data.user;
-          if (user) {
-            // Store or update user in database via API
-            const response = await fetch('/api/users', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                id: user.id,
-                email: user.email!,
-                name: user.user_metadata?.full_name || user.user_metadata?.name || user.email!.split('@')[0],
-                business_name: user.user_metadata?.business_name || '',
-              }),
-            });
-
-            if (!response.ok) {
-              console.error('Failed to create user record');
-            }
-
-            toast.success(t.thankYou || 'Welcome back!');
+          toast.success(t.thankYou || 'Welcome back!');
+          
+          // Redirect to dashboard after a short delay
+          setTimeout(() => {
             router.push('/dashboard');
-          }
+          }, 1000);
         } catch (error: any) {
           console.error('OAuth error:', error);
           toast.error(error.message || 'Failed to sign in');
@@ -84,6 +72,7 @@ function SigninContent() {
         }
       }
     };
+    
     handleOAuthCallback();
   }, [searchParams, router, t.thankYou, supabaseInitialized]);
 
@@ -117,30 +106,24 @@ function SigninContent() {
       }
 
       if (data.session && data.user) {
-        // Store or update user in database via API
-        const response = await fetch('/api/users', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id: data.user.id,
-            email: data.user.email!,
-            name: data.user.user_metadata?.name || data.user.email!.split('@')[0],
-            business_name: data.user.user_metadata?.business_name || '',
-          }),
-        });
-
-        if (!response.ok) {
-          console.error('Failed to update user record');
-        }
-
         toast.success(t.thankYou || 'Welcome back!');
-        router.push('/dashboard');
+        
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1000);
       }
     } catch (error: any) {
       console.error('Signin error:', error);
-      toast.error(error.message || 'Failed to sign in');
+      
+      // More user-friendly error messages
+      if (error.message.includes('Invalid login credentials')) {
+        toast.error('Invalid email or password');
+      } else if (error.message.includes('Email not confirmed')) {
+        toast.error('Please verify your email address before signing in');
+      } else {
+        toast.error(error.message || 'Failed to sign in');
+      }
     } finally {
       setIsSigningIn(false);
       toast.dismiss(loadingToast);
@@ -157,7 +140,11 @@ function SigninContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/signin`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
@@ -168,6 +155,26 @@ function SigninContent() {
     } catch (error: any) {
       console.error('Google signin error:', error);
       toast.error(error.message || 'Failed to sign in with Google');
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!formData.email) {
+      toast.error('Please enter your email address first');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+
+      if (error) throw error;
+
+      toast.success('Password reset instructions sent to your email');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast.error(error.message || 'Failed to send reset instructions');
     }
   };
 
@@ -223,7 +230,7 @@ function SigninContent() {
       </div>
       
       {/* The main and form section */}
-      <div className='flex-1 flex flex-col justify-center items-center p-4 overflow-auto max极h-screen relative'>
+      <div className='flex-1 flex flex-col justify-center items-center p-4 overflow-auto max-h-screen relative'>
         {/* Language Switcher - Top Right */}
         <div className="absolute top-4 right-4">
           <button 
@@ -289,7 +296,7 @@ function SigninContent() {
               />
             </div>
             
-            <div className="mb-6">
+            <div className="mb-4">
               <input
                 type="password"
                 id="password"
@@ -300,6 +307,16 @@ function SigninContent() {
                 required
                 disabled={!supabaseInitialized}
               />
+            </div>
+
+            <div className="mb-6 text-right">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="text-sm text-emerald-600 hover:text-emerald-700 underline"
+              >
+                {(t as any).forgotPassword || 'Forgot password?'}
+              </button>
             </div>
             
             <button
@@ -335,13 +352,13 @@ function SigninContent() {
               disabled={isSigningIn || !supabaseInitialized}
               className="w-full flex justify-center items-center gap-2 bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
-	            <rect width="48" height="48" fill="none" />
-	            <path fill="#ffc107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917" />
-	            <path fill="#ff3d00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691" />
-	            <path fill="#4caf50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.9 11.9 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44" />
-	            <path fill="#1976d2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
-             </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
+                <rect width="48" height="48" fill="none" />
+                <path fill="#ffc107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917" />
+                <path fill="#ff3d00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691" />
+                <path fill="#4caf50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.9 11.9 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44" />
+                <path fill="#1976d2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
+              </svg>
               {t.signInWithGoogle}
             </button>
 
