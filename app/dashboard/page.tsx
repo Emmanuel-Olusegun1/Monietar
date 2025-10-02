@@ -1351,7 +1351,7 @@ export default function Dashboard() {
                     {activeTab === 'settings' && <Settings className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />}
                   </div>
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 capitalize">{activeTab}</h3>
-                  <p className="text-gray-600 text-sm sm:text-base">This section is coming soon. Stay tuned!</p>
+                  <p className="text-gray-600 text-sm sm:text-base">This section is coming soon. Stay tuned!!!p>
                 </div>
               </div>
             )}
