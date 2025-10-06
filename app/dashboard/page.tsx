@@ -13,11 +13,10 @@ import {
   User, Home, CreditCard, FileText, AreaChart, HelpCircle, LogOut,
   Menu, X, Plus, MessageCircle, Send, Bot, XCircle, AlertTriangle,
   Calendar, DollarSign, Euro, Currency, Filter, Download, MoreHorizontal,
-  Languages
+  Languages, Edit, Trash2
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Cell, PieChart as RechartsPieChart, Pie, Legend } from 'recharts';
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
-// 
 
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
   throw new Error('Missing Supabase environment variables');
@@ -36,16 +35,18 @@ interface Transaction {
   category: string;
   description?: string;
   date: string;
+  created_at?: string;
 }
 
 interface Budget {
-  id?: string;
+  id: string;
   user_id: string;
   category: string;
   spent: number;
   budget_limit: number;
   percentage: number;
   period: 'Monthly' | 'Quarterly' | 'Yearly';
+  created_at?: string;
 }
 
 interface Alert {
@@ -109,6 +110,29 @@ interface TimeFilter {
   icon: React.ComponentType<any>;
 }
 
+// Helper function to get week number of the month
+const getWeekOfMonth = (date: Date): number => {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const firstDayWeekday = firstDay.getDay();
+  const offsetDate = date.getDate() + firstDayWeekday - 1;
+  return Math.floor(offsetDate / 7) + 1;
+};
+
+// Helper function to get start and end of week
+const getWeekRange = (date: Date): { start: Date; end: Date } => {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = start.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+  start.setDate(diff);
+  start.setHours(0, 0, 0, 0);
+  
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  
+  return { start, end };
+};
+
 export default function Dashboard() {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User>({
@@ -141,7 +165,7 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   
-  // State variables that were missing
+  // State variables
   const [activeTab, setActiveTab] = useState('overview');
   const [showIncomeForm, setShowIncomeForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -155,6 +179,14 @@ export default function Dashboard() {
   const [currency, setCurrency] = useState('NGN');
   const [newMessage, setNewMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  
+  // Transaction management states
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [deleteTransactionId, setDeleteTransactionId] = useState<string | null>(null);
+  
+  // Budget management states
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
   
   // Form data states
   const [formData, setFormData] = useState({
@@ -185,11 +217,11 @@ export default function Dashboard() {
   
   const languagesList: LanguageOption[] = [
     { value: 'en', label: 'English' },
-  { value: 'fr', label: 'French' },
-  { value: 'sw', label: 'Swahili' },
-  { value: 'yo', label: 'Yoruba' },
-  { value: 'ig', label: 'Igbo' },
-  { value: 'ha', label: 'Hausa' }
+    { value: 'fr', label: 'French' },
+    { value: 'sw', label: 'Swahili' },
+    { value: 'yo', label: 'Yoruba' },
+    { value: 'ig', label: 'Igbo' },
+    { value: 'ha', label: 'Hausa' }
   ];
   
   const currencies: CurrencyOption[] = [
@@ -221,7 +253,7 @@ export default function Dashboard() {
     setSession(null);
   };
 
-  // Calculate category breakdown
+  // Calculate category breakdown from actual transactions
   const categoryBreakdown = useMemo(() => {
     const incomeBreakdown: CategoryData[] = [];
     const expenseBreakdown: CategoryData[] = [];
@@ -250,19 +282,176 @@ export default function Dashboard() {
     };
   }, [financialData.transactions]);
 
-  // Calculate current trend data based on time filter
+  // Calculate trend data based on actual transactions and time filter
   const currentTrendData = useMemo(() => {
-    // Simplified mock data - in a real app, you'd aggregate based on the actual time filter
-    return [
-      { day: 'Mon', income: 1200, expenses: 800 },
-      { day: 'Tue', income: 1900, expenses: 1200 },
-      { day: 'Wed', income: 1500, expenses: 900 },
-      { day: 'Thu', income: 2100, expenses: 1100 },
-      { day: 'Fri', income: 1800, expenses: 1000 },
-      { day: 'Sat', income: 900, expenses: 600 },
-      { day: 'Sun', income: 700, expenses: 500 }
-    ];
-  }, [timeFilter]);
+    if (financialData.transactions.length === 0) {
+      return [];
+    }
+
+    const now = new Date();
+    let data: { period: string; income: number; expenses: number }[] = [];
+
+    switch (timeFilter) {
+      case 'daily':
+        // Last 7 days
+        data = Array.from({ length: 7 }, (_, i) => {
+          const date = new Date(now);
+          date.setDate(now.getDate() - (6 - i));
+          const period = date.toLocaleDateString('en-US', { weekday: 'short' });
+          
+          const dayTransactions = financialData.transactions.filter(t => {
+            const transactionDate = new Date(t.date);
+            return transactionDate.toDateString() === date.toDateString();
+          });
+
+          const income = dayTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+            
+          const expenses = dayTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+          return { period, income, expenses };
+        });
+        break;
+
+      case 'weekly':
+        // Last 4 weeks from current date
+        data = Array.from({ length: 4 }, (_, i) => {
+          const targetDate = new Date(now);
+          targetDate.setDate(now.getDate() - (3 - i) * 7);
+          const weekNumber = getWeekOfMonth(targetDate);
+          const period = `Week ${weekNumber}`;
+          
+          const { start, end } = getWeekRange(targetDate);
+          
+          const weekTransactions = financialData.transactions.filter(t => {
+            const transactionDate = new Date(t.date);
+            return transactionDate >= start && transactionDate <= end;
+          });
+
+          const income = weekTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+            
+          const expenses = weekTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+          return { period, income, expenses };
+        });
+        break;
+
+      case 'monthly':
+        // Last 6 months
+        data = Array.from({ length: 6 }, (_, i) => {
+          const month = new Date(now);
+          month.setMonth(now.getMonth() - (5 - i));
+          const period = month.toLocaleDateString('en-US', { month: 'short' });
+          
+          const monthTransactions = financialData.transactions.filter(t => {
+            const transactionDate = new Date(t.date);
+            return transactionDate.getMonth() === month.getMonth() && 
+                   transactionDate.getFullYear() === month.getFullYear();
+          });
+
+          const income = monthTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+            
+          const expenses = monthTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+          return { period, income, expenses };
+        });
+        break;
+
+      case 'yearly':
+        // Last 3 years
+        data = Array.from({ length: 3 }, (_, i) => {
+          const year = now.getFullYear() - (2 - i);
+          const period = year.toString();
+          
+          const yearTransactions = financialData.transactions.filter(t => {
+            const transactionDate = new Date(t.date);
+            return transactionDate.getFullYear() === year;
+          });
+
+          const income = yearTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+            
+          const expenses = yearTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+          return { period, income, expenses };
+        });
+        break;
+    }
+
+    return data;
+  }, [financialData.transactions, timeFilter]);
+
+  // Check if user has any transaction data
+  const hasTransactionData = useMemo(() => {
+    return financialData.transactions.length > 0;
+  }, [financialData.transactions]);
+
+  // Real-time budget tracking calculation
+  const budgetsWithRealTimeTracking = useMemo(() => {
+    return financialData.budgets.map(budget => {
+      // Calculate spent amount from transactions for this budget category
+      const spent = financialData.transactions
+        .filter(transaction => 
+          transaction.type === 'expense' && 
+          transaction.category === budget.category
+        )
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
+      
+      const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
+      
+      return {
+        ...budget,
+        spent,
+        percentage
+      };
+    });
+  }, [financialData.budgets, financialData.transactions]);
+
+  // Real-time alerts based on actual spending
+  const realTimeAlerts = useMemo(() => {
+    const alerts: Alert[] = [];
+    
+    budgetsWithRealTimeTracking.forEach(budget => {
+      if (budget.percentage > 100) {
+        alerts.push({
+          type: 'alert',
+          message: `${budget.category} spending exceeded limit by ${formatCurrency(budget.spent - budget.budget_limit)}!`,
+          category: budget.category,
+          priority: 'critical'
+        });
+      } else if (budget.percentage >= 80) {
+        alerts.push({
+          type: 'warning',
+          message: `${budget.category} budget nearing limit (${Math.round(budget.percentage)}%)`,
+          category: budget.category,
+          priority: 'high'
+        });
+      } else if (budget.percentage >= 50) {
+        alerts.push({
+          type: 'info',
+          message: `${budget.category} budget halfway used (${Math.round(budget.percentage)}%)`,
+          category: budget.category,
+          priority: 'low'
+        });
+      }
+    });
+    
+    return alerts;
+  }, [budgetsWithRealTimeTracking]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -329,29 +518,6 @@ export default function Dashboard() {
       const expenses = (transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0);
       const profit = income - expenses;
 
-      // Calculate alerts
-      const computedAlerts: Alert[] = (budgets || []).map(b => {
-        const perc = (b.spent / b.budget_limit) * 100;
-        let type: 'alert' | 'warning' | 'info';
-        let message: string;
-        let priority: 'critical' | 'high' | 'low';
-        
-        if (perc > 100) {
-          type = 'alert';
-          message = `${b.category} spending exceeded limit!`;
-          priority = 'critical';
-        } else if (perc >= 80) {
-          type = 'warning';
-          message = `${b.category} budget nearing limit (${Math.round(perc)}%)`;
-          priority = 'high';
-        } else {
-          type = 'info';
-          message = `${b.category} budget on track`;
-          priority = 'low';
-        }
-        return { type, message, category: b.category, priority };
-      });
-
       setFinancialData(prev => ({
         ...prev,
         income,
@@ -359,7 +525,7 @@ export default function Dashboard() {
         profit,
         transactions: transactions || [],
         budgets: budgets || [],
-        alerts: computedAlerts
+        alerts: realTimeAlerts
       }));
 
       // Set user data - fallback to session data if profile doesn't exist
@@ -382,6 +548,7 @@ export default function Dashboard() {
     }
   }
 
+  // Transaction Management Functions
   const handleAddTransaction = async (type: 'income' | 'expense') => {
     if (!formData.amount || !formData.category || !session) {
       showToast('Please fill all required fields or log in');
@@ -412,6 +579,65 @@ export default function Dashboard() {
     }
   };
 
+  const handleEditTransaction = async () => {
+    if (!editingTransaction || !session) {
+      showToast('Please log in to edit transactions');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({
+          amount: parseFloat(formData.amount),
+          category: formData.category,
+          description: formData.description,
+          date: formData.date
+        })
+        .eq('id', editingTransaction.id)
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+
+      showToast('Transaction updated successfully!');
+      setEditingTransaction(null);
+      setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
+      
+      // Refresh data
+      await fetchData(session);
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      showToast('Error updating transaction');
+    }
+  };
+
+  const handleDeleteTransaction = async (transactionId: string) => {
+    if (!session) {
+      showToast('Please log in to delete transactions');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', transactionId)
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+
+      showToast('Transaction deleted successfully!');
+      setDeleteTransactionId(null);
+      
+      // Refresh data
+      await fetchData(session);
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      showToast('Error deleting transaction');
+    }
+  };
+
+  // Budget Management Functions
   const handleAddBudget = async () => {
     if (!budgetFormData.category || !budgetFormData.budget_limit || !session) {
       showToast('Please fill all required fields or log in');
@@ -442,6 +668,63 @@ export default function Dashboard() {
     }
   };
 
+  const handleEditBudget = async () => {
+    if (!editingBudget || !session) {
+      showToast('Please log in to edit budgets');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('budgets')
+        .update({
+          category: budgetFormData.category,
+          budget_limit: parseFloat(budgetFormData.budget_limit),
+          period: budgetFormData.period
+        })
+        .eq('id', editingBudget.id)
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+
+      showToast('Budget updated successfully!');
+      setEditingBudget(null);
+      setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
+      
+      // Refresh data
+      await fetchData(session);
+    } catch (error) {
+      console.error('Error updating budget:', error);
+      showToast('Error updating budget');
+    }
+  };
+
+  const handleDeleteBudget = async (budgetId: string) => {
+    if (!session) {
+      showToast('Please log in to delete budgets');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('budgets')
+        .delete()
+        .eq('id', budgetId)
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+
+      showToast('Budget deleted successfully!');
+      setDeleteBudgetId(null);
+      
+      // Refresh data
+      await fetchData(session);
+    } catch (error) {
+      console.error('Error deleting budget:', error);
+      showToast('Error deleting budget');
+    }
+  };
+
   const showToast = (message: string) => {
     setToastMessage(message);
     setToastOpen(true);
@@ -466,13 +749,7 @@ export default function Dashboard() {
 
   // Get data key for chart based on time filter
   const getDataKey = () => {
-    switch(timeFilter) {
-      case 'daily': return 'day';
-      case 'weekly': return 'week';
-      case 'monthly': return 'month';
-      case 'yearly': return 'year';
-      default: return 'day';
-    }
+    return 'period';
   };
 
   // Custom tooltip for charts
@@ -487,6 +764,73 @@ export default function Dashboard() {
       );
     }
     return null;
+  };
+
+  // Empty state component
+  const EmptyState = ({ 
+    title, 
+    description, 
+    icon: Icon, 
+    action 
+  }: { 
+    title: string; 
+    description: string; 
+    icon: React.ComponentType<any>;
+    action?: React.ReactNode;
+  }) => (
+    <div className="text-center py-12">
+      <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <Icon className="w-8 h-8 text-gray-400" />
+      </div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+      <p className="text-gray-600 mb-6 max-w-sm mx-auto">{description}</p>
+      {action}
+    </div>
+  );
+
+  // Start editing a transaction
+  const startEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setFormData({
+      amount: transaction.amount.toString(),
+      category: transaction.category,
+      description: transaction.description || '',
+      date: transaction.date
+    });
+  };
+
+  // Start editing a budget
+  const startEditBudget = (budget: Budget) => {
+    setEditingBudget(budget);
+    setBudgetFormData({
+      category: budget.category,
+      budget_limit: budget.budget_limit.toString(),
+      period: budget.period
+    });
+  };
+
+  // Reset forms when dialogs close
+  const handleBudgetDialogClose = () => {
+    setShowBudgetForm(false);
+    setEditingBudget(null);
+    setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
+  };
+
+  const handleTransactionDialogClose = () => {
+    setShowIncomeForm(false);
+    setShowExpenseForm(false);
+    setEditingTransaction(null);
+    setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
+  };
+
+  const handleEditTransactionDialogClose = () => {
+    setEditingTransaction(null);
+    setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
+  };
+
+  const handleEditBudgetDialogClose = () => {
+    setEditingBudget(null);
+    setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
   };
 
   if (loading) {
@@ -506,7 +850,6 @@ export default function Dashboard() {
     );
   }
 
-  // Rest of your JSX remains the same...
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex">
       <Toast.Provider>
@@ -621,7 +964,6 @@ export default function Dashboard() {
                       <Select.Content className="bg-white rounded-xl shadow-lg border border-gray-200 z-50">
                         <Select.Viewport className="p-2">
                           {currencies.map((curr) => {
-                            
                             return (
                               <Select.Item
                                 key={curr.value}
@@ -630,7 +972,6 @@ export default function Dashboard() {
                               >
                                 <Select.ItemText>
                                   <div className="flex items-center space-x-2">
-                                  
                                     <span>{curr.label}</span>
                                   </div>
                                 </Select.ItemText>
@@ -645,7 +986,7 @@ export default function Dashboard() {
                   <button className="p-2 rounded-xl hover:bg-gray-100 relative hover:cursor-pointer">
                     <Bell className="w-5 h-5 text-gray-600" />
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                      {financialData.alerts.length}
+                      {realTimeAlerts.length}
                     </span>
                   </button>
                   
@@ -668,7 +1009,6 @@ export default function Dashboard() {
             </div>
           </header>
 
-          {/* ... Rest of your JSX remains exactly the same ... */}
           {/* Mobile Menu */}
           <AnimatePresence>
             {isMobileMenuOpen && (
@@ -745,7 +1085,7 @@ export default function Dashboard() {
             )}
           </AnimatePresence>
 
-          {/* Main Content - The rest of your JSX remains exactly the same */}
+          {/* Main Content */}
           <main className="flex-1 overflow-y-auto p-4 sm:p-6">
             {/* Header Actions */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 sm:mb-8">
@@ -764,7 +1104,7 @@ export default function Dashboard() {
               </div>
               
               <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
-                <Dialog.Root open={showIncomeForm} onOpenChange={setShowIncomeForm}>
+                <Dialog.Root open={showIncomeForm} onOpenChange={handleTransactionDialogClose}>
                   <Dialog.Trigger asChild>
                     <button className="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm hover:cursor-pointer text-sm sm:text-base">
                       <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -774,7 +1114,9 @@ export default function Dashboard() {
                   <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
                     <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
-                      <Dialog.Title className="text-lg font-semibold mb-4">Add Income</Dialog.Title>
+                      <Dialog.Title className="text-lg font-semibold mb-4">
+                        Add Income
+                      </Dialog.Title>
                       <div className="space-y-4">
                         <input
                           type="number"
@@ -824,7 +1166,7 @@ export default function Dashboard() {
                   </Dialog.Portal>
                 </Dialog.Root>
 
-                <Dialog.Root open={showExpenseForm} onOpenChange={setShowExpenseForm}>
+                <Dialog.Root open={showExpenseForm} onOpenChange={handleTransactionDialogClose}>
                   <Dialog.Trigger asChild>
                     <button className="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shadow-sm hover:cursor-pointer text-sm sm:text-base">
                       <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -834,7 +1176,9 @@ export default function Dashboard() {
                   <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
                     <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
-                      <Dialog.Title className="text-lg font-semibold mb-4">Add Expense</Dialog.Title>
+                      <Dialog.Title className="text-lg font-semibold mb-4">
+                        Add Expense
+                      </Dialog.Title>
                       <div className="space-y-4">
                         <input
                           type="number"
@@ -951,7 +1295,8 @@ export default function Dashboard() {
                   {/* Income vs Expenses Bar Chart with Filter */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    animate={{ opacity: 1, y: 0 }
+                    }
                     transition={{ delay: 0.3 }}
                     className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-200 mt-4 sm:mt-6"
                   >
@@ -981,8 +1326,32 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="h-64 sm:h-80">
-                      {currentTrendData.every(d => d.income === 0 && d.expenses === 0) ? (
-                        <div className="flex items-center justify-center h-full text-gray-500">No data available</div>
+                      {!hasTransactionData ? (
+                        <EmptyState
+                          title="No Transaction Data"
+                          description="Start adding income and expenses to see your financial trends visualized here."
+                          icon={BarChart3}
+                          action={
+                            <div className="flex gap-2 justify-center">
+                              <button 
+                                onClick={() => setShowIncomeForm(true)}
+                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                              >
+                                Add Income
+                              </button>
+                              <button 
+                                onClick={() => setShowExpenseForm(true)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                              >
+                                Add Expense
+                              </button>
+                            </div>
+                          }
+                        />
+                      ) : currentTrendData.every(d => d.income === 0 && d.expenses === 0) ? (
+                        <div className="flex items-center justify-center h-full text-gray-500">
+                          No data available for selected time period
+                        </div>
                       ) : (
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={currentTrendData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -1017,7 +1386,19 @@ export default function Dashboard() {
                         <h4 className="text-sm font-medium text-emerald-700 mb-3 sm:mb-4 text-center">Income Sources</h4>
                         <div className="h-56 sm:h-64">
                           {categoryBreakdown.income.reduce((sum, item) => sum + item.value, 0) === 0 ? (
-                            <div className="flex items-center justify-center h-full text-gray-500">No income data</div>
+                            <EmptyState
+                              title="No Income Data"
+                              description="Add income transactions to see your income sources breakdown."
+                              icon={TrendingUp}
+                              action={
+                                <button 
+                                  onClick={() => setShowIncomeForm(true)}
+                                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                                >
+                                  Add Income
+                                </button>
+                              }
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <RechartsPieChart>
@@ -1049,7 +1430,19 @@ export default function Dashboard() {
                         <h4 className="text-sm font-medium text-red-700 mb-3 sm:mb-4 text-center">Expense Categories</h4>
                         <div className="h-56 sm:h-64">
                           {categoryBreakdown.expenses.reduce((sum, item) => sum + item.value, 0) === 0 ? (
-                            <div className="flex items-center justify-center h-full text-gray-500">No expense data</div>
+                            <EmptyState
+                              title="No Expense Data"
+                              description="Add expense transactions to see your spending categories breakdown."
+                              icon={TrendingDown}
+                              action={
+                                <button 
+                                  onClick={() => setShowExpenseForm(true)}
+                                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                >
+                                  Add Expense
+                                </button>
+                              }
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <RechartsPieChart>
@@ -1061,7 +1454,7 @@ export default function Dashboard() {
                                   dataKey="value"
                                   label={(props) => {
                                     const { name, value } = props;
-                                    const total = categoryBreakdown.income.reduce((sum, item) => sum + item.value, 0);
+                                    const total = categoryBreakdown.expenses.reduce((sum, item) => sum + item.value, 0);
                                     const percentage = total > 0 ? ((value as number / total) * 100).toFixed(0) : "0";
                                     return `${name} (${percentage}%)`;
                                   }}
@@ -1092,16 +1485,28 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center justify-between mb-4 sm:mb-6">
                       <h3 className="text-lg font-semibold text-gray-900">Budget Management</h3>
-                      <button onClick={() => setActiveTab('budgets')} className="p-2 hover:bg-gray-100 rounded-lg">
+                      <button onClick={() => setShowBudgetForm(true)} className="p-2 hover:bg-gray-100 rounded-lg">
                         <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       </button>
                     </div>
                     <div className="space-y-3 sm:space-y-4">
-                      {financialData.budgets.length === 0 ? (
-                        <div className="text-center text-gray-500 py-8">No budgets set. Add one!</div>
+                      {budgetsWithRealTimeTracking.length === 0 ? (
+                        <EmptyState
+                          title="No Budgets Set"
+                          description="Create budgets to track your spending and get alerts when you're nearing your limits."
+                          icon={PieChart}
+                          action={
+                            <button 
+                              onClick={() => setShowBudgetForm(true)}
+                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                            >
+                              Create Budget
+                            </button>
+                          }
+                        />
                       ) : (
-                        financialData.budgets.map((budget, index) => (
-                          <div key={index} className="p-3 sm:p-4 bg-gray-50 rounded-xl">
+                        budgetsWithRealTimeTracking.map((budget, index) => (
+                          <div key={budget.id} className="p-3 sm:p-4 bg-gray-50 rounded-xl group relative">
                             <div className="flex justify-between items-center mb-2">
                               <div>
                                 <span className="text-sm font-medium text-gray-700">{budget.category}</span>
@@ -1127,6 +1532,24 @@ export default function Dashboard() {
                               <span className="text-xs text-gray-500">{Math.round(budget.percentage)}% spent</span>
                               <span className="text-xs text-gray-500">{formatCurrency(budget.budget_limit - budget.spent)} remaining</span>
                             </div>
+                            
+                            {/* Edit/Delete buttons */}
+                            <div className="absolute top-3 right-3 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => startEditBudget(budget)}
+                                className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                title="Edit budget"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => setDeleteBudgetId(budget.id)}
+                                className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                title="Delete budget"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                         ))
                       )}
@@ -1145,10 +1568,10 @@ export default function Dashboard() {
                       <AlertTriangle className="w-5 h-5 text-yellow-500" />
                     </div>
                     <div className="space-y-3">
-                      {financialData.alerts.length === 0 ? (
+                      {realTimeAlerts.length === 0 ? (
                         <div className="text-center text-gray-500 py-8">No alerts</div>
                       ) : (
-                        financialData.alerts.map((alert, index) => (
+                        realTimeAlerts.map((alert, index) => (
                           <div
                             key={index}
                             className={`p-3 sm:p-4 rounded-xl border ${
@@ -1225,16 +1648,39 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold text-gray-900">Recent Transactions</h3>
-                      <button className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
+                      <button 
+                        onClick={() => setActiveTab('transactions')}
+                        className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                      >
                         View All
                       </button>
                     </div>
                     <div className="space-y-3">
                       {financialData.transactions.length === 0 ? (
-                        <div className="text-center text-gray-500 py-8">No transactions yet. Add some!</div>
+                        <EmptyState
+                          title="No Transactions"
+                          description="Start by adding your first income or expense transaction to track your finances."
+                          icon={CreditCard}
+                          action={
+                            <div className="flex gap-2 justify-center">
+                              <button 
+                                onClick={() => setShowIncomeForm(true)}
+                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                              >
+                                Add Income
+                              </button>
+                              <button 
+                                onClick={() => setShowExpenseForm(true)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                              >
+                                Add Expense
+                              </button>
+                            </div>
+                          }
+                        />
                       ) : (
                         financialData.transactions.slice(0, 5).map((transaction) => (
-                          <div key={transaction.id} className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                          <div key={transaction.id} className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group">
                             <div className="flex items-center">
                               <div className={`p-2 rounded-lg mr-3 ${
                                 transaction.type === 'income' ? 'bg-emerald-100' : 'bg-red-100'
@@ -1286,7 +1732,7 @@ export default function Dashboard() {
                       <div className="flex justify-between items-center p-3 sm:p-4 bg-gray-50 rounded-xl">
                         <span className="text-sm text-gray-600">Transactions</span>
                         <span className="text-sm font-medium text-gray-900">
-                          {financialData.transactions.length} this month
+                          {financialData.transactions.length} total
                         </span>
                       </div>
                     </div>
@@ -1295,45 +1741,221 @@ export default function Dashboard() {
               </div>
             )}
                             
-            {/* Other tabs content */}
+            {/* Transactions Tab Content */}
+            {activeTab === 'transactions' && (
+              <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">All Transactions</h3>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setShowIncomeForm(true)}
+                      className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Income</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowExpenseForm(true)}
+                      className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Expense</span>
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  {financialData.transactions.length === 0 ? (
+                    <EmptyState
+                      title="No Transactions"
+                      description="Start by adding your first income or expense transaction to track your finances."
+                      icon={CreditCard}
+                      action={
+                        <div className="flex gap-2 justify-center">
+                          <button 
+                            onClick={() => setShowIncomeForm(true)}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                          >
+                            Add Income
+                          </button>
+                          <button 
+                            onClick={() => setShowExpenseForm(true)}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                          >
+                            Add Expense
+                          </button>
+                        </div>
+                      }
+                    />
+                  ) : (
+                    financialData.transactions.map((transaction) => (
+                      <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group">
+                        <div className="flex items-center space-x-4 flex-1">
+                          <div className={`p-3 rounded-lg ${
+                            transaction.type === 'income' ? 'bg-emerald-100' : 'bg-red-100'
+                          }`}>
+                            {transaction.type === 'income' ? (
+                              <TrendingUp className="w-5 h-5 text-emerald-600" />
+                            ) : (
+                              <TrendingDown className="w-5 h-5 text-red-600" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <p className="font-medium text-gray-900 truncate">{transaction.category}</p>
+                              <span className={`px-2 py-1 text-xs rounded-full ${
+                                transaction.type === 'income' 
+                                  ? 'bg-emerald-100 text-emerald-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {transaction.type}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 truncate mt-1">
+                              {transaction.description || 'No description'}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(transaction.date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-3">
+                          <p className={`text-lg font-semibold ${
+                            transaction.type === 'income' ? 'text-emerald-600' : 'text-red-600'
+                          }`}>
+                            {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                          </p>
+                          
+                          <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => startEditTransaction(transaction)}
+                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                              title="Edit transaction"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTransactionId(transaction.id)}
+                              className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                              title="Delete transaction"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+                            
+            {/* Budgets Tab Content */}
             {activeTab === 'budgets' && (
               <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-200">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Budgets</h3>
-                  <button onClick={() => setShowBudgetForm(true)} className="p-2 hover:bg-gray-100 rounded-lg">
-                    <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Budget Management</h3>
+                  <button 
+                    onClick={() => setShowBudgetForm(true)}
+                    className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create Budget</span>
                   </button>
                 </div>
-                <div className="space-y-3 sm:space-y-4">
-                  {financialData.budgets.length === 0 ? (
-                    <div className="text-center text-gray-500 py-8">No budgets set. Add one!</div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {budgetsWithRealTimeTracking.length === 0 ? (
+                    <div className="col-span-full">
+                      <EmptyState
+                        title="No Budgets Set"
+                        description="Create budgets to track your spending and get alerts when you're nearing your limits."
+                        icon={PieChart}
+                        action={
+                          <button 
+                            onClick={() => setShowBudgetForm(true)}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                          >
+                            Create Budget
+                          </button>
+                        }
+                      />
+                    </div>
                   ) : (
-                    financialData.budgets.map((budget, index) => (
-                      <div key={index} className="p-3 sm:p-4 bg-gray-50 rounded-xl">
-                        <div className="flex justify-between items-center mb-2">
+                    budgetsWithRealTimeTracking.map((budget) => (
+                      <div key={budget.id} className="p-4 sm:p-6 bg-gray-50 rounded-xl border border-gray-200 group relative">
+                        <div className="flex justify-between items-center mb-3">
                           <div>
-                            <span className="text-sm font-medium text-gray-700">{budget.category}</span>
-                            <span className="text-xs text-gray-500 ml-2">({budget.period})</span>
+                            <h4 className="text-lg font-semibold text-gray-900">{budget.category}</h4>
+                            <p className="text-sm text-gray-500">{budget.period} Budget</p>
                           </div>
-                          <span className="text-sm text-gray-600">
-                            {formatCurrency(budget.spent)} / {formatCurrency(budget.budget_limit)}
+                          <div className={`p-2 rounded-lg ${
+                            budget.percentage >= 90
+                              ? 'bg-red-100 text-red-600'
+                              : budget.percentage >= 75
+                              ? 'bg-yellow-100 text-yellow-600'
+                              : 'bg-emerald-100 text-emerald-600'
+                          }`}>
+                            {Math.round(budget.percentage)}%
+                          </div>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <div className="flex justify-between text-sm text-gray-600 mb-1">
+                            <span>Spent</span>
+                            <span>Limit</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                            <div
+                              className={`h-3 rounded-full transition-all duration-500 ${
+                                budget.percentage >= 90
+                                  ? 'bg-red-500'
+                                  : budget.percentage >= 75
+                                  ? 'bg-yellow-500'
+                                  : 'bg-emerald-600'
+                              }`}
+                              style={{ width: `${Math.min(budget.percentage, 100)}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between text-sm font-medium">
+                            <span className="text-gray-900">{formatCurrency(budget.spent)}</span>
+                            <span className="text-gray-900">{formatCurrency(budget.budget_limit)}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">
+                            {formatCurrency(budget.budget_limit - budget.spent)} remaining
+                          </span>
+                          <span className={`font-medium ${
+                            budget.percentage >= 90
+                              ? 'text-red-600'
+                              : budget.percentage >= 75
+                              ? 'text-yellow-600'
+                              : 'text-emerald-600'
+                          }`}>
+                            {budget.percentage >= 90 ? 'Over Budget' : 
+                             budget.percentage >= 75 ? 'Almost There' : 'On Track'}
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                          <div
-                            className={`h-2 rounded-full transition-all duration-500 ${
-                              budget.percentage >= 90
-                                ? 'bg-red-500'
-                                : budget.percentage >= 75
-                                ? 'bg-yellow-500'
-                                : 'bg-emerald-600'
-                            }`}
-                            style={{ width: `${Math.min(budget.percentage, 100)}%` }}
-                          ></div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-gray-500">{Math.round(budget.percentage)}% spent</span>
-                          <span className="text-xs text-gray-500">{formatCurrency(budget.budget_limit - budget.spent)} remaining</span>
+                        
+                        {/* Edit/Delete buttons */}
+                        <div className="absolute top-4 right-4 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => startEditBudget(budget)}
+                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                            title="Edit budget"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteBudgetId(budget.id)}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Delete budget"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))
@@ -1342,13 +1964,12 @@ export default function Dashboard() {
               </div>
             )}
 
-            {activeTab !== 'overview' && activeTab !== 'budgets' && (
+            {activeTab !== 'overview' && activeTab !== 'transactions' && activeTab !== 'budgets' && (
               <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-200">
                 <div className="text-center py-8 sm:py-12">
                   <div className="w-14 h-14 sm:w-16 sm:h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    {activeTab === 'transactions' && <CreditCard className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />}
                     {activeTab === 'reports' && <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />}
-                    {activeTab === 'analytics' && <LineChart className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />}
+                    {activeTab === 'analytics' && <BarChart3  className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />}
                     {activeTab === 'settings' && <Settings className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />}
                   </div>
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 capitalize">{activeTab}</h3>
@@ -1442,12 +2063,14 @@ export default function Dashboard() {
             )}
           </AnimatePresence>
 
-          {/* Budget Form Dialog */}
-          <Dialog.Root open={showBudgetForm} onOpenChange={setShowBudgetForm}>
+          {/* Add Budget Form Dialog */}
+          <Dialog.Root open={showBudgetForm} onOpenChange={handleBudgetDialogClose}>
             <Dialog.Portal>
               <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
               <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
-                <Dialog.Title className="text-lg font-semibold mb-4">Add Budget</Dialog.Title>
+                <Dialog.Title className="text-lg font-semibold mb-4">
+                  Create Budget
+                </Dialog.Title>
                 <div className="space-y-4">
                   <select
                     value={budgetFormData.category}
@@ -1480,14 +2103,182 @@ export default function Dashboard() {
                       onClick={handleAddBudget}
                       className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700"
                     >
-                      Add Budget
+                      Create Budget
                     </button>
-                    <Dialog.Close asChild>
-                      <button className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50">
-                        Cancel
-                      </button>
-                    </Dialog.Close>
+                    <button
+                      onClick={handleBudgetDialogClose}
+                      className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
                   </div>
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+
+          {/* Edit Budget Form Dialog */}
+          <Dialog.Root open={!!editingBudget} onOpenChange={handleEditBudgetDialogClose}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
+              <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+                <Dialog.Title className="text-lg font-semibold mb-4">
+                  Edit Budget
+                </Dialog.Title>
+                <div className="space-y-4">
+                  <select
+                    value={budgetFormData.category}
+                    onChange={(e) => setBudgetFormData({...budgetFormData, category: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">Select Category</option>
+                    {expenseCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    placeholder="Budget Limit"
+                    value={budgetFormData.budget_limit}
+                    onChange={(e) => setBudgetFormData({...budgetFormData, budget_limit: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <select
+                    value={budgetFormData.period}
+                    onChange={(e) => setBudgetFormData({...budgetFormData, period: e.target.value as 'Monthly' | 'Quarterly' | 'Yearly'})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="Monthly">Monthly</option>
+                    <option value="Quarterly">Quarterly</option>
+                    <option value="Yearly">Yearly</option>
+                  </select>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={handleEditBudget}
+                      className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700"
+                    >
+                      Update Budget
+                    </button>
+                    <button
+                      onClick={handleEditBudgetDialogClose}
+                      className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+
+          {/* Edit Transaction Form Dialog */}
+          <Dialog.Root open={!!editingTransaction} onOpenChange={handleEditTransactionDialogClose}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
+              <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+                <Dialog.Title className="text-lg font-semibold mb-4">
+                  Edit Transaction
+                </Dialog.Title>
+                <div className="space-y-4">
+                  <input
+                    type="number"
+                    placeholder="Amount"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">Select Category</option>
+                    {editingTransaction?.type === 'income' 
+                      ? categories.map(cat => <option key={cat} value={cat}>{cat}</option>)
+                      : expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
+                    }
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({...formData, date: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={handleEditTransaction}
+                      className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700"
+                    >
+                      Update Transaction
+                    </button>
+                    <button
+                      onClick={handleEditTransactionDialogClose}
+                      className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+
+          {/* Delete Transaction Confirmation Dialog */}
+          <Dialog.Root open={!!deleteTransactionId} onOpenChange={(open) => !open && setDeleteTransactionId(null)}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
+              <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+                <Dialog.Title className="text-lg font-semibold mb-2">Delete Transaction</Dialog.Title>
+                <Dialog.Description className="text-gray-600 mb-6">
+                  Are you sure you want to delete this transaction? This action cannot be undone.
+                </Dialog.Description>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => deleteTransactionId && handleDeleteTransaction(deleteTransactionId)}
+                    className="flex-1 bg-red-600 text-white py-3 rounded-xl hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setDeleteTransactionId(null)}
+                    className="flex-1 border border-gray-300 py-3 rounded-xl hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+
+          {/* Delete Budget Confirmation Dialog */}
+          <Dialog.Root open={!!deleteBudgetId} onOpenChange={(open) => !open && setDeleteBudgetId(null)}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
+              <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+                <Dialog.Title className="text-lg font-semibold mb-2">Delete Budget</Dialog.Title>
+                <Dialog.Description className="text-gray-600 mb-6">
+                  Are you sure you want to delete this budget? This action cannot be undone.
+                </Dialog.Description>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => deleteBudgetId && handleDeleteBudget(deleteBudgetId)}
+                    className="flex-1 bg-red-600 text-white py-3 rounded-xl hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setDeleteBudgetId(null)}
+                    className="flex-1 border border-gray-300 py-3 rounded-xl hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </Dialog.Content>
             </Dialog.Portal>

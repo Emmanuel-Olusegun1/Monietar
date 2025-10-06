@@ -24,7 +24,7 @@ export default function Hero() {
         <section 
             className="min-h-screen pt-32 md:pt-32 px-4 md:pt-32 pb-16 md:px-8 flex flex-col justify-center items-center relative bg-cover bg-center bg-no-repeat"
             style={{
-                backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("https://res.cloudinary.com/dzibfknxq/image/upload/v1759420216/unnamed_s4ud02.png")'
+                backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80")'
             }}
         >
             {/* Optional: Add an overlay for better text readability */}
