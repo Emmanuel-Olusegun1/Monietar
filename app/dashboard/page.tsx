@@ -13,7 +13,7 @@ import {
   User, Home, CreditCard, FileText, AreaChart, HelpCircle, LogOut,
   Menu, X, Plus, MessageCircle, Send, Bot, XCircle, AlertTriangle,
   Calendar, DollarSign, Euro, Currency, Filter, Download, MoreHorizontal,
-  Languages, Edit, Trash2
+  Languages, Edit, Trash2, Save, Key, ChevronRight
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Cell, PieChart as RechartsPieChart, Pie, Legend } from 'recharts';
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
@@ -110,6 +110,7 @@ interface TimeFilter {
   icon: React.ComponentType<any>;
 }
 
+
 // Helper function to get week number of the month
 const getWeekOfMonth = (date: Date): number => {
   const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -179,6 +180,9 @@ export default function Dashboard() {
   const [currency, setCurrency] = useState('NGN');
   const [newMessage, setNewMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [availableBackups, setAvailableBackups] = useState<any[]>([]);
+  const [selectedBackup, setSelectedBackup] = useState<string>('');
   
   // Transaction management states
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -202,91 +206,180 @@ export default function Dashboard() {
     period: 'Monthly' as 'Monthly' | 'Quarterly' | 'Yearly'
   });
 
-  // Helper data arrays
-// Income categories for dropdown
-const categories = [
-  'Selling Products',
-  'Service Work',
-  'Consulting Work',
-  'Monthly Subscriptions',
-  'Shop Sales',
-  'Online Sales',
-  'Big Project Work',
-  'Regular Customer Payments',
-  'Commission Money',
-  'Renting Things Out',
-  'Bank Interest',
-  'Investment Money',
-  'Teaching/Training',
-  'Repair Work',
-  'Installation Work',
-  'Support Services',
-  'Digital Products',
-  'Advertising Money',
-  'Referral Commissions',
-  'Software Subscriptions',
-  'Online Courses',
-  'Government Help',
-  'Business Grants',
-  'Partnership Money',
-  'Franchise Fees',
-  'Event Services',
-  'Delivery Services',
-  'Cleaning Services',
-  'Security Services',
-  'Construction Work',
-  'Farming Products',
-  'Transport Services',
-  'Health Services',
-  'Beauty Services',
-  'Food Sales',
-  'Others'
-];
+  // Settings states
+  const [userSettings, setUserSettings] = useState({
+    fullName: '',
+    email: '',
+    businessName: '',
+    phoneNumber: '',
+    currency: 'NGN',
+    language: 'en',
+    dateFormat: 'MM/DD/YYYY',
+    timezone: 'UTC',
+    notifications: {
+      budgetAlerts: true,
+      weeklyReports: true,
+      transactionAlerts: true,
+      aiRecommendations: true
+    }
+  });
 
-// Expense categories for dropdown  
-const expenseCategories = [
-  'Worker Pay',
-  'Generator Fuel',
-  'Shop Rent',
-  'Electricity Bills',
-  'Water Bills',
-  'Office Supplies',
-  'Software Programs',
-  'Marketing Costs',
-  'Professional Help',
-  'Insurance Payments',
-  'Bank Charges',
-  'Raw Materials',
-  'Stock Purchases',
-  'Making Products',
-  'Packaging',
-  'Quality Testing',
-  'Machine Repair',
-  'Vehicle Costs',
-  'Property Taxes',
-  'Security Services',
-  'Cleaning Services',
-  'Travel Costs',
-  'Training Costs',
-  'Meeting Expenses',
-  'Customer Meals',
-  'Membership Fees',
-  'Computer Help',
-  'Website Costs',
-  'Online Storage',
-  'Phone Bills',
-  'Internet Bills',
-  'Gas Bills',
-  'Waste Removal',
-  'Equipment Purchase',
-  'Building Maintenance',
-  'Vehicle Purchase',
-  'Loan Payments',
-  'Tax Payments',
-  'Legal Fees',
-  'Accounting Fees',
-   'Others'
-];
+  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+  const [showClearDataDialog, setShowClearDataDialog] = useState(false);
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  // Load available backups
+useEffect(() => {
+  if (showRestoreDialog && session) {
+    loadAvailableBackups();
+  }
+}, [showRestoreDialog, session]);
+
+const loadAvailableBackups = async () => {
+  if (!session) return;
+  
+  const { data: backups, error } = await supabase
+    .from('backups')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false });
+
+  if (!error && backups) {
+    setAvailableBackups(backups);
+  }
+};
+
+// Add this dialog to your JSX
+<Dialog.Root open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+  <Dialog.Portal>
+    <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
+    <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+      <Dialog.Title className="text-lg font-semibold mb-4">Restore Backup</Dialog.Title>
+      <div className="space-y-4">
+        <select
+          value={selectedBackup}
+          onChange={(e) => setSelectedBackup(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="">Select a backup</option>
+          {availableBackups.map((backup) => (
+            <option key={backup.id} value={backup.id}>
+              {new Date(backup.created_at).toLocaleString()} - {backup.file_size} bytes
+            </option>
+          ))}
+        </select>
+        
+        <div className="flex space-x-3">
+          <button
+            onClick={() => selectedBackup && handleRestoreBackup(selectedBackup)}
+            disabled={!selectedBackup}
+            className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            Restore Selected Backup
+          </button>
+          <button
+            onClick={() => setShowRestoreDialog(false)}
+            className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </Dialog.Content>
+  </Dialog.Portal>
+</Dialog.Root>
+
+  // Helper data arrays
+  // Income categories for dropdown
+  const categories = [
+    'Selling Products',
+    'Service Work',
+    'Consulting Work',
+    'Monthly Subscriptions',
+    'Shop Sales',
+    'Online Sales',
+    'Big Project Work',
+    'Regular Customer Payments',
+    'Commission Money',
+    'Renting Things Out',
+    'Bank Interest',
+    'Investment Money',
+    'Teaching/Training',
+    'Repair Work',
+    'Installation Work',
+    'Support Services',
+    'Digital Products',
+    'Advertising Money',
+    'Referral Commissions',
+    'Software Subscriptions',
+    'Online Courses',
+    'Government Help',
+    'Business Grants',
+    'Partnership Money',
+    'Franchise Fees',
+    'Event Services',
+    'Delivery Services',
+    'Cleaning Services',
+    'Security Services',
+    'Construction Work',
+    'Farming Products',
+    'Transport Services',
+    'Health Services',
+    'Beauty Services',
+    'Food Sales',
+    'Others'
+  ];
+
+  // Expense categories for dropdown  
+  const expenseCategories = [
+    'Worker Pay',
+    'Generator Fuel',
+    'Shop Rent',
+    'Electricity Bills',
+    'Water Bills',
+    'Office Supplies',
+    'Software Programs',
+    'Marketing Costs',
+    'Professional Help',
+    'Insurance Payments',
+    'Bank Charges',
+    'Raw Materials',
+    'Stock Purchases',
+    'Making Products',
+    'Packaging',
+    'Quality Testing',
+    'Machine Repair',
+    'Vehicle Costs',
+    'Property Taxes',
+    'Security Services',
+    'Cleaning Services',
+    'Travel Costs',
+    'Training Costs',
+    'Meeting Expenses',
+    'Customer Meals',
+    'Membership Fees',
+    'Computer Help',
+    'Website Costs',
+    'Online Storage',
+    'Phone Bills',
+    'Internet Bills',
+    'Gas Bills',
+    'Waste Removal',
+    'Equipment Purchase',
+    'Building Maintenance',
+    'Vehicle Purchase',
+    'Loan Payments',
+    'Tax Payments',
+    'Legal Fees',
+    'Accounting Fees',
+     'Others'
+  ];
+  
   const navigationItems: NavigationItem[] = [
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'transactions', label: 'Transactions', icon: CreditCard },
@@ -332,6 +425,333 @@ const expenseCategories = [
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
+  };
+
+  // Settings Functions
+  const handleSaveSettings = async () => {
+    if (!session) {
+      showToast('Please log in to save settings');
+      return;
+    }
+
+    try {
+      // Update user profile in database
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: session.user.id,
+          full_name: userSettings.fullName,
+          business_name: userSettings.businessName,
+          phone_number: userSettings.phoneNumber,
+          currency: userSettings.currency,
+          language: userSettings.language,
+          date_format: userSettings.dateFormat,
+          timezone: userSettings.timezone,
+          notification_settings: userSettings.notifications,
+          updated_at: new Date().toISOString()
+        });
+
+      if (profileError) throw profileError;
+
+      // Update user state
+      setUser({
+        ...user,
+        name: userSettings.fullName,
+        businessName: userSettings.businessName
+      });
+
+      // Update global currency and language
+      setCurrency(userSettings.currency);
+      setLanguage(userSettings.language);
+
+      showToast('Settings saved successfully!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      showToast('Error saving settings');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!session) {
+      showToast('Please log in to change password');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      showToast('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      showToast('Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
+
+      if (error) throw error;
+
+      showToast('Password updated successfully!');
+      setShowChangePasswordDialog(false);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      console.error('Error changing password:', error);
+      showToast('Error changing password');
+    }
+  };
+
+  const handleExportData = async () => {
+    if (!session) {
+      showToast('Please log in to export data');
+      return;
+    }
+
+    try {
+      // Fetch all user data
+      const [transactionsData, budgetsData] = await Promise.all([
+        supabase.from('transactions').select('*').eq('user_id', session.user.id),
+        supabase.from('budgets').select('*').eq('user_id', session.user.id)
+      ]);
+
+      if (transactionsData.error) throw transactionsData.error;
+      if (budgetsData.error) throw budgetsData.error;
+
+      // Create CSV content
+      const transactionsCSV = convertToCSV(transactionsData.data || []);
+      const budgetsCSV = convertToCSV(budgetsData.data || []);
+
+      // Create and download files
+      downloadCSV(transactionsCSV, 'transactions.csv');
+      downloadCSV(budgetsCSV, 'budgets.csv');
+
+      showToast('Data exported successfully!');
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      showToast('Error exporting data');
+    }
+  };
+
+  const handleBackupData = async () => {
+    if (!session) {
+      showToast('Please log in to backup data');
+      return;
+    }
+  
+    try {
+      // Fetch all user data
+      const [transactionsData, budgetsData, profileData] = await Promise.all([
+        supabase.from('transactions').select('*').eq('user_id', session.user.id),
+        supabase.from('budgets').select('*').eq('user_id', session.user.id),
+        supabase.from('profiles').select('*').eq('id', session.user.id).single()
+      ]);
+  
+      if (transactionsData.error) throw transactionsData.error;
+      if (budgetsData.error) throw budgetsData.error;
+  
+      // Create backup data object
+      const backupData = {
+        transactions: transactionsData.data || [],
+        budgets: budgetsData.data || [],
+        profile: profileData.data || {},
+        backup_date: new Date().toISOString(),
+        version: '1.0'
+      };
+  
+      // Store in backups table
+      const { error } = await supabase
+        .from('backups')
+        .insert({
+          user_id: session.user.id,
+          backup_data: backupData,
+          backup_type: 'full',
+          file_size: JSON.stringify(backupData).length
+        });
+  
+      if (error) throw error;
+  
+      showToast('Backup created successfully!');
+    } catch (error) {
+      console.error('Error creating backup:', error);
+      showToast('Error creating backup');
+    }
+  };
+
+  const handleRestoreBackup = async (backupId: string) => {
+    if (!session) {
+      showToast('Please log in to restore backup');
+      return;
+    }
+  
+    try {
+      // Get the backup data
+      const { data: backup, error: fetchError } = await supabase
+        .from('backups')
+        .select('*')
+        .eq('id', backupId)
+        .eq('user_id', session.user.id)
+        .single();
+  
+      if (fetchError) throw fetchError;
+      if (!backup?.backup_data) throw new Error('No backup data found');
+  
+      const backupData = backup.backup_data;
+  
+      // Start restore process - delete existing data first
+      const [deleteTransactions, deleteBudgets] = await Promise.all([
+        supabase.from('transactions').delete().eq('user_id', session.user.id),
+        supabase.from('budgets').delete().eq('user_id', session.user.id)
+      ]);
+  
+      if (deleteTransactions.error) throw deleteTransactions.error;
+      if (deleteBudgets.error) throw deleteBudgets.error;
+  
+      // Restore transactions - preserve original IDs if they exist
+      if (backupData.transactions && backupData.transactions.length > 0) {
+        const transactionsToInsert = backupData.transactions.map((t: any) => ({
+          ...t,
+          user_id: session.user.id, // Ensure user_id matches current user
+          // Keep the original ID if it exists, otherwise let Supabase generate one
+          id: t.id || undefined
+        })).filter((t: any) => t.id !== undefined); // Only include transactions with valid IDs
+  
+        if (transactionsToInsert.length > 0) {
+          const { error: transactionsError } = await supabase
+            .from('transactions')
+            .insert(transactionsToInsert);
+  
+          if (transactionsError) throw transactionsError;
+        }
+      }
+  
+      // Restore budgets - preserve original IDs if they exist
+      if (backupData.budgets && backupData.budgets.length > 0) {
+        const budgetsToInsert = backupData.budgets.map((b: any) => ({
+          ...b,
+          user_id: session.user.id, // Ensure user_id matches current user
+          // Keep the original ID if it exists, otherwise let Supabase generate one
+          id: b.id || undefined
+        })).filter((b: any) => b.id !== undefined); // Only include budgets with valid IDs
+  
+        if (budgetsToInsert.length > 0) {
+          const { error: budgetsError } = await supabase
+            .from('budgets')
+            .insert(budgetsToInsert);
+  
+          if (budgetsError) throw budgetsError;
+        }
+      }
+  
+      // Restore profile settings if available
+      if (backupData.profile) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: session.user.id,
+            ...backupData.profile,
+            updated_at: new Date().toISOString()
+          });
+  
+        if (profileError) console.warn('Could not restore profile:', profileError);
+      }
+  
+      // Refresh the dashboard data
+      await fetchData(session);
+  
+      showToast('Backup restored successfully!');
+      setShowRestoreDialog(false);
+    } catch (error) {
+      console.error('Error restoring backup:', error);
+      showToast('Error restoring backup');
+    }
+  };
+
+  const handleClearData = async () => {
+    if (!session) {
+      showToast('Please log in to clear data');
+      return;
+    }
+
+    try {
+      // Delete all user data
+      const [transactionsResult, budgetsResult] = await Promise.all([
+        supabase.from('transactions').delete().eq('user_id', session.user.id),
+        supabase.from('budgets').delete().eq('user_id', session.user.id)
+      ]);
+
+      if (transactionsResult.error) throw transactionsResult.error;
+      if (budgetsResult.error) throw budgetsResult.error;
+
+      // Refresh data
+      await fetchData(session);
+
+      setShowClearDataDialog(false);
+      showToast('All data cleared successfully!');
+    } catch (error) {
+      console.error('Error clearing data:', error);
+      showToast('Error clearing data');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!session) {
+      showToast('Please log in to delete account');
+      return;
+    }
+
+    try {
+      // First delete all user data
+      await handleClearData();
+
+      // Then delete user profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', session.user.id);
+
+      if (profileError) throw profileError;
+
+      // Finally delete auth user
+      const { error: authError } = await supabase.auth.admin.deleteUser(session.user.id);
+      
+      if (authError) throw authError;
+
+      showToast('Account deleted successfully!');
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      showToast('Error deleting account');
+    }
+  };
+
+  // Helper functions for CSV export
+  const convertToCSV = (data: any[]) => {
+    if (data.length === 0) return '';
+    
+    const headers = Object.keys(data[0]);
+    const csvRows = [headers.join(',')];
+    
+    for (const row of data) {
+      const values = headers.map(header => {
+        const escaped = ('' + row[header]).replace(/"/g, '\\"');
+        return `"${escaped}"`;
+      });
+      csvRows.push(values.join(','));
+    }
+    
+    return csvRows.join('\n');
+  };
+
+  const downloadCSV = (csvContent: string, fileName: string) => {
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    window.URL.revokeObjectURL(url);
   };
 
   // Calculate category breakdown from actual transactions
@@ -621,6 +1041,24 @@ const expenseCategories = [
 
       setUser(userData);
 
+      // Set user settings
+      setUserSettings({
+        fullName: profile?.full_name || userData.name,
+        email: userData.email,
+        businessName: profile?.business_name || userData.businessName,
+        phoneNumber: profile?.phone_number || '',
+        currency: profile?.currency || 'NGN',
+        language: profile?.language || 'en',
+        dateFormat: profile?.date_format || 'MM/DD/YYYY',
+        timezone: profile?.timezone || 'UTC',
+        notifications: profile?.notification_settings || {
+          budgetAlerts: true,
+          weeklyReports: true,
+          transactionAlerts: true,
+          aiRecommendations: true
+        }
+      });
+
     } catch (error) {
       console.error('Error fetching data:', error);
       showToast('Error fetching data');
@@ -859,7 +1297,7 @@ const expenseCategories = [
     icon: React.ComponentType<any>;
     action?: React.ReactNode;
   }) => (
-    <div className="text-center py-12">
+    <div className="text-center sm:py-2">
       <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
         <Icon className="w-8 h-8 text-gray-400" />
       </div>
@@ -931,12 +1369,14 @@ const expenseCategories = [
     );
   }
 
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex">
       <Toast.Provider>
-        <Toast.Root open={toastOpen} onOpenChange={setToastOpen} className="bg-white border border-gray-200 rounded-xl p-4 shadow-lg">
-          <Toast.Title className="font-semibold text-gray-900">Success</Toast.Title>
-          <Toast.Description className="text-gray-600">{toastMessage}</Toast.Description>
+        <Toast.Root open={toastOpen} onOpenChange={setToastOpen} className="bg-[#000]/80 rounded-xl p-4 shadow-lg">
+          <Toast.Title className="font-semibold text-gray-900"></Toast.Title>
+          <Toast.Description className="text-white">{toastMessage}</Toast.Description>
         </Toast.Root>
         <Toast.Viewport className="fixed top-4 right-4 z-50" />
 
@@ -1184,17 +1624,19 @@ const expenseCategories = [
                 </p>
               </div>
               
-              <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
+              <div className="flex flex-wrap gap-2 sm:gap-3 w-auto lg:w-auto">
                 <Dialog.Root open={showIncomeForm} onOpenChange={handleTransactionDialogClose}>
                   <Dialog.Trigger asChild>
-                    <button className="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm hover:cursor-pointer text-sm sm:text-base">
+                    <button 
+                    onClick={() => setShowIncomeForm(true)}
+                    className="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm hover:cursor-pointer text-sm sm:text-base">
                       <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                       <span>Add Income</span>
                     </button>
                   </Dialog.Trigger>
                   <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-                    <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+                    <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-[80%] md:w-auto mx-4">
                       <Dialog.Title className="text-lg font-semibold mb-4">
                         Add Income
                       </Dialog.Title>
@@ -1249,14 +1691,15 @@ const expenseCategories = [
 
                 <Dialog.Root open={showExpenseForm} onOpenChange={handleTransactionDialogClose}>
                   <Dialog.Trigger asChild>
-                    <button className="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shadow-sm hover:cursor-pointer text-sm sm:text-base">
+                    <button
+                     className="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shadow-sm hover:cursor-pointer text-sm sm:text-base">
                       <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                       <span>Add Expense</span>
                     </button>
                   </Dialog.Trigger>
                   <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-                    <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+                    <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-[80%] md:w-auto  mx-4">
                       <Dialog.Title className="text-lg font-semibold mb-4">
                         Add Expense
                       </Dialog.Title>
@@ -1309,7 +1752,9 @@ const expenseCategories = [
                   </Dialog.Portal>
                 </Dialog.Root>
                             
-                <button className="flex hover:cursor-pointer items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm text-sm sm:text-base">
+                <button
+                 onClick={handleExportData}
+                 className="flex hover:cursor-pointer items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm text-sm sm:text-base">
                   <Download className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span>Export Report</span>
                 </button>
@@ -1391,7 +1836,7 @@ const expenseCategories = [
                               <button
                                 key={filter.value}
                                 onClick={() => setTimeFilter(filter.value)}
-                                className={`flex items-center px-2 sm:px-3 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                                className={`flex items-center px-2 sm:px-3 py-1  rounded-md text-xs sm:text-sm font-medium transition-all ${
                                   timeFilter === filter.value
                                     ? 'bg-white text-emerald-600 shadow-sm'
                                     : 'text-gray-600 hover:text-gray-900'
@@ -1753,7 +2198,7 @@ const expenseCategories = [
                               <button 
                                 onClick={() => setShowExpenseForm(true)}
                                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                              >
+                                >
                                 Add Expense
                               </button>
                             </div>
@@ -2045,13 +2490,378 @@ const expenseCategories = [
               </div>
             )}
 
-            {activeTab !== 'overview' && activeTab !== 'transactions' && activeTab !== 'budgets' && (
+            {/* Settings Tab Content */}
+            {activeTab === 'settings' && (
+              <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Settings</h3>
+                  <button 
+                    onClick={handleSaveSettings}
+                    className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Save Changes</span>
+                  </button>
+                </div>
+                
+                <div className="space-y-6">
+                  {/* Profile Settings */}
+                  <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Profile Settings</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                        <input
+                          type="text"
+                          value={userSettings.fullName}
+                          onChange={(e) => setUserSettings({...userSettings, fullName: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          placeholder="Enter your full name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input
+                          type="email"
+                          value={userSettings.email}
+                          onChange={(e) => setUserSettings({...userSettings, email: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          placeholder="Enter your email"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                        <input
+                          type="text"
+                          value={userSettings.businessName}
+                          onChange={(e) => setUserSettings({...userSettings, businessName: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          placeholder="Enter your business name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                        <input
+                          type="tel"
+                          value={userSettings.phoneNumber}
+                          onChange={(e) => setUserSettings({...userSettings, phoneNumber: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          placeholder="Enter your phone number"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preferences */}
+                  <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Preferences</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                        <select 
+                          value={userSettings.currency}
+                          onChange={(e) => setUserSettings({...userSettings, currency: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        >
+                          {currencies.map((curr) => (
+                            <option key={curr.value} value={curr.value}>{curr.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
+                        <select 
+                          value={userSettings.language}
+                          onChange={(e) => setUserSettings({...userSettings, language: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        >
+                          {languagesList.map((lang) => (
+                            <option key={lang.value} value={lang.value}>{lang.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date Format</label>
+                        <select 
+                          value={userSettings.dateFormat}
+                          onChange={(e) => setUserSettings({...userSettings, dateFormat: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        >
+                          <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                          <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                          <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Time Zone</label>
+                        <select 
+                          value={userSettings.timezone}
+                          onChange={(e) => setUserSettings({...userSettings, timezone: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        >
+                          <option value="UTC">UTC</option>
+                          <option value="Africa/Lagos">West Africa Time (WAT)</option>
+                          <option value="America/New_York">Eastern Time (ET)</option>
+                          <option value="Europe/London">Greenwich Mean Time (GMT)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notification Preferences */}
+                  <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Notification Preferences</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">Budget Alerts</p>
+                          <p className="text-sm text-gray-600">Get notified when you're close to budget limits</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={userSettings.notifications.budgetAlerts}
+                            onChange={(e) => setUserSettings({
+                              ...userSettings, 
+                              notifications: {...userSettings.notifications, budgetAlerts: e.target.checked}
+                            })}
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">Weekly Reports</p>
+                          <p className="text-sm text-gray-600">Receive weekly financial summary emails</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={userSettings.notifications.weeklyReports}
+                            onChange={(e) => setUserSettings({
+                              ...userSettings, 
+                              notifications: {...userSettings.notifications, weeklyReports: e.target.checked}
+                            })}
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">Transaction Alerts</p>
+                          <p className="text-sm text-gray-600">Get notified for large transactions</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={userSettings.notifications.transactionAlerts}
+                            onChange={(e) => setUserSettings({
+                              ...userSettings, 
+                              notifications: {...userSettings.notifications, transactionAlerts: e.target.checked}
+                            })}
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">AI Recommendations</p>
+                          <p className="text-sm text-gray-600">Receive AI-powered financial insights</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={userSettings.notifications.aiRecommendations}
+                            onChange={(e) => setUserSettings({
+                              ...userSettings, 
+                              notifications: {...userSettings.notifications, aiRecommendations: e.target.checked}
+                            })}
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Data Management */}
+                  <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Data Management</h4>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                        <div>
+                          <p className="font-medium text-gray-900">Export Data</p>
+                          <p className="text-sm text-gray-600">Download your financial data as CSV</p>
+                        </div>
+                        <button 
+                          onClick={handleExportData}
+                          className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Export</span>
+                        </button>
+                      </div>
+                    
+                      
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-red-200">
+                        <div>
+                          <p className="font-medium text-red-900">Clear All Data</p>
+                          <p className="text-sm text-red-600">Permanently delete all your financial data</p>
+                        </div>
+                        <button 
+                          onClick={() => setShowClearDataDialog(true)}
+                          className="flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Clear</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Backup Management */}
+<div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
+  <h4 className="text-lg font-semibold text-gray-900 mb-4">Backup Management</h4>
+  <div className="space-y-4">
+    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+      <div>
+        <p className="font-medium text-gray-900">Create Backup</p>
+        <p className="text-sm text-gray-600">Save your current data as a backup</p>
+      </div>
+      <button 
+        onClick={handleBackupData}
+        className="flex items-center space-x-2 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+      >
+        <Save className="w-4 h-4" />
+        <span>Backup</span>
+      </button>
+    </div>
+    
+    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+      <div>
+        <p className="font-medium text-gray-900">Restore Backup</p>
+        <p className="text-sm text-gray-600">Restore from a previous backup</p>
+      </div>
+      <button 
+        onClick={() => setShowRestoreDialog(true)}
+        className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+      >
+        <Download className="w-4 h-4" />
+        <span>Restore</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<Dialog.Root open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+  <Dialog.Portal>
+    <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
+    <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+      <Dialog.Title className="text-lg font-semibold mb-4">Restore Backup</Dialog.Title>
+      <div className="space-y-4">
+        <select
+          value={selectedBackup}
+          onChange={(e) => setSelectedBackup(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="">Select a backup</option>
+          {availableBackups.map((backup) => (
+            <option key={backup.id} value={backup.id}>
+              {new Date(backup.created_at).toLocaleString()} - {backup.file_size} bytes
+            </option>
+          ))}
+        </select>
+        
+        <div className="flex space-x-3">
+          <button
+            onClick={() => selectedBackup && handleRestoreBackup(selectedBackup)}
+            disabled={!selectedBackup}
+            className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            Restore Selected Backup
+          </button>
+          <button
+            onClick={() => setShowRestoreDialog(false)}
+            className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </Dialog.Content>
+  </Dialog.Portal>
+</Dialog.Root>
+
+
+                  {/* Account Settings */}
+                  <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Account Settings</h4>
+                    <div className="space-y-3">
+                      <button 
+                        onClick={() => setShowChangePasswordDialog(true)}
+                        className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors group"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <Key className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">Change Password</p>
+                            <p className="text-sm text-gray-600">Update your account password</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
+                      </button>
+                      
+                      <button 
+                        onClick={() => setActiveTab('notifications')}
+                        className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors group"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-purple-100 rounded-lg">
+                            <Bell className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">Notification Settings</p>
+                            <p className="text-sm text-gray-600">Manage how you receive notifications</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
+                      </button>
+                      
+                      <button 
+                        onClick={() => setShowDeleteAccountDialog(true)}
+                        className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-red-200 hover:bg-red-50 transition-colors group"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-red-100 rounded-lg">
+                            <LogOut className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-red-900">Delete Account</p>
+                            <p className="text-sm text-red-600">Permanently delete your account</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-red-400 group-hover:text-red-600" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab !== 'overview' && activeTab !== 'transactions' && activeTab !== 'budgets' && activeTab !== 'settings' && (
               <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-200">
                 <div className="text-center py-8 sm:py-12">
                   <div className="w-14 h-14 sm:w-16 sm:h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     {activeTab === 'reports' && <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />}
                     {activeTab === 'analytics' && <BarChart3  className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />}
-                    {activeTab === 'settings' && <Settings className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />}
                   </div>
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 capitalize">{activeTab}</h3>
                   <p className="text-gray-600 text-sm sm:text-base">This section is coming soon. Stay tuned!!!</p>
@@ -2148,7 +2958,7 @@ const expenseCategories = [
           <Dialog.Root open={showBudgetForm} onOpenChange={handleBudgetDialogClose}>
             <Dialog.Portal>
               <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-              <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+              <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-[80%] md:w-auto mx-4">
                 <Dialog.Title className="text-lg font-semibold mb-4">
                   Create Budget
                 </Dialog.Title>
@@ -2356,6 +3166,107 @@ const expenseCategories = [
                   </button>
                   <button
                     onClick={() => setDeleteBudgetId(null)}
+                    className="flex-1 border border-gray-300 py-3 rounded-xl hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+
+          {/* Change Password Dialog */}
+          <Dialog.Root open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
+              <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-xl w-[80%] md:w-auto mx-4">
+                <Dialog.Title className="text-lg font-semibold mb-4">Change Password</Dialog.Title>
+                <div className="space-y-4">
+                  <input
+                    type="password"
+                    placeholder="Current Password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <input
+                    type="password"
+                    placeholder="New Password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Confirm New Password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={handleChangePassword}
+                      className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700"
+                    >
+                      Update Password
+                    </button>
+                    <button
+                      onClick={() => setShowChangePasswordDialog(false)}
+                      className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+
+          {/* Clear Data Confirmation Dialog */}
+          <Dialog.Root open={showClearDataDialog} onOpenChange={setShowClearDataDialog}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
+              <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+                <Dialog.Title className="text-lg font-semibold mb-2">Clear All Data</Dialog.Title>
+                <Dialog.Description className="text-gray-600 mb-6">
+                  Are you sure you want to delete all your financial data? This includes all transactions, budgets, and reports. This action cannot be undone.
+                </Dialog.Description>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleClearData}
+                    className="flex-1 bg-red-600 text-white py-3 rounded-xl hover:bg-red-700"
+                  >
+                    Clear All Data
+                  </button>
+                  <button
+                    onClick={() => setShowClearDataDialog(false)}
+                    className="flex-1 border border-gray-300 py-3 rounded-xl hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+
+          {/* Delete Account Confirmation Dialog */}
+          <Dialog.Root open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
+              <Dialog.Content className="fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+                <Dialog.Title className="text-lg font-semibold mb-2">Delete Account</Dialog.Title>
+                <Dialog.Description className="text-gray-600 mb-6">
+                  Are you sure you want to permanently delete your account? This will remove all your data and cannot be undone.
+                </Dialog.Description>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleDeleteAccount}
+                    className="flex-1 bg-red-600 text-white py-3 rounded-xl hover:bg-red-700"
+                  >
+                    Delete Account
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteAccountDialog(false)}
                     className="flex-1 border border-gray-300 py-3 rounded-xl hover:bg-gray-50"
                   >
                     Cancel
