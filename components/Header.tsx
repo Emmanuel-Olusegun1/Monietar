@@ -25,7 +25,7 @@ export default function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden lg:flex items-center space-x-8">
-          {['Features', 'Testimonials', 'Pricing', 'FAQ', 'Contact'].map((item) => (
+          {['Features', 'Pricing', 'FAQ', 'Contact'].map((item) => (
             <a 
               key={item}
               href={`#${item.toLowerCase()}`}
@@ -105,7 +105,7 @@ export default function Header() {
 
                 {/* Navigation Links */}
                 <nav className="flex-1 space-y-4">
-                  {['Features', 'Testimonials', 'Pricing', 'FAQ', 'Contact'].map((item) => (
+                  {['Features', 'Pricing', 'FAQ', 'Contact'].map((item) => (
                     <a
                       key={item}
                       href={`#${item.toLowerCase()}`}
