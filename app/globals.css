@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
-/* :root {
-  --font-plaster: 'Plaster', cursive;
+/* Ensure no parent containers clip the sidebar */
+html, body {
+  overflow-x: hidden;
 }
 
-body {
-  font-family: var(--font-plaster);
-} */
+/* Force sidebar to be on top */
+.fixed.z-50 {
+  z-index: 9999 !important;
+}

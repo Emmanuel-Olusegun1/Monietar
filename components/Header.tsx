@@ -18,28 +18,28 @@ export default function Header() {
   }, []);
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-20 md:z-50 transition-all duration-300 ${
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
       isScrolled 
         ? 'bg-white/95 backdrop-blur-lg border-b border-gray-200/50 shadow-sm' 
         : 'bg-transparent backdrop-blur-none border-transparent'
     }`}>
-      <div className="container mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
+      {/* Remove the md:z-50 and just use z-50 consistently */}
+      
+      <div className="container mx-auto max-w-7xl px-4 flex items-center justify-between">
         <motion.div 
           className="flex items-center space-x-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-            <img 
-              src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
-              alt="Monietar Logo"
-              className="w-8 h-8 object-contain"
-            />
-          </div>
+          <img 
+            src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
+            alt="Monietar Logo"
+            className="w-30 h-20 object-contain"
+          />
           <span className={`text-xl font-bold transition-colors duration-300 ${
             isScrolled ? 'text-gray-900' : 'text-white'
-          }`}>Monietar</span>
+          }`}></span>
         </motion.div>
 
         {/* Desktop Navigation */}
@@ -92,36 +92,33 @@ export default function Header() {
       <AnimatePresence>
         {isMenuOpen && (
           <>
-            {/* Backdrop */}
+            {/* Backdrop - Increase z-index */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
               onClick={() => setIsMenuOpen(false)}
             />
             
-            {/* Sidebar */}
+            {/* Sidebar - Ensure higher z-index than backdrop */}
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="fixed top-0 right-0 h-full w-80 max-w-full bg-white shadow-xl z-50 lg:hidden"
+              className="fixed top-0 right-0 h-full w-80 max-w-full bg-white shadow-2xl z-50 lg:hidden"
             >
               <div className="p-6 h-full flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
-                      <img 
-                        src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
-                        alt="Monietar Logo"
-                        className="w-8 h-8 object-contain"
-                      />
-                    </div>
-                    <span className="text-xl font-bold text-gray-900">Monietar</span>
+                    <img 
+                      src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
+                      alt="Monietar Logo"
+                      className="w-24 h-16 object-contain"
+                    />
                   </div>
                   <button
                     onClick={() => setIsMenuOpen(false)}
