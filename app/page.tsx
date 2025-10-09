@@ -54,10 +54,10 @@ function Home() {
       <Feature />
       {/* Premium Coming Soon Section */}
       <Premuim />?
-      {/* Pricing Section */}
-      <Pricing />
       {/* FAQ Section */}
       <Faqs />
+      {/* Pricing Section */}
+      <Pricing />
       {/* Testimonials Section */}
       {/* <Testimonials /> */}
       {/* Contact Section */}

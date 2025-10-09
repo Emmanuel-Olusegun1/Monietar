@@ -1,13 +1,28 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      setIsScrolled(scrollTop > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100/50">
+    <header className={`fixed top-0 left-0 right-0 z-20 md:z-50 transition-all duration-300 ${
+      isScrolled 
+        ? 'bg-white/95 backdrop-blur-lg border-b border-gray-200/50 shadow-sm' 
+        : 'bg-transparent backdrop-blur-none border-transparent'
+    }`}>
       <div className="container mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
         <motion.div 
           className="flex items-center space-x-3"
@@ -15,12 +30,16 @@ export default function Header() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+            <img 
+              src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
+              alt="Monietar Logo"
+              className="w-8 h-8 object-contain"
+            />
           </div>
-          <span className="text-xl font-bold text-gray-900">Monietar</span>
+          <span className={`text-xl font-bold transition-colors duration-300 ${
+            isScrolled ? 'text-gray-900' : 'text-white'
+          }`}>Monietar</span>
         </motion.div>
 
         {/* Desktop Navigation */}
@@ -29,7 +48,9 @@ export default function Header() {
             <a 
               key={item}
               href={`#${item.toLowerCase()}`}
-              className="text-gray-600 hover:text-emerald-500 transition-colors duration-200 font-medium"
+              className={`transition-colors duration-200 font-medium hover:text-emerald-500 ${
+                isScrolled ? 'text-gray-600' : 'text-white/90 hover:text-white'
+              }`}
             >
               {item}
             </a>
@@ -42,7 +63,11 @@ export default function Header() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="hidden lg:block bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow"
+          className={`hidden lg:block font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow ${
+            isScrolled 
+              ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
+              : 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/20 hover:border-white/30'
+          }`}
         >
           Sign In
         </motion.a>
@@ -50,7 +75,11 @@ export default function Header() {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setIsMenuOpen(true)}
-          className="lg:hidden p-2 rounded-md text-gray-600 hover:text-emerald-500 hover:bg-gray-100 transition-colors"
+          className={`lg:hidden p-2 rounded-md transition-colors ${
+            isScrolled 
+              ? 'text-gray-600 hover:text-emerald-500 hover:bg-gray-100' 
+              : 'text-white/90 hover:text-white hover:bg-white/10'
+          }`}
           aria-label="Open menu"
         >
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -86,9 +115,11 @@ export default function Header() {
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
+                      <img 
+                        src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
+                        alt="Monietar Logo"
+                        className="w-8 h-8 object-contain"
+                      />
                     </div>
                     <span className="text-xl font-bold text-gray-900">Monietar</span>
                   </div>
