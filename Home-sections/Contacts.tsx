@@ -112,8 +112,8 @@ export default function Contact() {
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-1">Email Us</h4>
                   <p className="text-gray-600 mb-2">Get detailed responses to your queries</p>
-                  <a href="mailto:hello@useMonietar.com" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                    hello@useMonietar.com
+                  <a href="mailto:hello@monietar.com" target='_blank' className="text-emerald-600 hover:text-emerald-700 font-medium">
+                    hello@monietar.com
                   </a>
                 </div>
               </motion.div>
@@ -134,7 +134,7 @@ export default function Contact() {
                   <h4 className="font-semibold text-gray-900 mb-1">WhatsApp Business</h4>
                   <p className="text-gray-600 mb-2">Instant messaging for quick questions</p>
                   <span className="text-green-600 hover:text-green-700 font-medium">
-                  <a href="mailto:hello@useMonietar.com" className="text-emerald-600 hover:text-emerald-700 font-medium">
+                  <a href="https://wa.link/5t7265" target='_blank' className="text-emerald-600 hover:text-emerald-700 font-medium">
                     Chat Now →
                   </a>
                   </span>

@@ -1,7 +1,7 @@
 'use client';
 
-import { motion, useScroll, useTransform, Variants } from 'framer-motion';
-import { useRef, useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useRef } from 'react';
 
 type FeatureCards = {
   icon: string;
@@ -44,60 +44,19 @@ const features: FeatureCards[] = [
 
 export default function Feature() {
   const containerRef = useRef(null);
-  const [isMobile, setIsMobile] = useState(false);
-  
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end start"]
-  });
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0]);
-  const scale = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.9, 1, 1, 0.9]);
-
-  const mobileContainerVariants: Variants = {
+  // Simplified variants - removed complex scroll animations
+  const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
+        staggerChildren: 0.15
       }
     }
   };
 
-  const mobileItemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: "spring" as const,
-        stiffness: 100,
-        damping: 20
-      }
-    }
-  };
-
-  const desktopContainerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const desktopItemVariants: Variants = {
+  const itemVariants = {
     hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
@@ -110,31 +69,36 @@ export default function Feature() {
     }
   };
 
+  const headerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6
+      }
+    }
+  };
+
   return (
-    <section ref={containerRef} id="features" className="relative min-h-screen py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-white">
+    <section ref={containerRef} id="features" className="relative py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-white overflow-hidden">
       {/* Minimal Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Subtle grid pattern */}
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.3)_1px,transparent_1px)] bg-[size:64px_64px]"></div>
         </div>
-        
-        {/* Subtle corner accents */}
         <div className="absolute top-0 left-0 w-32 h-32 border-t-2 border-l-2 border-gray-100"></div>
         <div className="absolute bottom-0 right-0 w-32 h-32 border-b-2 border-r-2 border-gray-100"></div>
       </div>
 
-      <motion.div 
-        className="container mx-auto max-w-6xl relative z-10"
-        style={!isMobile ? { opacity, scale } : {}}
-      >
+      <div className="container mx-auto max-w-6xl relative z-10">
         {/* Header */}
         <motion.div 
           className="text-center mb-16 md:mb-20"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: isMobile ? "-50px" : "-100px" }}
-          transition={{ duration: 0.6 }}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={headerVariants}
         >
           <motion.div
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 border border-gray-200 mb-6"
@@ -170,115 +134,65 @@ export default function Feature() {
           </motion.p>
         </motion.div>
 
-        {/* Features Grid */}
-        {isMobile ? (
-          // Mobile Layout
-          <motion.div
-            className="grid gap-4 px-2"
-            variants={mobileContainerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-50px" }}
-          >
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                variants={mobileItemVariants}
-                className="group p-6 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 active:scale-[0.998] touch-manipulation"
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.995 }}
+        {/* Features Grid - Single implementation for all screen sizes */}
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={containerVariants}
+        >
+          {features.map((feature, index) => (
+            <motion.div
+              key={index}
+              variants={itemVariants}
+              className="group p-6 md:p-8 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+              whileHover={{ y: -4 }}
+            >
+              <motion.div 
+                className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center mb-4 md:mb-6 group-hover:bg-gray-100 transition-colors duration-300"
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring" as const, stiffness: 400 }}
               >
-                <div className="flex items-start gap-4">
-                  <motion.div 
-                    className="flex-shrink-0 w-12 h-12 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center group-hover:bg-gray-100 transition-colors duration-300"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring" as const, stiffness: 400 }}
-                  >
-                    <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
-                    </svg>
-                  </motion.div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2 leading-tight">
-                      {feature.title}
-                    </h3>
-                    <p className="text-gray-600 leading-relaxed">
-                      {feature.desc}
-                    </p>
-                  </div>
-                </div>
+                <svg className="w-5 h-5 md:w-6 md:h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
+                </svg>
               </motion.div>
-            ))}
-          </motion.div>
-        ) : (
-          // Desktop Layout - Clean Grid
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={desktopContainerVariants}
-          >
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                variants={desktopItemVariants}
-                className="group p-8 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-500"
-                whileHover={{ y: -4, borderColor: "rgb(229, 231, 235)" }}
-              >
-                <motion.div 
-                  className="w-14 h-14 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center mb-6 group-hover:bg-gray-100 transition-colors duration-300"
-                  whileHover={{ scale: 1.05, rotate: 2 }}
-                  transition={{ type: "spring" as const, stiffness: 400 }}
-                >
-                  <svg className="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
-                  </svg>
-                </motion.div>
-                
-                <motion.h3 
-                  className="text-2xl font-semibold text-gray-900 mb-4"
-                  whileHover={{ x: 2 }}
-                  transition={{ type: "spring" as const, stiffness: 400 }}
-                >
-                  {feature.title}
-                </motion.h3>
-                
-                <motion.p 
-                  className="text-gray-600 leading-relaxed"
-                  whileHover={{ x: 1 }}
-                  transition={{ type: "spring" as const, stiffness: 400 }}
-                >
-                  {feature.desc}
-                </motion.p>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
+              
+              <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-3 md:mb-4">
+                {feature.title}
+              </h3>
+              
+              <p className="text-gray-600 leading-relaxed text-sm md:text-base">
+                {feature.desc}
+              </p>
+            </motion.div>
+          ))}
+        </motion.div>
 
         {/* Bottom CTA */}
         <motion.div
           className="text-center mt-16 md:mt-20"
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: isMobile ? "-50px" : "-100px" }}
+          viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <motion.div
-            className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-gray-900 text-white cursor-pointer group active:scale-95 touch-manipulation"
-            whileHover={{ scale: 1.02, y: -1 }}
+          <motion.a
+            href='/auth/signin'
+            className="inline-flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 rounded-xl bg-gray-900 text-white cursor-pointer group"
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <span className="text-lg font-semibold">Explore Platform</span>
+            <span className="text-base md:text-lg font-semibold">Explore Platform</span>
             <motion.div
-              className="w-5 h-5"
+              className="w-4 h-4 md:w-5 md:h-5"
               animate={{ x: [0, 4, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
               →
             </motion.div>
-          </motion.div>
+          </motion.a>
           
           <motion.p 
             className="text-gray-500 text-sm mt-4"
@@ -290,7 +204,7 @@ export default function Feature() {
             Trusted by 10,000+ businesses worldwide
           </motion.p>
         </motion.div>
-      </motion.div>
+      </div>
     </section>
   );
 }

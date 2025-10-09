@@ -25,15 +25,15 @@ export default function Pricing() {
         'Multi-language support'
       ],
       cta: 'Get Started Free',
-      popular: false,
+      popular: true,
       comingSoon: false,
       url: '/auth/signin'
     },
     pro: {
       name: 'Professional',
       description: 'Advanced tools for growing businesses',
-      price: { NGN: 5000, XOF: 8000 },
-      yearlyPrice: { NGN: 50000, XOF: 80000 },
+      price: { NGN: 5000, XOF: 5000 },
+      yearlyPrice: { NGN: 50000, XOF: 50000 },
       features: [
         'Everything in Starter',
         'Advanced budget analytics',
@@ -47,15 +47,15 @@ export default function Pricing() {
         'Up to 3 business accounts'
       ],
       cta: 'Coming Soon',
-      popular: true,
+      popular: false,
       comingSoon: true,
-      url: '/auth/signin'
+      url: ''
     },
     premium: {
       name: 'Enterprise',
       description: 'Complete financial platform for established businesses',
-      price: { NGN: 12000, XOF: 19200 },
-      yearlyPrice: { NGN: 120000, XOF: 192000 },
+      price: { NGN: 12000, XOF: 12000 },
+      yearlyPrice: { NGN: 120000, XOF: 120000 },
       features: [
         'Everything in Professional',
         'Unlimited transaction history',
@@ -79,7 +79,7 @@ export default function Pricing() {
       cta: 'Coming Soon',
       popular: false,
       comingSoon: true,
-      url: '/auth/signin'
+      url: ''
     }
   };
 
@@ -281,12 +281,12 @@ export default function Pricing() {
                           </div>
                         )}
                         
-                        {/* Currency Conversion */}
+                        {/* Currency Conversion
                         {currency === 'XOF' && price.amount && price.amount > 0 && (
                           <p className="text-gray-500 text-sm mt-2">
                             ≈ ₦{plan.price.NGN.toLocaleString()} monthly
                           </p>
-                        )}
+                        )} */}
                       </div>
                     </div>
 
@@ -367,7 +367,7 @@ export default function Pricing() {
           {/* Currency Note */}
           <p className="text-gray-500 text-sm mt-8">
             * Prices in CFA Francs are approximate. Actual charges will be processed in your local currency.
-            {currency === 'XOF' && ' 1 CFA ≈ 0.625 NGN'}
+            {currency === 'XOF' && ' 1 CFA ≈ 2.61 NGN'}
           </p>
         </motion.div>
       </div>
