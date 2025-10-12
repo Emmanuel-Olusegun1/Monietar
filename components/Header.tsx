@@ -168,7 +168,7 @@
 
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
 export default function WaitlistHeader() {
@@ -222,25 +222,26 @@ export default function WaitlistHeader() {
           ))}
         </nav>
 
-        {/* Desktop Waitlist & Sign In Buttons */}
-        <div className="hidden lg:flex items-center space-x-4">
-          <motion.a
-            href="#waitlist"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className={`font-medium px-6 py-2 rounded-md transition-all duration-200 border ${
-              isScrolled 
-                ? 'border-emerald-500 text-emerald-600 hover:bg-emerald-50' 
-                : 'border-white/30 text-white hover:bg-white/10'
-            }`}
-          >
-            Join Waitlist
-          </motion.a>
-          '
+        {/* Desktop Waitlist Button */}
+        <motion.a
+          href="#waitlist"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className={`hidden lg:block font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow ${
+            isScrolled 
+              ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
+              : 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/20 hover:border-white/30'
+          }`}
+        >
+          Join Waitlist
+        </motion.a>
+
+        {/* Mobile - Only logo, no menu button */}
+        <div className="lg:hidden">
+          {/* Empty div to maintain flex layout balance */}
         </div>
-
-
+      </div>
     </header>
   );
 }
