@@ -1,95 +1,318 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, FormEvent } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { ChevronDown, Mail, MessageCircle, Search, Clock, Users, Star } from 'lucide-react';
 
-export default function Pricing() {
+export default function FAQ() {
     const [activeFaq, setActiveFaq] = useState<number | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     const toggleFaq = (index: number) => {
         setActiveFaq(activeFaq === index ? null : index);
-      };
-    
+    };
 
+    const faqData = [
+        {
+            question: "What is the waitlist for?",
+            answer: "The waitlist gives you early access to our AI-powered financial platform before public launch, along with exclusive benefits for founding members.",
+            category: "general"
+        },
+        {
+            question: "Is there any cost to join the waitlist?",
+            answer: "No, joining the waitlist is completely free. You'll get early access to our core features at no cost when we launch.",
+            category: "pricing"
+        },
+        {
+            question: "When will the platform launch?",
+            answer: "We're targeting a full public launch in Q4 2025. Waitlist members will get access in stages starting from Q3 2025.",
+            category: "timeline"
+        },
+        {
+            question: "What benefits do waitlist members get?",
+            answer: "Early access, special launch pricing, priority support, and the opportunity to influence product development with your feedback.",
+            category: "benefits"
+        },
+        {
+            question: "How many spots are available?",
+            answer: "We're limiting early access to the first 2,000 SMEs to ensure quality onboarding and support for our founding members.",
+            category: "availability"
+        },
+        {
+            question: "Can I refer other businesses?",
+            answer: "Yes! Referring other qualified SMEs can move you up the waitlist and unlock additional early bird benefits.",
+            category: "referral"
+        },
+        {
+            question: "What makes this different from other financial tools?",
+            answer: "Our platform is specifically designed for African SMEs, with AI-powered insights tailored to local business environments and challenges.",
+            category: "features"
+        },
+        {
+            question: "Is my data secure on the platform?",
+            answer: "Yes, we use bank-level encryption and comply with all local data protection regulations to keep your financial information safe.",
+            category: "security"
+        }
+    ];
 
-  return (
+    const filteredFaqs = faqData.filter(faq => 
+        faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-          <section id="faq" className="py-16 px-4 bg-white">
+    // Keyboard shortcut for search (Cmd+K / Ctrl+K)
+    useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyPress);
+        return () => document.removeEventListener('keydown', handleKeyPress);
+    }, []);
+
+    return (
+        <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
             <div className="container mx-auto max-w-4xl">
-              <motion.div 
-                className="text-center mb-16"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-              >
-                <h2 className="text-4xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
-                <p className="text-xl text-gray-600">Everything you need to know about Monietar</p>
-              </motion.div>
-              
-              <div className="space-y-4">
-                {[
-                  {
-                        question: "What is Monietar?",
-                        answer: "Monietar is an AI-powered platform designed to help SMes/SMBs and Startups in Afria manage their cash flow, track income and expenses, create budgets, and gain insights into their financial health."
-                  },
-                  {
-                    question: "Is Monietar really free to use?",
-                    answer: "Yes! Our core features are completely free forever. We believe every African business should have access to powerful financial tools. The Free tier includes income/expense tracking, Multi-language Support, AI-powered insights, email support and lot more. We'll offer Pro and Premium features in the future, but the core functionality will always remain free."
-                  },
-                  {
-                    question: "Is my financial data secure on the platform",
-                    answer: "Yes, we prioritize data security. The platform uses end-to-end encryption, complies with GDPR and local regulations, and undergoes regular security audits to protect your financial information."
-                  },
-                  {
-                    question: "Can I access the system on mobile devices?",
-                    answer: "Absolutely! Monietar Cash Flow Management System is designed to be mobile-friendly, allowing you to track your finances and access insights anytime, anywhere."
-                  },
-                  {
-                    question: "When will the Pro tier be available?",
-                    answer: "The Pro tier is currently in development and is expected to launch in mid-2026."
-                  }
-                ].map((faq, index) => (
-                  <motion.div
-                    key={index}
-                    className="border border-gray-200 rounded-xl overflow-hidden"
-                    initial={{ opacity: 0, y: 10 }}
+                {/* Header */}
+                <motion.div 
+                    className="text-center mb-16"
+                    initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                  >
-                    <button
-                      className="flex justify-between items-center w-full p-6 text-left font-medium text-gray-900 hover:bg-gray-50 transition-colors"
-                      onClick={() => toggleFaq(index)}
+                    transition={{ duration: 0.6 }}
+                >
+                    <motion.div
+                        className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-gray-100 border border-gray-200 mb-6"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.4, delay: 0.1 }}
                     >
-                      <span>{faq.question}</span>
-                      <svg
-                        className={`w-5 h-5 transition-transform ${activeFaq === index ? 'rotate-180' : ''}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    <AnimatePresence>
-                      {activeFaq === index && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="p-6 pt-0 text-gray-600">{faq.answer}</div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </section>
+                        <div className="flex space-x-1">
+                            {[1, 2, 3].map((dot) => (
+                                <motion.div
+                                    key={dot}
+                                    className="w-1.5 h-1.5 bg-gray-600 rounded-full"
+                                    animate={{ scale: [1, 1.2, 1] }}
+                                    transition={{ duration: 1.5, repeat: Infinity, delay: dot * 0.2 }}
+                                />
+                            ))}
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">FAQ</span>
+                    </motion.div>
+                    
+                    <motion.h2 
+                        className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
+                    >
+                        Frequently Asked Questions
+                    </motion.h2>
+                    
+                    <motion.p 
+                        className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8"
+                        initial={{ opacity: 0, y: 15 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6, delay: 0.3 }}
+                    >
+                        Everything you need to know about joining our exclusive waitlist
+                    </motion.p>
 
-  );
+                    {/* Search Bar */}
+                    <motion.div
+                        className="relative max-w-md mx-auto"
+                        initial={{ opacity: 0, y: 10 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: 0.4 }}
+                    >
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                            ref={searchInputRef}
+                            type="text"
+                            placeholder="Search questions... (Ctrl+K)"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200"
+                        />
+                        {searchTerm && (
+                            <motion.button
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                ✕
+                            </motion.button>
+                        )}
+                    </motion.div>
+                </motion.div>
+
+                {/* Results Count */}
+                {searchTerm && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center mb-6"
+                    >
+                        <p className="text-gray-600">
+                            Found {filteredFaqs.length} {filteredFaqs.length === 1 ? 'result' : 'results'} for "{searchTerm}"
+                        </p>
+                    </motion.div>
+                )}
+                
+                {/* FAQ Grid */}
+                <div className="grid gap-4">
+                    {filteredFaqs.map((faq, index) => (
+                        <motion.div
+                            key={index}
+                            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group"
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5, delay: index * 0.1 }}
+                            whileHover={{ y: -2 }}
+                            layout
+                        >
+                            <button
+                                className="flex justify-between items-center w-full p-6 text-left group"
+                                onClick={() => toggleFaq(index)}
+                            >
+                                <div className="flex items-start space-x-4 flex-1">
+                                    <motion.div 
+                                        className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center text-sm font-semibold mt-1 group-hover:bg-gray-800 transition-colors"
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                    >
+                                        {index + 1}
+                                    </motion.div>
+                                    <div className="text-left flex-1">
+                                        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-gray-700 transition-colors duration-200 mb-1">
+                                            {faq.question}
+                                        </h3>
+                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                            {faq.category}
+                                        </span>
+                                    </div>
+                                </div>
+                                <motion.div
+                                    animate={{ rotate: activeFaq === index ? 180 : 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors duration-200 ml-4"
+                                >
+                                    <ChevronDown className="w-4 h-4 text-gray-600" />
+                                </motion.div>
+                            </button>
+                            
+                            <AnimatePresence>
+                                {activeFaq === index && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: "easeOut" }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="px-6 pb-6">
+                                            <div className="w-full h-px bg-gray-200 mb-4"></div>
+                                            <p className="text-gray-600 leading-relaxed">
+                                                {faq.answer}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+                    ))}
+                </div>
+
+                {/* No Results */}
+                {searchTerm && filteredFaqs.length === 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center py-12"
+                    >
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Search className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">No results found</h3>
+                        <p className="text-gray-600">Try different keywords or browse all questions above</p>
+                    </motion.div>
+                )}
+
+                {/* Enhanced CTA Section */}
+                <motion.div
+                    className="text-center mt-16"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.4 }}
+                >
+                    <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 text-white shadow-xl">
+                        <motion.h3 
+                            className="text-2xl font-bold mb-4"
+                            initial={{ opacity: 0, y: 10 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5, delay: 0.5 }}
+                        >
+                            Ready to join the future of business finance?
+                        </motion.h3>
+                        <motion.p 
+                            className="text-gray-300 mb-6 text-lg"
+                            initial={{ opacity: 0, y: 10 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5, delay: 0.6 }}
+                        >
+                            Join 1,247+ forward-thinking SMEs on our exclusive waitlist
+                        </motion.p>
+                        
+                        <motion.div 
+                            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+                            initial={{ opacity: 0, y: 10 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5, delay: 0.7 }}
+                        >
+                            <motion.a
+                                href="#waitlist"
+                                className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-white text-gray-900 font-bold hover:bg-gray-50 transition-all duration-200 group shadow-lg"
+                                whileHover={{ scale: 1.05, y: -2 }}
+                                whileTap={{ scale: 0.98 }}
+                            >
+                                <MessageCircle className="w-5 h-5" />
+                                Join Waitlist Now
+                                <motion.div
+                                    animate={{ x: [0, 4, 0] }}
+                                    transition={{ duration: 1.5, repeat: Infinity }}
+                                >
+                                    →
+                                </motion.div>
+                            </motion.a>
+                            
+                            <motion.a
+                                href="mailto:info@algoritic.com.ng"
+                                className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-white/10 text-white font-semibold hover:bg-white/20 transition-all duration-200 group border border-white/20"
+                                whileHover={{ scale: 1.05, y: -2 }}
+                                whileTap={{ scale: 0.98 }}
+                            >
+                                <Mail className="w-5 h-5" />
+                                Contact Support
+                            </motion.a>
+                        </motion.div>
+                    </div>
+                    
+                </motion.div>
+            </div>
+        </section>
+    );
 }

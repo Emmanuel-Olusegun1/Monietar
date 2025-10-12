@@ -3,49 +3,48 @@
 import { motion } from 'framer-motion';
 import { useRef } from 'react';
 
-type FeatureCards = {
+type BenefitCard = {
   icon: string;
   title: string;
-  desc: string;
+  description: string;
 };
 
-const features: FeatureCards[] = [
+const benefits: BenefitCard[] = [
   { 
-    icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', 
-    title: 'Cash Flow Tracking', 
-    desc: 'Monitor income and expenses effortlessly in real-time with categorization of transactions.'
+    icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', 
+    title: 'Early Access', 
+    description: 'Be among the first to experience our AI-powered financial platform before public launch.'
   },
   { 
     icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 
-    title: 'Budgeting Tools', 
-    desc: 'Create and manage budgets for specific categories or periods with alerts for overspending.'
+    title: 'Exclusive Pricing', 
+    description: 'Get special launch discounts and lifetime deals reserved for our waitlist community.'
   },
   { 
-    icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', 
-    title: 'Financial Insights', 
-    desc: 'AI-generated reports on cash flow trends, forecasts, and anomalies with visual dashboards.'
+    icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', 
+    title: 'Priority Support', 
+    description: 'Receive dedicated onboarding and premium support from our founding team.'
   },
   { 
-    icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 
-    title: 'Decision Support', 
-    desc: 'AI recommendations for cost-saving and revenue optimization based on historical data.'
+    icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z', 
+    title: 'Influence Development', 
+    description: 'Help shape the product with early feedback and feature requests that matter to you.'
   },
   { 
-    icon: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z', 
-    title: 'User Interface', 
-    desc: 'Intuitive, mobile-friendly design with multi-language and multi-currency support.'
+    icon: 'M13 10V3L4 14h7v7l9-11h-7z', 
+    title: 'Competitive Advantage', 
+    description: 'Get ahead of competitors by mastering our tools before they become widely available.'
   },
   { 
     icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z', 
-    title: 'Security & Compliance', 
-    desc: 'Bank-level encryption, GDPR compliance, and regular security audits to protect your data.'
+    title: 'Founding Member Status', 
+    description: 'Join an exclusive community of forward-thinking African business leaders.'
   }
 ];
 
-export default function Feature() {
+export default function Benefits() {
   const containerRef = useRef(null);
 
-  // Simplified variants - removed complex scroll animations
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -81,7 +80,7 @@ export default function Feature() {
   };
 
   return (
-    <section ref={containerRef} id="features" className="relative py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-white overflow-hidden">
+    <section ref={containerRef} id="benefits" className="relative py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
       {/* Minimal Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 opacity-[0.02]">
@@ -108,7 +107,7 @@ export default function Feature() {
             transition={{ duration: 0.4, delay: 0.1 }}
           >
             <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
-            <span className="text-sm font-medium text-gray-600">Launching Features</span>
+            <span className="text-sm font-medium text-gray-600">Waitlist Benefits</span>
           </motion.div>
           
           <motion.h2 
@@ -118,9 +117,9 @@ export default function Feature() {
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            Enterprise-Grade
+            Exclusive Advantages
             <br />
-            <span className="text-gray-800">Financial Intelligence</span>
+            <span className="text-gray-800">For Founding Members</span>
           </motion.h2>
           
           <motion.p 
@@ -130,11 +129,11 @@ export default function Feature() {
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            Advanced tools designed for modern businesses seeking clarity and control
+            Special perks and privileges reserved for our early community members
           </motion.p>
         </motion.div>
 
-        {/* Features Grid - Single implementation for all screen sizes */}
+        {/* Benefits Grid - Same styling as Features */}
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           initial="hidden"
@@ -142,7 +141,7 @@ export default function Feature() {
           viewport={{ once: true, margin: "-50px" }}
           variants={containerVariants}
         >
-          {features.map((feature, index) => (
+          {benefits.map((benefit, index) => (
             <motion.div
               key={index}
               variants={itemVariants}
@@ -155,22 +154,22 @@ export default function Feature() {
                 transition={{ type: "spring" as const, stiffness: 400 }}
               >
                 <svg className="w-5 h-5 md:w-6 md:h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={benefit.icon} />
                 </svg>
               </motion.div>
               
               <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-3 md:mb-4">
-                {feature.title}
+                {benefit.title}
               </h3>
               
               <p className="text-gray-600 leading-relaxed text-sm md:text-base">
-                {feature.desc}
+                {benefit.description}
               </p>
             </motion.div>
           ))}
         </motion.div>
 
-        {/* Bottom CTA */}
+        {/* Bottom CTA - Same styling as Features */}
         <motion.div
           className="text-center mt-16 md:mt-20"
           initial={{ opacity: 0, y: 20 }}
@@ -178,13 +177,13 @@ export default function Feature() {
           viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          {/* <motion.a
-            href='/auth/signin'
+          <motion.a
+            href="#waitlist"
             className="inline-flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 rounded-xl bg-gray-900 text-white cursor-pointer group"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <span className="text-base md:text-lg font-semibold">Explore Platform</span>
+            <span className="text-base md:text-lg font-semibold">Join Waitlist Now</span>
             <motion.div
               className="w-4 h-4 md:w-5 md:h-5"
               animate={{ x: [0, 4, 0] }}
@@ -192,7 +191,7 @@ export default function Feature() {
             >
               →
             </motion.div>
-          </motion.a> */}
+          </motion.a>
           
           <motion.p 
             className="text-gray-500 text-sm mt-4"
@@ -201,7 +200,7 @@ export default function Feature() {
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.5 }}
           >
-            Trusted by forward thinking businesses in Africa
+            Limited spots available for founding members
           </motion.p>
         </motion.div>
       </div>
