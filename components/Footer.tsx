@@ -59,18 +59,6 @@ export default function Footer() {
               <span>© {new Date().getFullYear()} Monietar. All rights reserved.</span>
             </div>
             
-            {/* Additional Links */}
-            <div className="flex flex-wrap justify-center lg:justify-end gap-6 text-sm">
-              <a href="#privacy" className="text-gray-400 hover:text-white transition-colors duration-300">
-                Privacy Policy
-              </a>
-              <a href="#terms" className="text-gray-400 hover:text-white transition-colors duration-300">
-                Terms of Service
-              </a>
-              <a href="#cookies" className="text-gray-400 hover:text-white transition-colors duration-300">
-                Cookie Policy
-              </a>
-            </div>
             
             {/* Credit */}
             <div className="text-gray-500 text-sm">
