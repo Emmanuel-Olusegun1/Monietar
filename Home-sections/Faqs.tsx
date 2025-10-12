@@ -26,7 +26,7 @@ export default function FAQ() {
         },
         {
             question: "When will the platform launch?",
-            answer: "We're targeting a full public launch in Q4 2025. Waitlist members will get access in stages starting from Q3 2025.",
+            answer: "We're targeting a full public launch by 25th December, 2025. Waitlist members will get access in stages starting from 25th November, 2025.",
             category: "timeline"
         },
         {
