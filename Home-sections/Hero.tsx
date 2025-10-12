@@ -578,7 +578,7 @@ export default function WaitlistHero() {
                                             type="email"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="Enter your business email"
+                                            placeholder="Enter your email"
                                             className="flex-1 px-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent backdrop-blur-sm"
                                             required
                                             disabled={isSubmitting}
