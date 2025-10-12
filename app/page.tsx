@@ -50,7 +50,7 @@ function Home() {
       {/* Hero Section */}
       <Hero />
       {/* Trust Bar */}
-      <Trustbar />
+      {/* <Trustbar /> */}
       {/* Features Section */}
       <Feature />
       {/* Premium Coming Soon Section */}
