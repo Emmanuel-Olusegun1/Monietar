@@ -171,7 +171,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
 export default function WaitlistHeader() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -240,95 +239,7 @@ export default function WaitlistHeader() {
           '
         </div>
 
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setIsMenuOpen(true)}
-          className={`lg:hidden p-2 rounded-md transition-colors ${
-            isScrolled 
-              ? 'text-gray-600 hover:text-emerald-500 hover:bg-gray-100' 
-              : 'text-white/90 hover:text-white hover:bg-white/10'
-          }`}
-          aria-label="Open menu"
-        >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Mobile Sidebar Menu */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-              onClick={() => setIsMenuOpen(false)}
-            />
-            
-            {/* Sidebar */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="fixed top-0 right-0 h-full w-80 max-w-full bg-white shadow-2xl z-50 lg:hidden"
-            >
-              <div className="p-6 h-full flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center space-x-3">
-                    <img 
-                      src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
-                      alt="Monietar Logo"
-                      className="w-24 h-16 object-contain"
-                    />
-                  </div>
-                  <button
-                    onClick={() => setIsMenuOpen(false)}
-                    className="p-2 rounded-md text-gray-600 hover:text-emerald-500 hover:bg-gray-100 transition-colors"
-                    aria-label="Close menu"
-                  >
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Navigation Links */}
-                <nav className="flex-1 space-y-4">
-                  {['Features', 'Benefits', 'FAQ', 'Contact'].map((item) => (
-                    <a
-                      key={item}
-                      href={`#${item.toLowerCase()}`}
-                      className="block py-3 px-4 text-gray-600 hover:text-emerald-500 hover:bg-emerald-50 rounded-md transition-colors duration-200 font-medium"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      {item}
-                    </a>
-                  ))}
-                </nav>
-
-                {/* Waitlist & Sign In Buttons */}
-                <div className="pt-8 border-t border-gray-200 mt-8 space-y-3">
-                  <a 
-                    href="#waitlist" 
-                    className="block w-full text-center border border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-medium py-3 rounded-md transition-all duration-200"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Join Waitlist
-                  </a>
-
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+        
     </header>
   );
 }
