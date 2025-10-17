@@ -59,6 +59,13 @@ export default function Signup() {
       return;
     }
 
+    // Validate phone number format for phone signup
+    if (signupMethod === 'phone' && !formData.phone.startsWith('+')) {
+      toast.error('Please include country code (e.g., +1 for US/Canada)');
+      setIsSigningup(false);
+      return;
+    }
+
     const loadingToast = toast.loading('Creating your account...');
 
     try {
@@ -97,9 +104,11 @@ export default function Signup() {
           }, 3000);
         }
       } else {
-        // Phone signup
+        // Phone signup - ensure proper formatting
+        const phoneNumber = formData.phone.replace(/\s/g, '');
+        
         const { data: authData, error: authError } = await supabase.auth.signUp({
-          phone: formData.phone,
+          phone: phoneNumber,
           password: formData.password,
           options: {
             data: {
@@ -168,18 +177,28 @@ export default function Signup() {
     setShowLanguageDropdown(false);
   };
 
-  // Format phone number as user types
+  // Format phone number as user types (international format with +)
   const formatPhoneNumber = (value: string) => {
-    // Remove all non-digit characters
-    const cleaned = value.replace(/\D/g, '');
+    // Allow only numbers, +, and spaces
+    const cleaned = value.replace(/[^\d+\s]/g, '');
     
-    // Format based on length
-    if (cleaned.length <= 3) {
-      return cleaned;
-    } else if (cleaned.length <= 6) {
-      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+    // Ensure it starts with +
+    if (!cleaned.startsWith('+')) {
+      return '+' + cleaned.replace(/[^\d]/g, '');
+    }
+    
+    // Format the rest of the number with spaces for readability
+    const plusPart = '+';
+    const numberPart = cleaned.slice(1).replace(/\D/g, '');
+    
+    if (numberPart.length <= 3) {
+      return plusPart + numberPart;
+    } else if (numberPart.length <= 6) {
+      return plusPart + numberPart.slice(0, 3) + ' ' + numberPart.slice(3);
+    } else if (numberPart.length <= 9) {
+      return plusPart + numberPart.slice(0, 3) + ' ' + numberPart.slice(3, 6) + ' ' + numberPart.slice(6);
     } else {
-      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+      return plusPart + numberPart.slice(0, 3) + ' ' + numberPart.slice(3, 6) + ' ' + numberPart.slice(6, 10) + ' ' + numberPart.slice(10);
     }
   };
 
@@ -370,19 +389,23 @@ export default function Signup() {
                   />
                 </div>
               ) : (
-                <div className="relative">
-                  <input
-                    type="tel"
-                    id="phone"
-                    value={formData.phone}
-                    onChange={handlePhoneChange}
-                    className="w-full px-3 py-2 rounded-sm border-b border-gray-300 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder-gray-400"
-                    placeholder={t.phonePlaceholder || "(123) 456-7890"}
-                    required
-                    maxLength={14}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {t.phoneFormatHint || "We'll send a verification code to this number"}
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      id="phone"
+                      value={formData.phone}
+                      onChange={handlePhoneChange}
+                      className="w-full px-3 py-2 rounded-sm border-b border-gray-300 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder-gray-400"
+                      placeholder="+1 234 567 8900"
+                      required
+                      maxLength={20}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {t.phoneFormatHint || "Enter your full international phone number with country code"}
+                    <br />
+                    <span className="text-emerald-600">Examples: +1 234 567 8900, +44 7911 123456</span>
                   </p>
                 </div>
               )}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Toast from '@radix-ui/react-toast';
 import * as Select from '@radix-ui/react-select';
@@ -19,794 +19,53 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Cell, PieChart as RechartsPieChart, Pie, Legend } from 'recharts';
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 
+// Import modals
+import { AddTransactionModal } from './components/modals/AddTransactionModal';
+import { AddBudgetModal } from './components/modals/AddBudgetModal';
+import { EditTransactionModal } from './components/modals/EditTransactionModal';
+import { EditBudgetModal } from './components/modals/EditBudgetModal';
+import { DeleteConfirmationModal } from './components/modals/DeleteConfirmationModal';
+import { ChangePasswordModal } from './components/modals/ChangePasswordModal';
+import { ClearDataModal } from './components/modals/ClearDataModal';
+import { DeleteAccountModal } from './components/modals/DeleteAccountModal';
+import { RestoreBackupModal } from './components/modals/RestoreBackupModal';
+import { AIChatModal } from './components/modals/AIChatModal';
+
+// Import components
+import { Sidebar } from './Sidebar';
+
+// Import types
+import { 
+  Transaction, 
+  Budget, 
+  UserSettings, 
+  PasswordData,
+  FinancialData,
+  Alert,
+  UserInfo,
+  CategoryData,
+  ChatMessage,
+  NavigationItem,
+  LanguageOption,
+  CurrencyOption,
+  TimeFilter
+} from './types';
+
 const supabase: SupabaseClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://coihzyskjxedccjpzjzd.supabase.co",
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvaWh6eXNranhlZGNjanB6anpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDQ5ODMsImV4cCI6MjA3MjQyMDk4M30.KbvQ6wfBmjov2ZhdF1_t7PX0JLRnfHGUOMbDHtZABLE"
 );
 
-interface Transaction {
-  id: string;
-  user_id: string;
-  type: 'income' | 'expense';
-  amount: number;
-  category: string;
-  description?: string;
-  date: string;
-  created_at?: string;
-}
-
-interface Budget {
-  id: string;
-  user_id: string;
-  category: string;
-  spent: number;
-  budget_limit: number;
-  percentage: number;
-  period: 'Monthly' | 'Quarterly' | 'Yearly';
-  created_at?: string;
-}
-
-interface Alert {
-  type: 'alert' | 'warning' | 'info';
-  message: string;
-  category: string;
-  priority: 'critical' | 'high' | 'low';
-}
-
-interface FinancialData {
-  income: number;
-  expenses: number;
-  profit: number;
-  transactions: Transaction[];
-  budgets: Budget[];
-  alerts: Alert[];
-  aiRecommendations: string[];
-  cashFlowForecast: { month: string; forecast: number; actual: number | null }[];
-}
-
-interface User {
-  name: string;
-  email: string;
-  businessName: string;
-  avatar: string;
-  plan: string;
-  joinedDate: string;
-}
-
-interface CategoryData {
-  name: string;
-  value: number;
-  [key: string]: any;
-}
-
-interface ChatMessage {
-  id: number;
-  text: string;
-  sender: 'user' | 'ai';
-}
-
-interface NavigationItem {
-  id: string;
-  label: string;
-  icon: React.ComponentType<any>;
-}
-
-interface LanguageOption {
-  value: string;
-  label: string;
-}
-
-interface CurrencyOption {
-  value: string;
-  label: string;
-}
-
-interface TimeFilter {
-  value: string;
-  label: string;
-  icon: React.ComponentType<any>;
-}
-
-// Rule-based Financial Advisor
-class RuleBasedFinancialAdvisor {
-  static analyzeSpendingPatterns(transactions: Transaction[], budgets: Budget[], formatCurrency: (amount: number) => string): string[] {
-    const insights: string[] = [];
-    const now = new Date();
-    const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-
-    // Analyze recent transactions
-    const recentTransactions = transactions.filter(t => 
-      new Date(t.date) >= oneMonthAgo
-    );
-
-    const expensesByCategory = this.groupExpensesByCategory(recentTransactions);
-    const incomeByCategory = this.groupIncomeByCategory(recentTransactions);
-
-    // Rule 1: High spending alerts
-    Object.entries(expensesByCategory).forEach(([category, amount]) => {
-      if (amount > 1000) {
-        insights.push(`High spending detected in ${category}: ${formatCurrency(amount)}. Consider reviewing these expenses.`);
-      }
-    });
-
-    // Rule 2: Budget compliance
-    budgets.forEach(budget => {
-      const spent = expensesByCategory[budget.category] || 0;
-      const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
-      
-      if (percentage >= 90) {
-        insights.push(`⚠️ ${budget.category} budget nearly exhausted (${Math.round(percentage)}%).`);
-      } else if (percentage >= 75) {
-        insights.push(`⚠️ ${budget.category} budget at ${Math.round(percentage)}% of limit.`);
-      }
-    });
-
-    // Rule 3: Income vs Expense ratio
-    const totalIncome = Object.values(incomeByCategory).reduce((sum, amount) => sum + amount, 0);
-    const totalExpenses = Object.values(expensesByCategory).reduce((sum, amount) => sum + amount, 0);
-    
-    if (totalIncome > 0) {
-      const expenseRatio = (totalExpenses / totalIncome) * 100;
-      if (expenseRatio > 80) {
-        insights.push("Your expenses are high relative to income. Consider finding ways to increase income or reduce spending.");
-      } else if (expenseRatio < 50) {
-        insights.push("Great job! You're saving a significant portion of your income.");
-      }
-    }
-
-    // Rule 4: Frequent transactions
-    const transactionCountByCategory = this.countTransactionsByCategory(recentTransactions);
-    Object.entries(transactionCountByCategory).forEach(([category, count]) => {
-      if (count > 10) {
-        insights.push(`Frequent transactions in ${category} (${count} times). Consider subscription or bulk purchasing.`);
-      }
-    });
-
-    // Rule 5: Large transactions
-    const largeTransactions = recentTransactions.filter(t => t.amount > 500);
-    if (largeTransactions.length > 0) {
-      insights.push(`You have ${largeTransactions.length} large transactions (>${formatCurrency(500)}). Review for optimization opportunities.`);
-    }
-
-    return insights.length > 0 ? insights : ["Your financial patterns look healthy. Continue monitoring your transactions."];
-  }
-
-  static generateFinancialSummary(transactions: Transaction[], formatCurrency: (amount: number) => string): string {
-    const income = transactions.filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const expenses = transactions.filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const profit = income - expenses;
-    const profitMargin = income > 0 ? (profit / income) * 100 : 0;
-
-    return `Financial Summary:
-• Total Income: ${formatCurrency(income)}
-• Total Expenses: ${formatCurrency(expenses)}
-• Net Profit: ${formatCurrency(profit)}
-• Profit Margin: ${profitMargin.toFixed(1)}%`;
-  }
-
-  static getBudgetInsights(transactions: Transaction[], budgets: Budget[], formatCurrency: (amount: number) => string): string {
-    if (budgets.length === 0) {
-      return "You haven't set up any budgets yet. Create budgets to track your spending limits.";
-    }
-    
-    const insights = budgets.map(budget => {
-      const spent = transactions
-        .filter(t => t.type === 'expense' && t.category === budget.category)
-        .reduce((sum, t) => sum + t.amount, 0);
-      const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
-      
-      return `${budget.category}: ${Math.round(percentage)}% used (${formatCurrency(spent)} of ${formatCurrency(budget.budget_limit)})`;
-    });
-    
-    return `Your budget status:\n${insights.join('\n')}`;
-  }
-
-  static getIncomeAnalysis(transactions: Transaction[], formatCurrency: (amount: number) => string): string {
-    const income = transactions.filter(t => t.type === 'income');
-    const total = income.reduce((sum, t) => sum + t.amount, 0);
-    const categories = this.groupIncomeByCategory(transactions);
-    
-    const topCategory = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
-    
-    return `Income Analysis:
-• Total Income: ${formatCurrency(total)}
-• Number of Transactions: ${income.length}
-• Top Income Source: ${topCategory ? `${topCategory[0]} (${formatCurrency(topCategory[1])})` : 'N/A'}`;
-  }
-
-  static getExpenseAnalysis(transactions: Transaction[], formatCurrency: (amount: number) => string): string {
-    const expenses = transactions.filter(t => t.type === 'expense');
-    const total = expenses.reduce((sum, t) => sum + t.amount, 0);
-    const categories = this.groupExpensesByCategory(transactions);
-    
-    const topCategory = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
-    
-    return `Expense Analysis:
-• Total Expenses: ${formatCurrency(total)}
-• Number of Transactions: ${expenses.length}
-• Largest Expense Category: ${topCategory ? `${topCategory[0]} (${formatCurrency(topCategory[1])})` : 'N/A'}`;
-  }
-
-  private static groupExpensesByCategory(transactions: Transaction[]): Record<string, number> {
-    return transactions
-      .filter(t => t.type === 'expense')
-      .reduce((acc, transaction) => {
-        acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
-        return acc;
-      }, {} as Record<string, number>);
-  }
-
-  private static groupIncomeByCategory(transactions: Transaction[]): Record<string, number> {
-    return transactions
-      .filter(t => t.type === 'income')
-      .reduce((acc, transaction) => {
-        acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
-        return acc;
-      }, {} as Record<string, number>);
-  }
-
-  private static countTransactionsByCategory(transactions: Transaction[]): Record<string, number> {
-    return transactions.reduce((acc, transaction) => {
-      acc[transaction.category] = (acc[transaction.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-  }
-}
-
-// Enhanced NLP Processor with better understanding
-class AdvancedFinancialNLP {
-  static processQuery(message: string, transactions: Transaction[], budgets: Budget[], formatCurrency: (amount: number) => string): string {
-    const lowerMessage = message.toLowerCase().trim();
-    
-    // Extract key financial terms and numbers
-    const financialTerms = this.extractFinancialTerms(lowerMessage);
-    const amounts = this.extractAmounts(lowerMessage);
-    const timePeriods = this.extractTimePeriods(lowerMessage);
-    const categories = this.extractCategories(lowerMessage, transactions);
-    
-    // Determine user intent
-    const intent = this.determineIntent(lowerMessage, financialTerms);
-    
-    return this.generateResponse(intent, {
-      message: lowerMessage,
-      transactions,
-      budgets,
-      financialTerms,
-      amounts,
-      timePeriods,
-      categories,
-      formatCurrency
-    });
-  }
-
-  private static extractFinancialTerms(message: string): string[] {
-    const terms = [
-      'budget', 'income', 'expense', 'spending', 'revenue', 'profit', 'loss',
-      'savings', 'investment', 'tax', 'bill', 'payment', 'cost', 'price',
-      'expensive', 'cheap', 'afford', 'money', 'cash', 'bank', 'account',
-      'financial', 'economic', 'wealth', 'rich', 'poor', 'broke',
-      'overspend', 'underspend', 'limit', 'threshold', 'maximum', 'minimum',
-      'trend', 'pattern', 'analysis', 'report', 'summary', 'overview',
-      'recommend', 'advice', 'suggestion', 'tip', 'help', 'guide'
-    ];
-    
-    return terms.filter(term => message.includes(term));
-  }
-
-  private static extractAmounts(message: string): number[] {
-    const amountRegex = /(\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)|\d+(?:\.\d{2})?)/g;
-    const matches = message.match(amountRegex) || [];
-    return matches.map(match => {
-      const cleanAmount = match.replace(/[$,]/g, '');
-      return parseFloat(cleanAmount) || 0;
-    }).filter(amount => amount > 0);
-  }
-
-  private static extractTimePeriods(message: string): string[] {
-    const periods = [
-      'today', 'yesterday', 'week', 'month', 'year', 'quarter',
-      'january', 'february', 'march', 'april', 'may', 'june',
-      'july', 'august', 'september', 'october', 'november', 'december',
-      'last week', 'last month', 'last year', 'this week', 'this month', 'this year',
-      'recent', 'current', 'previous'
-    ];
-    
-    return periods.filter(period => message.includes(period));
-  }
-
-  private static extractCategories(message: string, transactions: Transaction[]): string[] {
-    const allCategories = [...new Set(transactions.map(t => t.category.toLowerCase()))];
-    return allCategories.filter(category => message.includes(category));
-  }
-
-  private static determineIntent(message: string, financialTerms: string[]): string {
-    // Greeting and help
-    if (this.isGreeting(message)) return 'greeting';
-    if (this.isHelpRequest(message)) return 'help';
-    
-    // Budget-related
-    if (message.includes('budget') || message.includes('limit') || message.includes('overspend')) {
-      return 'budget';
-    }
-    
-    // Income-related
-    if (message.includes('income') || message.includes('revenue') || message.includes('earning')) {
-      return 'income';
-    }
-    
-    // Expense-related
-    if (message.includes('expense') || message.includes('spending') || message.includes('cost')) {
-      return 'expense';
-    }
-    
-    // Analysis and recommendations
-    if (message.includes('analyze') || message.includes('pattern') || message.includes('trend')) {
-      return 'analysis';
-    }
-    
-    if (message.includes('recommend') || message.includes('advice') || message.includes('suggestion')) {
-      return 'recommendation';
-    }
-    
-    // General financial summary
-    if (message.includes('summary') || message.includes('overview') || message.includes('how am i doing')) {
-      return 'summary';
-    }
-    
-    // Specific category queries
-    if (message.includes('category') || message.includes('where') || message.includes('what')) {
-      return 'category_analysis';
-    }
-    
-    // Comparison queries
-    if (message.includes('compare') || message.includes('vs') || message.includes('difference')) {
-      return 'comparison';
-    }
-    
-    // Future planning
-    if (message.includes('plan') || message.includes('future') || message.includes('goal')) {
-      return 'planning';
-    }
-    
-    // Default to general help
-    return 'general';
-  }
-
-  private static isGreeting(message: string): boolean {
-    const greetings = ['hello', 'hi', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening'];
-    return greetings.some(greeting => message.includes(greeting));
-  }
-
-  private static isHelpRequest(message: string): boolean {
-    return message.includes('help') || message.includes('what can you do') || message.includes('capabilities');
-  }
-
-  private static generateResponse(intent: string, context: any): string {
-    const { transactions, budgets, formatCurrency, financialTerms, timePeriods, categories } = context;
-    
-    switch (intent) {
-      case 'greeting':
-        return this.generateGreetingResponse();
-      
-      case 'help':
-        return this.generateHelpResponse();
-      
-      case 'budget':
-        return this.generateBudgetResponse(transactions, budgets, formatCurrency);
-      
-      case 'income':
-        return this.generateIncomeResponse(transactions, formatCurrency, timePeriods);
-      
-      case 'expense':
-        return this.generateExpenseResponse(transactions, formatCurrency, timePeriods, categories);
-      
-      case 'analysis':
-        return this.generateAnalysisResponse(transactions, budgets, formatCurrency);
-      
-      case 'recommendation':
-        return this.generateRecommendationResponse(transactions, budgets, formatCurrency);
-      
-      case 'summary':
-        return this.generateSummaryResponse(transactions, formatCurrency);
-      
-      case 'category_analysis':
-        return this.generateCategoryAnalysisResponse(transactions, formatCurrency, categories);
-      
-      case 'comparison':
-        return this.generateComparisonResponse(transactions, formatCurrency, timePeriods);
-      
-      case 'planning':
-        return this.generatePlanningResponse(transactions, budgets, formatCurrency);
-      
-      default:
-        return this.generateGeneralResponse(transactions, budgets, formatCurrency);
-    }
-  }
-
-  private static generateGreetingResponse(): string {
-    const greetings = [
-      "Hello! I'm your AI financial assistant. How can I help with your finances today?",
-      "Hi there! Ready to analyze your financial data and provide insights?",
-      "Welcome! I'm here to help you understand and optimize your finances."
-    ];
-    return greetings[Math.floor(Math.random() * greetings.length)];
-  }
-
-  private static generateHelpResponse(): string {
-    return `I can help you with various financial tasks:
-
-📊 **Financial Analysis**
-• "How am I doing financially?"
-• "Analyze my spending patterns"
-• "Show me my financial summary"
-
-💰 **Income & Expenses**
-• "What's my total income?"
-• "Where am I spending the most?"
-• "Show my expense breakdown"
-
-📈 **Budget Management**
-• "How are my budgets doing?"
-• "Am I overspending anywhere?"
-• "Create a budget plan"
-
-🎯 **Recommendations**
-• "Give me financial advice"
-• "How can I save more money?"
-• "Optimization suggestions"
-
-📅 **Time-based Analysis**
-• "Show me this month's spending"
-• "Compare with last month"
-• "Year-to-date analysis"
-
-You can ask me anything about your finances in natural language!`;
-  }
-
-  private static generateBudgetResponse(transactions: Transaction[], budgets: Budget[], formatCurrency: (amount: number) => string): string {
-    if (budgets.length === 0) {
-      return "You haven't set up any budgets yet. I recommend creating budgets for your main expense categories to better track your spending. Would you like me to suggest some budget categories based on your spending patterns?";
-    }
-
-    const budgetAnalysis = budgets.map(budget => {
-      const spent = transactions
-        .filter(t => t.type === 'expense' && t.category === budget.category)
-        .reduce((sum, t) => sum + t.amount, 0);
-      
-      const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
-      const remaining = budget.budget_limit - spent;
-      
-      let status = '🟢 On track';
-      if (percentage >= 90) status = '🔴 Over budget';
-      else if (percentage >= 75) status = '🟡 Almost there';
-      
-      return `${budget.category}: ${formatCurrency(spent)} / ${formatCurrency(budget.budget_limit)} (${Math.round(percentage)}%) - ${status}`;
-    }).join('\n');
-
-    const criticalBudgets = budgets.filter(budget => {
-      const spent = transactions
-        .filter(t => t.type === 'expense' && t.category === budget.category)
-        .reduce((sum, t) => sum + t.amount, 0);
-      return (spent / budget.budget_limit) * 100 >= 75;
-    });
-
-    let additionalAdvice = '';
-    if (criticalBudgets.length > 0) {
-      additionalAdvice = `\n\n⚠️ **Attention needed**: ${criticalBudgets.map(b => b.category).join(', ')} ${criticalBudgets.length === 1 ? 'is' : 'are'} nearing their limits. Consider reviewing these categories.`;
-    }
-
-    return `Here's your budget status:\n\n${budgetAnalysis}${additionalAdvice}`;
-  }
-
-  private static generateIncomeResponse(transactions: Transaction[], formatCurrency: (amount: number) => string, timePeriods: string[]): string {
-    const incomeTransactions = transactions.filter(t => t.type === 'income');
-    
-    if (incomeTransactions.length === 0) {
-      return "I don't see any income transactions yet. Start by adding your income sources to get a complete financial picture.";
-    }
-
-    const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const incomeByCategory = this.groupIncomeByCategory(transactions);
-    const topIncomeSource = Object.entries(incomeByCategory).sort((a, b) => b[1] - a[1])[0];
-    
-    const avgIncome = totalIncome / incomeTransactions.length;
-    const recentIncome = this.getRecentTransactions(incomeTransactions, timePeriods).reduce((sum, t) => sum + t.amount, 0);
-
-    return `**Income Analysis** 💰
-
-• Total Income: ${formatCurrency(totalIncome)}
-• Number of Income Transactions: ${incomeTransactions.length}
-• Average Income per Transaction: ${formatCurrency(avgIncome)}
-• Top Income Source: ${topIncomeSource ? `${topIncomeSource[0]} (${formatCurrency(topIncomeSource[1])})` : 'N/A'}
-${recentIncome > 0 ? `• Recent Income: ${formatCurrency(recentIncome)}\n` : ''}
-
-Your income appears ${totalIncome > 0 ? 'healthy' : 'low'}. ${topIncomeSource ? `Most of your income comes from ${topIncomeSource[0]}.` : ''}`;
-  }
-
-  private static generateExpenseResponse(transactions: Transaction[], formatCurrency: (amount: number) => string, timePeriods: string[], categories: string[]): string {
-    const expenseTransactions = transactions.filter(t => t.type === 'expense');
-    
-    if (expenseTransactions.length === 0) {
-      return "No expense transactions found. Add your expenses to start tracking your spending patterns.";
-    }
-
-    const totalExpenses = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const expensesByCategory = this.groupExpensesByCategory(transactions);
-    const topExpenseCategory = Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1])[0];
-    
-    const avgExpense = totalExpenses / expenseTransactions.length;
-    const recentExpenses = this.getRecentTransactions(expenseTransactions, timePeriods).reduce((sum, t) => sum + t.amount, 0);
-
-    let categoryAnalysis = '';
-    if (categories.length > 0) {
-      const categoryExpenses = categories.map(cat => {
-        const amount = expensesByCategory[cat] || 0;
-        return `${cat}: ${formatCurrency(amount)}`;
-      }).join('\n• ');
-      categoryAnalysis = `\n\n**Specific Categories You Asked About:**\n• ${categoryExpenses}`;
-    }
-
-    return `**Expense Analysis** 💸
-
-• Total Expenses: ${formatCurrency(totalExpenses)}
-• Number of Expense Transactions: ${expenseTransactions.length}
-• Average Expense per Transaction: ${formatCurrency(avgExpense)}
-• Largest Expense Category: ${topExpenseCategory ? `${topExpenseCategory[0]} (${formatCurrency(topExpenseCategory[1])})` : 'N/A'}
-${recentExpenses > 0 ? `• Recent Expenses: ${formatCurrency(recentExpenses)}\n` : ''}
-${categoryAnalysis}
-
-${this.getExpenseAdvice(totalExpenses, expensesByCategory, formatCurrency)}`;
-  }
-
-  private static generateAnalysisResponse(transactions: Transaction[], budgets: Budget[], formatCurrency: (amount: number) => string): string {
-    const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    const profit = income - expenses;
-    const profitMargin = income > 0 ? (profit / income) * 100 : 0;
-
-    const expensesByCategory = this.groupExpensesByCategory(transactions);
-    const topCategories = Object.entries(expensesByCategory)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
-
-    const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
-
-    return `**Financial Pattern Analysis** 📈
-
-• Income: ${formatCurrency(income)}
-• Expenses: ${formatCurrency(expenses)}
-• Net Profit: ${formatCurrency(profit)}
-• Profit Margin: ${profitMargin.toFixed(1)}%
-• Savings Rate: ${savingsRate.toFixed(1)}%
-
-**Top Spending Categories:**
-${topCategories.map(([cat, amount], index) => `${index + 1}. ${cat}: ${formatCurrency(amount)}`).join('\n')}
-
-**Insights:**
-${this.generateInsights(income, expenses, profit, savingsRate, formatCurrency)}`;
-  }
-
-  private static generateRecommendationResponse(transactions: Transaction[], budgets: Budget[], formatCurrency: (amount: number) => string): string {
-    const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
-
-    const recommendations = [];
-
-    // Budget recommendations
-    if (budgets.length === 0) {
-      recommendations.push("• **Create budgets**: Set up budgets for your main expense categories to better control spending");
-    }
-
-    // Savings recommendations
-    if (savingsRate < 20) {
-      recommendations.push("• **Increase savings**: Aim to save at least 20% of your income for better financial security");
-    }
-
-    // Expense optimization
-    const expensesByCategory = this.groupExpensesByCategory(transactions);
-    const highSpendingCategories = Object.entries(expensesByCategory)
-      .filter(([_, amount]) => amount > income * 0.3) // More than 30% of income
-      .map(([cat, _]) => cat);
-
-    if (highSpendingCategories.length > 0) {
-      recommendations.push(`• **Review high spending**: Consider optimizing expenses in ${highSpendingCategories.join(', ')}`);
-    }
-
-    // Income diversification
-    const incomeSources = new Set(transactions.filter(t => t.type === 'income').map(t => t.category));
-    if (incomeSources.size < 2) {
-      recommendations.push("• **Diversify income**: Explore additional income sources for financial stability");
-    }
-
-    if (recommendations.length === 0) {
-      recommendations.push("• **Maintain current strategy**: Your financial habits appear healthy. Continue monitoring and adjusting as needed");
-      recommendations.push("• **Consider investments**: Explore investment opportunities to grow your wealth");
-    }
-
-    return `**Financial Recommendations** 🎯\n\nBased on your current financial patterns, I recommend:\n\n${recommendations.join('\n\n')}`;
-  }
-
-  private static generateSummaryResponse(transactions: Transaction[], formatCurrency: (amount: number) => string): string {
-    const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    const profit = income - expenses;
-    const profitMargin = income > 0 ? (profit / income) * 100 : 0;
-
-    const totalTransactions = transactions.length;
-    const expenseCategories = new Set(transactions.filter(t => t.type === 'expense').map(t => t.category));
-    const incomeCategories = new Set(transactions.filter(t => t.type === 'income').map(t => t.category));
-
-    return `**Financial Health Summary** 🏦
-
-📊 **Key Metrics:**
-• Total Income: ${formatCurrency(income)}
-• Total Expenses: ${formatCurrency(expenses)}
-• Net Profit: ${formatCurrency(profit)}
-• Profit Margin: ${profitMargin.toFixed(1)}%
-
-📈 **Activity Overview:**
-• Total Transactions: ${totalTransactions}
-• Income Sources: ${incomeCategories.size} categories
-• Expense Categories: ${expenseCategories.size} categories
-
-💡 **Overall Assessment:**
-${this.getFinancialHealthAssessment(income, expenses, profit, profitMargin)}`;
-  }
-
-  // Helper methods
-  private static groupIncomeByCategory(transactions: Transaction[]): Record<string, number> {
-    return transactions
-      .filter(t => t.type === 'income')
-      .reduce((acc, transaction) => {
-        acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
-        return acc;
-      }, {} as Record<string, number>);
-  }
-
-  private static groupExpensesByCategory(transactions: Transaction[]): Record<string, number> {
-    return transactions
-      .filter(t => t.type === 'expense')
-      .reduce((acc, transaction) => {
-        acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
-        return acc;
-      }, {} as Record<string, number>);
-  }
-
-  private static getRecentTransactions(transactions: Transaction[], timePeriods: string[]): Transaction[] {
-    if (timePeriods.length === 0) return transactions.slice(0, 10); // Default to recent 10
-    
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    
-    return transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      return timePeriods.some(period => {
-        if (period.includes('week')) return transactionDate >= oneWeekAgo;
-        if (period.includes('month')) return transactionDate >= oneMonthAgo;
-        return true;
-      });
-    });
-  }
-
-  private static getExpenseAdvice(totalExpenses: number, expensesByCategory: Record<string, number>, formatCurrency: (amount: number) => string): string {
-    const highSpendingCategories = Object.entries(expensesByCategory)
-      .filter(([_, amount]) => amount > totalExpenses * 0.2) // More than 20% of total expenses
-      .map(([cat, amount]) => `${cat} (${formatCurrency(amount)})`);
-
-    if (highSpendingCategories.length > 0) {
-      return `💡 **Advice**: Your spending is concentrated in ${highSpendingCategories.join(', ')}. Consider if these align with your financial priorities.`;
-    }
-    
-    return "💡 **Advice**: Your spending appears well-distributed across categories.";
-  }
-
-  private static generateInsights(income: number, expenses: number, profit: number, savingsRate: number, formatCurrency: (amount: number) => string): string {
-    const insights = [];
-    
-    if (profit > 0) {
-      insights.push(`✅ You're maintaining a positive cash flow of ${formatCurrency(profit)} monthly`);
-    } else {
-      insights.push(`⚠️ You're operating at a loss of ${formatCurrency(Math.abs(profit))}. Consider reducing expenses or increasing income`);
-    }
-    
-    if (savingsRate >= 20) {
-      insights.push(`✅ Excellent savings rate of ${savingsRate.toFixed(1)}% - keep it up!`);
-    } else if (savingsRate >= 10) {
-      insights.push(`📊 Good savings rate of ${savingsRate.toFixed(1)}%. Aim for 20% for better financial security`);
-    } else {
-      insights.push(`💡 Your savings rate is ${savingsRate.toFixed(1)}%. Consider ways to increase this to build your financial foundation`);
-    }
-    
-    if (expenses > income * 0.8) {
-      insights.push("📉 High expense-to-income ratio. Look for opportunities to optimize spending");
-    }
-    
-    return insights.join('\n\n');
-  }
-
-  private static getFinancialHealthAssessment(income: number, expenses: number, profit: number, profitMargin: number): string {
-    if (income === 0 && expenses === 0) {
-      return "Start by adding your financial transactions to get a complete picture of your financial health.";
-    }
-    
-    if (profitMargin > 20) {
-      return "Excellent! You're maintaining strong profitability and financial health.";
-    } else if (profitMargin > 10) {
-      return "Good financial health with positive cash flow. Consider optimizing further for growth.";
-    } else if (profitMargin > 0) {
-      return "Stable financial position with slight profitability. Look for opportunities to improve margins.";
-    } else {
-      return "Attention needed: You're operating at a loss. Focus on reducing expenses or increasing revenue.";
-    }
-  }
-
-  // Other response generators (simplified for brevity)
-  private static generateCategoryAnalysisResponse(transactions: Transaction[], formatCurrency: (amount: number) => string, categories: string[]): string {
-    if (categories.length === 0) {
-      return "Which specific category would you like me to analyze? You can ask about any of your expense or income categories.";
-    }
-    
-    const expensesByCategory = this.groupExpensesByCategory(transactions);
-    const incomeByCategory = this.groupIncomeByCategory(transactions);
-    
-    const analysis = categories.map(cat => {
-      const expense = expensesByCategory[cat] || 0;
-      const income = incomeByCategory[cat] || 0;
-      return `**${cat}**:\n• Income: ${formatCurrency(income)}\n• Expenses: ${formatCurrency(expense)}\n• Net: ${formatCurrency(income - expense)}`;
-    }).join('\n\n');
-    
-    return `**Category Analysis**\n\n${analysis}`;
-  }
-
-  private static generateComparisonResponse(transactions: Transaction[], formatCurrency: (amount: number) => string, timePeriods: string[]): string {
-    return "I can help you compare different time periods or categories. Try asking something like:\n• \"Compare this month with last month\"\n• \"How does my food spending compare to transportation?\"\n• \"Show me income vs expenses comparison\"";
-  }
-
-  private static generatePlanningResponse(transactions: Transaction[], budgets: Budget[], formatCurrency: (amount: number) => string): string {
-    const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    
-    return `**Financial Planning Insights** 🎯\n\nBased on your current patterns:\n• Monthly Income: ${formatCurrency(income)}\n• Monthly Expenses: ${formatCurrency(expenses)}\n• Available for Goals: ${formatCurrency(income - expenses)}\n\nConsider setting specific financial goals and creating a detailed budget to achieve them.`;
-  }
-
-  private static generateGeneralResponse(transactions: Transaction[], budgets: Budget[], formatCurrency: (amount: number) => string): string {
-    const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    
-    return `I see you have ${transactions.length} transactions with ${formatCurrency(income)} in income and ${formatCurrency(expenses)} in expenses.\n\nYou can ask me about:\n• Your financial summary\n• Budget status\n• Spending patterns\n• Income analysis\n• Financial recommendations\n\nWhat would you like to know specifically?`;
-  }
-}
-
-// Helper function to get week number of the month
-const getWeekOfMonth = (date: Date): number => {
-  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-  const firstDayWeekday = firstDay.getDay();
-  const offsetDate = date.getDate() + firstDayWeekday - 1;
-  return Math.floor(offsetDate / 7) + 1;
-};
-
-// Helper function to get start and end of week
-const getWeekRange = (date: Date): { start: Date; end: Date } => {
-  const start = new Date(date);
-  const day = start.getDay();
-  const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-  start.setDate(diff);
-  start.setHours(0, 0, 0, 0);
-  
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-  
-  return { start, end };
-};
+// Import your classes
+import { RuleBasedFinancialAdvisor } from './utils/FinancialAdvisor';
+import { AdvancedFinancialNLP } from './utils/FinancialNLP';
+
+// Import helper functions
+import { getWeekOfMonth, getWeekRange } from './utils/dateHelpers';
 
 export default function Dashboard() {
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User>({
+  const [user, setUser] = useState<UserInfo>({
     name: 'Loading...',
     email: 'Loading...',
     businessName: 'Loading...',
@@ -878,7 +137,7 @@ export default function Dashboard() {
   });
 
   // Settings states
-  const [userSettings, setUserSettings] = useState({
+  const [userSettings, setUserSettings] = useState<UserSettings>({
     fullName: '',
     email: '',
     businessName: '',
@@ -898,7 +157,7 @@ export default function Dashboard() {
   const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
-  const [passwordData, setPasswordData] = useState({
+  const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -922,136 +181,25 @@ export default function Dashboard() {
     sidebarActive: darkMode ? 'bg-gray-800 text-white' : 'bg-emerald-800 text-white'
   };
 
-  // Load available backups
-  useEffect(() => {
-    if (showRestoreDialog && session) {
-      loadAvailableBackups();
-    }
-  }, [showRestoreDialog, session]);
-
-  // Update AI recommendations when data changes
-  useEffect(() => {
-    if (financialData.transactions.length > 0) {
-      const recommendations = RuleBasedFinancialAdvisor.analyzeSpendingPatterns(
-        financialData.transactions,
-        financialData.budgets,
-        formatCurrency
-      );
-      
-      setFinancialData(prev => ({
-        ...prev,
-        aiRecommendations: recommendations.slice(0, 4)
-      }));
-    }
-  }, [financialData.transactions, financialData.budgets]);
-
-  const loadAvailableBackups = async () => {
-    if (!session) return;
-    
-    const { data: backups, error } = await supabase
-      .from('backups')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false });
-
-    if (!error && backups) {
-      setAvailableBackups(backups);
-    }
-  };
-
   // Helper data arrays
-  // Income categories for dropdown
   const categories = [
-    'Selling Products',
-    'Service Work',
-    'Consulting Work',
-    'Monthly Subscriptions',
-    'Shop Sales',
-    'Online Sales',
-    'Big Project Work',
-    'Regular Customer Payments',
-    'Commission Money',
-    'Renting Things Out',
-    'Bank Interest',
-    'Investment Money',
-    'Teaching/Training',
-    'Repair Work',
-    'Installation Work',
-    'Support Services',
-    'Digital Products',
-    'Advertising Money',
-    'Referral Commissions',
-    'Software Subscriptions',
-    'Online Courses',
-    'Government Help',
-    'Business Grants',
-    'Partnership Money',
-    'Franchise Fees',
-    'Event Services',
-    'Delivery Services',
-    'Cleaning Services',
-    'Security Services',
-    'Construction Work',
-    'Farming Products',
-    'Transport Services',
-    'Health Services',
-    'Beauty Services',
-    'Food Sales',
-    'Others'
+    'Selling Products', 'Service Work', 'Consulting Work', 'Monthly Subscriptions', 'Shop Sales',
+    'Online Sales', 'Big Project Work', 'Regular Customer Payments', 'Commission Money', 'Renting Things Out',
+    'Bank Interest', 'Investment Money', 'Teaching/Training', 'Repair Work', 'Installation Work',
+    'Support Services', 'Digital Products', 'Advertising Money', 'Referral Commissions', 'Software Subscriptions',
+    'Online Courses', 'Government Help', 'Business Grants', 'Partnership Money', 'Franchise Fees',
+    'Event Services', 'Delivery Services', 'Cleaning Services', 'Security Services', 'Construction Work',
+    'Farming Products', 'Transport Services', 'Health Services', 'Beauty Services', 'Food Sales', 'Others'
   ];
 
-  // Expense categories for dropdown  
   const expenseCategories = [
-    'Worker Pay',
-    'Generator Fuel',
-    'Shop Rent',
-    'Electricity Bills',
-    'Water Bills',
-    'Office Supplies',
-    'Software Programs',
-    'Marketing Costs',
-    'Professional Help',
-    'Insurance Payments',
-    'Bank Charges',
-    'Raw Materials',
-    'Stock Purchases',
-    'Making Products',
-    'Packaging',
-    'Quality Testing',
-    'Machine Repair',
-    'Vehicle Costs',
-    'Property Taxes',
-    'Security Services',
-    'Cleaning Services',
-    'Travel Costs',
-    'Training Costs',
-    'Meeting Expenses',
-    'Customer Meals',
-    'Membership Fees',
-    'Computer Help',
-    'Website Costs',
-    'Online Storage',
-    'Phone Bills',
-    'Internet Bills',
-    'Gas Bills',
-    'Waste Removal',
-    'Equipment Purchase',
-    'Building Maintenance',
-    'Vehicle Purchase',
-    'Loan Payments',
-    'Tax Payments',
-    'Legal Fees',
-    'Accounting Fees',
-     'Others'
-  ];
-  
-  const navigationItems: NavigationItem[] = [
-    { id: 'overview', label: 'Overview', icon: Home },
-    { id: 'transactions', label: 'Transactions', icon: CreditCard },
-    { id: 'budgets', label: 'Budgets', icon: PieChart },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'settings', label: 'Settings', icon: Settings }
+    'Worker Pay', 'Generator Fuel', 'Shop Rent', 'Electricity Bills', 'Water Bills', 'Office Supplies',
+    'Software Programs', 'Marketing Costs', 'Professional Help', 'Insurance Payments', 'Bank Charges',
+    'Raw Materials', 'Stock Purchases', 'Making Products', 'Packaging', 'Quality Testing', 'Machine Repair',
+    'Vehicle Costs', 'Property Taxes', 'Security Services', 'Cleaning Services', 'Travel Costs', 'Training Costs',
+    'Meeting Expenses', 'Customer Meals', 'Membership Fees', 'Computer Help', 'Website Costs', 'Online Storage',
+    'Phone Bills', 'Internet Bills', 'Gas Bills', 'Waste Removal', 'Equipment Purchase', 'Building Maintenance',
+    'Vehicle Purchase', 'Loan Payments', 'Tax Payments', 'Legal Fees', 'Accounting Fees', 'Others'
   ];
   
   const languagesList: LanguageOption[] = [
@@ -1472,6 +620,43 @@ export default function Dashboard() {
     link.download = fileName;
     link.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  // Load available backups
+  useEffect(() => {
+    if (showRestoreDialog && session) {
+      loadAvailableBackups();
+    }
+  }, [showRestoreDialog, session]);
+
+  // Update AI recommendations when data changes
+  useEffect(() => {
+    if (financialData.transactions.length > 0) {
+      const recommendations = RuleBasedFinancialAdvisor.analyzeSpendingPatterns(
+        financialData.transactions,
+        financialData.budgets,
+        formatCurrency
+      );
+      
+      setFinancialData(prev => ({
+        ...prev,
+        aiRecommendations: recommendations.slice(0, 4)
+      }));
+    }
+  }, [financialData.transactions, financialData.budgets]);
+
+  const loadAvailableBackups = async () => {
+    if (!session) return;
+    
+    const { data: backups, error } = await supabase
+      .from('backups')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && backups) {
+      setAvailableBackups(backups);
+    }
   };
 
   // Calculate category breakdown from actual transactions
@@ -2091,55 +1276,16 @@ export default function Dashboard() {
         </Toast.Root>
         <Toast.Viewport className="fixed top-4 right-4 z-50" />
 
-        {/* Sidebar - Fixed height */}
-        <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
-          <div className={`flex flex-col flex-grow ${themeClasses.sidebar} text-white pt-6 pb-4 overflow-hidden border-r ${darkMode ? 'border-gray-800' : 'border-emerald-800'}`}>
-            {/* Logo with Image */}
-            <div className="flex items-center justify-center flex-shrink-0 px-6 pb-8">
-              <div className="w-[220px] flex items-center justify-center relative overflow-hidden bg-white rounded-sm p-2">
-                <Image
-                  src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png"
-                  alt="Monietar Logo"
-                  width={208}
-                  height={8}
-                  className="object-contain"
-                />
-              </div>
-            </div>
-
-            {/* Navigation - No scroll */}
-            <nav className="flex-1 px-4 space-y-2 overflow-visible">
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl w-full transition-all border ${
-                      activeTab === item.id
-                        ? `${themeClasses.sidebarActive} shadow-lg border-emerald-700`
-                        : `${themeClasses.sidebarText} ${themeClasses.sidebarHover} border-transparent`
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 mr-3" />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* User Section - Fixed at bottom */}
-            <div className={`flex-shrink-0 flex border-t ${darkMode ? 'border-gray-800' : 'border-emerald-800'} p-6`}>
-              <div className="flex items-center w-full">
-                <div className="ml-3 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                  <p className={`text-xs truncate ${darkMode ? 'text-gray-400' : 'text-emerald-200'}`}>{user.businessName}</p>
-                  <p className="text-xs text-emerald-300">{user.plan}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Sidebar Component */}
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          user={user}
+          darkMode={darkMode}
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+          onLogout={handleLogout}
+        />
 
         {/* Main Content with sidebar offset */}
         <div className="flex-1 flex flex-col lg:ml-64">
@@ -2258,82 +1404,6 @@ export default function Dashboard() {
             </div>
           </header>
 
-          {/* Mobile Menu */}
-          <AnimatePresence>
-            {isMobileMenuOpen && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                />
-                <motion.div
-                  initial={{ x: -300 }}
-                  animate={{ x: 0 }}
-                  exit={{ x: -300 }}
-                  transition={{ type: "spring", damping: 30 }}
-                  className={`fixed inset-y-0 left-0 w-80 ${themeClasses.sidebar} text-white z-50 lg:hidden border-r ${darkMode ? 'border-gray-800' : 'border-emerald-800'}`}
-                >
-                  <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-800' : 'border-emerald-800'}`}>
-                    <div className="flex items-center">
-                      <div className="w-[120px] h-10 bg-white rounded-xl flex items-center justify-center relative overflow-hidden p-2">
-                        <Image
-                          src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png"
-                          alt="Monietar Logo"
-                          width={40}
-                          height={40}
-                          className="object-contain"
-                        />
-                      </div>
-                      <h1 className="ml-3 text-xl font-bold text-white">Monietar</h1>
-                    </div>
-                    <button
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="p-2 rounded-md text-emerald-100 hover:text-white"
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
-                  </div>
-
-                  <nav className="mt-8 px-4 space-y-2">
-                    {navigationItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            setActiveTab(item.id);
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl w-full transition-all border ${
-                            activeTab === item.id
-                              ? `${themeClasses.sidebarActive} shadow-lg border-emerald-700`
-                              : `${themeClasses.sidebarText} ${themeClasses.sidebarHover} border-transparent hover:cursor-pointer`
-                          }`}
-                        >
-                          <Icon className="w-5 h-5 mr-3" />
-                          {item.label}
-                        </button>
-                      );
-                    })}
-                  </nav>
-
-                  <div className={`absolute bottom-0 left-0 right-0 p-6 border-t ${darkMode ? 'border-gray-800' : 'border-emerald-800'}`}>
-                    <div className="flex items-center">
-                      <div className="ml-3 min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                        <p className={`text-xs truncate ${darkMode ? 'text-gray-400' : 'text-emerald-200'}`}>{user.businessName}</p>
-                        <p className="text-xs text-emerald-300">{user.plan}</p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto p-4 sm:p-6">
             {/* Header Actions */}
@@ -2353,136 +1423,23 @@ export default function Dashboard() {
               </div>
               
               <div className="flex flex-wrap gap-2 sm:gap-3 w-auto lg:w-auto">
-                <Dialog.Root open={showIncomeForm} onOpenChange={handleTransactionDialogClose}>
-                  <Dialog.Trigger asChild>
-                    <button 
-                    onClick={() => setShowIncomeForm(true)}
-                    className="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm hover:cursor-pointer text-sm sm:text-base border border-emerald-500">
-                      <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span>Add Income</span>
-                    </button>
-                  </Dialog.Trigger>
-                  <Dialog.Portal>
-                    <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-                    <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-4 sm:p-6 rounded-2xl shadow-xl w-[80%] md:w-auto mx-4 border ${themeClasses.card}`}>
-                      <Dialog.Title className={`text-lg font-semibold mb-4 ${themeClasses.text.primary}`}>
-                        Add Income
-                      </Dialog.Title>
-                      <div className="space-y-4">
-                        <input
-                          type="number"
-                          placeholder="Amount"
-                          value={formData.amount}
-                          onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                          className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                        />
-                        <select
-                          value={formData.category}
-                          onChange={(e) => setFormData({...formData, category: e.target.value})}
-                          className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                        >
-                          <option value="" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Select Category</option>
-                          {categories.map(cat => (
-                            <option key={cat} value={cat} className={darkMode ? 'bg-gray-700' : 'bg-white'}>{cat}</option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          placeholder="Description"
-                          value={formData.description}
-                          onChange={(e) => setFormData({...formData, description: e.target.value})}
-                          className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                        />
-                        <input
-                          type="date"
-                          value={formData.date}
-                          onChange={(e) => setFormData({...formData, date: e.target.value})}
-                          className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                        />
-                        <div className="flex space-x-3">
-                          <button
-                            onClick={() => handleAddTransaction('income')}
-                            className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 border border-emerald-500"
-                          >
-                            Add Income
-                          </button>
-                          <Dialog.Close asChild>
-                            <button className={`px-4 py-3 border rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}>
-                              Cancel
-                            </button>
-                          </Dialog.Close>
-                        </div>
-                      </div>
-                    </Dialog.Content>
-                  </Dialog.Portal>
-                </Dialog.Root>
+                <button 
+                  onClick={() => setShowIncomeForm(true)}
+                  className="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm hover:cursor-pointer text-sm sm:text-base border border-emerald-500">
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Add Income</span>
+                </button>
 
-                <Dialog.Root open={showExpenseForm} onOpenChange={handleTransactionDialogClose}>
-                  <Dialog.Trigger asChild>
-                    <button
-                     className={`flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 rounded-xl hover:cursor-pointer text-sm sm:text-base border transition-colors shadow-sm ${
-                      darkMode 
-                        ? 'bg-gray-800 text-white hover:bg-gray-700 border-gray-600' 
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                     }`}>
-                      <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span>Add Expense</span>
-                    </button>
-                  </Dialog.Trigger>
-                  <Dialog.Portal>
-                    <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-                    <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-4 sm:p-6 rounded-2xl shadow-xl w-[80%] md:w-auto mx-4 border ${themeClasses.card}`}>
-                      <Dialog.Title className={`text-lg font-semibold mb-4 ${themeClasses.text.primary}`}>
-                        Add Expense
-                      </Dialog.Title>
-                      <div className="space-y-4">
-                        <input
-                          type="number"
-                          placeholder="Amount"
-                          value={formData.amount}
-                          onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                          className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                        />
-                        <select
-                          value={formData.category}
-                          onChange={(e) => setFormData({...formData, category: e.target.value})}
-                          className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                        >
-                          <option value="" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Select Category</option>
-                          {expenseCategories.map(cat => (
-                            <option key={cat} value={cat} className={darkMode ? 'bg-gray-700' : 'bg-white'}>{cat}</option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          placeholder="Description"
-                          value={formData.description}
-                          onChange={(e) => setFormData({...formData, description: e.target.value})}
-                          className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                        />
-                        <input
-                          type="date"
-                          value={formData.date}
-                          onChange={(e) => setFormData({...formData, date: e.target.value})}
-                          className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                        />
-                        <div className="flex space-x-3">
-                          <button
-                            onClick={() => handleAddTransaction('expense')}
-                            className="flex-1 bg-red-600 text-white py-3 rounded-xl hover:bg-red-700 border border-red-500"
-                          >
-                            Add Expense
-                          </button>
-                          <Dialog.Close asChild>
-                            <button className={`px-4 py-3 border rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}>
-                              Cancel
-                            </button>
-                          </Dialog.Close>
-                        </div>
-                      </div>
-                    </Dialog.Content>
-                  </Dialog.Portal>
-                </Dialog.Root>
+                <button
+                  onClick={() => setShowExpenseForm(true)}
+                  className={`flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 rounded-xl hover:cursor-pointer text-sm sm:text-base border transition-colors shadow-sm ${
+                    darkMode 
+                      ? 'bg-gray-800 text-white hover:bg-gray-700 border-gray-600' 
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                  }`}>
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Add Expense</span>
+                </button>
                             
                 <button
                  onClick={handleExportData}
@@ -3555,45 +2512,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <Dialog.Root open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
-                    <Dialog.Portal>
-                      <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-                      <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 border ${themeClasses.card}`}>
-                        <Dialog.Title className={`text-lg font-semibold mb-4 ${themeClasses.text.primary}`}>Restore Backup</Dialog.Title>
-                        <div className="space-y-4">
-                          <select
-                            value={selectedBackup}
-                            onChange={(e) => setSelectedBackup(e.target.value)}
-                            className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                          >
-                            <option value="" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Select a backup</option>
-                            {availableBackups.map((backup) => (
-                              <option key={backup.id} value={backup.id} className={darkMode ? 'bg-gray-700' : 'bg-white'}>
-                                {new Date(backup.created_at).toLocaleString()} - {backup.file_size} bytes
-                              </option>
-                            ))}
-                          </select>
-                          
-                          <div className="flex space-x-3">
-                            <button
-                              onClick={() => selectedBackup && handleRestoreBackup(selectedBackup)}
-                              disabled={!selectedBackup}
-                              className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed border border-emerald-500"
-                            >
-                              Restore Selected Backup
-                            </button>
-                            <button
-                              onClick={() => setShowRestoreDialog(false)}
-                              className={`px-4 py-3 border rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      </Dialog.Content>
-                    </Dialog.Portal>
-                  </Dialog.Root>
-
                   {/* Account Settings */}
                   <div className={`p-4 sm:p-6 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
                     <h4 className={`text-lg font-semibold ${themeClasses.text.primary} mb-4`}>Account Settings</h4>
@@ -3680,404 +2598,135 @@ export default function Dashboard() {
           >
             <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
-                            
-          {/* Chat Modal */}
-          <AnimatePresence>
-            {isChatOpen && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black/80 z-50"
-                  onClick={() => setIsChatOpen(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                  className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-full max-w-sm sm:max-w-md rounded-2xl shadow-xl z-50 border ${themeClasses.card}`}
-                >
-                  <div className="p-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-t-2xl">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Bot className="w-5 h-5" />
-                        <h3 className="font-semibold">AI Financial Assistant</h3>
-                      </div>
-                      <button
-                        onClick={() => setIsChatOpen(false)}
-                        className="p-1 hover:bg-emerald-700 rounded"
-                      >
-                        <XCircle className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                                          
-                  <div className="p-4 h-80 overflow-y-auto">
-                    <div className="space-y-3">
-                      {chatMessages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-xs px-4 py-2 rounded-2xl text-sm ${
-                              message.sender === 'user'
-                                ? 'bg-emerald-600 text-white'
-                                : `${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}`
-                            }`}
-                          >
-                            {message.text}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                            
-                  <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                        placeholder="Ask about your finances..."
-                        className={`flex-1 px-4 py-2 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm ${themeClasses.input}`}
-                      />
-                      <button
-                        onClick={sendMessage}
-                        className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 border border-emerald-500"
-                      >
-                        <Send className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
 
-          {/* Add Budget Form Dialog */}
-          <Dialog.Root open={showBudgetForm} onOpenChange={handleBudgetDialogClose}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-              <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-4 sm:p-6 rounded-2xl shadow-xl w-[80%] md:w-auto mx-4 border ${themeClasses.card}`}>
-                <Dialog.Title className={`text-lg font-semibold mb-4 ${themeClasses.text.primary}`}>
-                  Create Budget
-                </Dialog.Title>
-                <div className="space-y-4">
-                  <select
-                    value={budgetFormData.category}
-                    onChange={(e) => setBudgetFormData({...budgetFormData, category: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  >
-                    <option value="" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Select Category</option>
-                    {expenseCategories.map(cat => (
-                      <option key={cat} value={cat} className={darkMode ? 'bg-gray-700' : 'bg-white'}>{cat}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Budget Limit"
-                    value={budgetFormData.budget_limit}
-                    onChange={(e) => setBudgetFormData({...budgetFormData, budget_limit: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  />
-                  <select
-                    value={budgetFormData.period}
-                    onChange={(e) => setBudgetFormData({...budgetFormData, period: e.target.value as 'Monthly' | 'Quarterly' | 'Yearly'})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  >
-                    <option value="Monthly" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Monthly</option>
-                    <option value="Quarterly" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Quarterly</option>
-                    <option value="Yearly" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Yearly</option>
-                  </select>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handleAddBudget}
-                      className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 border border-emerald-500"
-                    >
-                      Create Budget
-                    </button>
-                    <button
-                      onClick={handleBudgetDialogClose}
-                      className={`px-4 py-3 border rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          {/* MODALS SECTION - All modals imported and used here */}
+          
+          {/* Add Income Modal */}
+          <AddTransactionModal
+            isOpen={showIncomeForm}
+            onClose={() => setShowIncomeForm(false)}
+            type="income"
+            formData={formData}
+            onFormDataChange={setFormData}
+            onSubmit={() => handleAddTransaction('income')}
+            categories={categories}
+            darkMode={darkMode}
+          />
 
-          {/* Edit Budget Form Dialog */}
-          <Dialog.Root open={!!editingBudget} onOpenChange={handleEditBudgetDialogClose}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-              <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 border ${themeClasses.card}`}>
-                <Dialog.Title className={`text-lg font-semibold mb-4 ${themeClasses.text.primary}`}>
-                  Edit Budget
-                </Dialog.Title>
-                <div className="space-y-4">
-                  <select
-                    value={budgetFormData.category}
-                    onChange={(e) => setBudgetFormData({...budgetFormData, category: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  >
-                    <option value="" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Select Category</option>
-                    {expenseCategories.map(cat => (
-                      <option key={cat} value={cat} className={darkMode ? 'bg-gray-700' : 'bg-white'}>{cat}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Budget Limit"
-                    value={budgetFormData.budget_limit}
-                    onChange={(e) => setBudgetFormData({...budgetFormData, budget_limit: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  />
-                  <select
-                    value={budgetFormData.period}
-                    onChange={(e) => setBudgetFormData({...budgetFormData, period: e.target.value as 'Monthly' | 'Quarterly' | 'Yearly'})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  >
-                    <option value="Monthly" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Monthly</option>
-                    <option value="Quarterly" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Quarterly</option>
-                    <option value="Yearly" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Yearly</option>
-                  </select>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handleEditBudget}
-                      className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 border border-emerald-500"
-                    >
-                      Update Budget
-                    </button>
-                    <button
-                      onClick={handleEditBudgetDialogClose}
-                      className={`px-4 py-3 border rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          {/* Add Expense Modal */}
+          <AddTransactionModal
+            isOpen={showExpenseForm}
+            onClose={() => setShowExpenseForm(false)}
+            type="expense"
+            formData={formData}
+            onFormDataChange={setFormData}
+            onSubmit={() => handleAddTransaction('expense')}
+            categories={expenseCategories}
+            darkMode={darkMode}
+          />
 
-          {/* Edit Transaction Form Dialog */}
-          <Dialog.Root open={!!editingTransaction} onOpenChange={handleEditTransactionDialogClose}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-              <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 border ${themeClasses.card}`}>
-                <Dialog.Title className={`text-lg font-semibold mb-4 ${themeClasses.text.primary}`}>
-                  Edit Transaction
-                </Dialog.Title>
-                <div className="space-y-4">
-                  <input
-                    type="number"
-                    placeholder="Amount"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  />
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  >
-                    <option value="" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Select Category</option>
-                    {editingTransaction?.type === 'income' 
-                      ? categories.map(cat => <option key={cat} value={cat} className={darkMode ? 'bg-gray-700' : 'bg-white'}>{cat}</option>)
-                      : expenseCategories.map(cat => <option key={cat} value={cat} className={darkMode ? 'bg-gray-700' : 'bg-white'}>{cat}</option>)
-                    }
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  />
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({...formData, date: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  />
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handleEditTransaction}
-                      className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 border border-emerald-500"
-                    >
-                      Update Transaction
-                    </button>
-                    <button
-                      onClick={handleEditTransactionDialogClose}
-                      className={`px-4 py-3 border rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          {/* Add Budget Modal */}
+          <AddBudgetModal
+            isOpen={showBudgetForm}
+            onClose={() => setShowBudgetForm(false)}
+            formData={budgetFormData}
+            onFormDataChange={setBudgetFormData}
+            onSubmit={handleAddBudget}
+            categories={expenseCategories}
+            darkMode={darkMode}
+          />
 
-          {/* Delete Transaction Confirmation Dialog */}
-          <Dialog.Root open={!!deleteTransactionId} onOpenChange={(open) => !open && setDeleteTransactionId(null)}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-              <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 border ${themeClasses.card}`}>
-                <Dialog.Title className={`text-lg font-semibold mb-2 ${themeClasses.text.primary}`}>Delete Transaction</Dialog.Title>
-                <Dialog.Description className={`mb-6 ${themeClasses.text.secondary}`}>
-                  Are you sure you want to delete this transaction? This action cannot be undone.
-                </Dialog.Description>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => deleteTransactionId && handleDeleteTransaction(deleteTransactionId)}
-                    className="flex-1 bg-red-600 text-white py-3 rounded-xl hover:bg-red-700 border border-red-500"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={() => setDeleteTransactionId(null)}
-                    className={`flex-1 border py-3 rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          {/* Edit Transaction Modal */}
+          <EditTransactionModal
+            isOpen={!!editingTransaction}
+            onClose={() => setEditingTransaction(null)}
+            transaction={editingTransaction}
+            formData={formData}
+            onFormDataChange={setFormData}
+            onSubmit={handleEditTransaction}
+            categories={editingTransaction?.type === 'income' ? categories : expenseCategories}
+            darkMode={darkMode}
+          />
 
-          {/* Delete Budget Confirmation Dialog */}
-          <Dialog.Root open={!!deleteBudgetId} onOpenChange={(open) => !open && setDeleteBudgetId(null)}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-              <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 border ${themeClasses.card}`}>
-                <Dialog.Title className={`text-lg font-semibold mb-2 ${themeClasses.text.primary}`}>Delete Budget</Dialog.Title>
-                <Dialog.Description className={`mb-6 ${themeClasses.text.secondary}`}>
-                  Are you sure you want to delete this budget? This action cannot be undone.
-                </Dialog.Description>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => deleteBudgetId && handleDeleteBudget(deleteBudgetId)}
-                    className="flex-1 bg-red-600 text-white py-3 rounded-xl hover:bg-red-700 border border-red-500"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={() => setDeleteBudgetId(null)}
-                    className={`flex-1 border py-3 rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          {/* Edit Budget Modal */}
+          <EditBudgetModal
+            isOpen={!!editingBudget}
+            onClose={() => setEditingBudget(null)}
+            budget={editingBudget}
+            formData={budgetFormData}
+            onFormDataChange={setBudgetFormData}
+            onSubmit={handleEditBudget}
+            categories={expenseCategories}
+            darkMode={darkMode}
+          />
 
-          {/* Change Password Dialog */}
-          <Dialog.Root open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-              <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-6 rounded-2xl shadow-xl w-[80%] md:w-auto mx-4 border ${themeClasses.card}`}>
-                <Dialog.Title className={`text-lg font-semibold mb-4 ${themeClasses.text.primary}`}>Change Password</Dialog.Title>
-                <div className="space-y-4">
-                  <input
-                    type="password"
-                    placeholder="Current Password"
-                    value={passwordData.currentPassword}
-                    onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  />
-                  <input
-                    type="password"
-                    placeholder="New Password"
-                    value={passwordData.newPassword}
-                    onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  />
-                  <input
-                    type="password"
-                    placeholder="Confirm New Password"
-                    value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
-                  />
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handleChangePassword}
-                      className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 border border-emerald-500"
-                    >
-                      Update Password
-                    </button>
-                    <button
-                      onClick={() => setShowChangePasswordDialog(false)}
-                      className={`px-4 py-3 border rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          {/* Delete Transaction Confirmation */}
+          <DeleteConfirmationModal
+            isOpen={!!deleteTransactionId}
+            onClose={() => setDeleteTransactionId(null)}
+            onConfirm={() => deleteTransactionId && handleDeleteTransaction(deleteTransactionId)}
+            title="Delete Transaction"
+            description="Are you sure you want to delete this transaction? This action cannot be undone."
+            darkMode={darkMode}
+          />
 
-          {/* Clear Data Confirmation Dialog */}
-          <Dialog.Root open={showClearDataDialog} onOpenChange={setShowClearDataDialog}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-              <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 border ${themeClasses.card}`}>
-                <Dialog.Title className={`text-lg font-semibold mb-2 ${themeClasses.text.primary}`}>Clear All Data</Dialog.Title>
-                <Dialog.Description className={`mb-6 ${themeClasses.text.secondary}`}>
-                  Are you sure you want to delete all your financial data? This includes all transactions, budgets, and reports. This action cannot be undone.
-                </Dialog.Description>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleClearData}
-                    className="flex-1 bg-red-600 text-white py-3 rounded-xl hover:bg-red-700 border border-red-500"
-                  >
-                    Clear All Data
-                  </button>
-                  <button
-                    onClick={() => setShowClearDataDialog(false)}
-                    className={`flex-1 border py-3 rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          {/* Delete Budget Confirmation */}
+          <DeleteConfirmationModal
+            isOpen={!!deleteBudgetId}
+            onClose={() => setDeleteBudgetId(null)}
+            onConfirm={() => deleteBudgetId && handleDeleteBudget(deleteBudgetId)}
+            title="Delete Budget"
+            description="Are you sure you want to delete this budget? This action cannot be undone."
+            darkMode={darkMode}
+          />
 
-          {/* Delete Account Confirmation Dialog */}
-          <Dialog.Root open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/80 z-40" />
-              <Dialog.Content className={`fixed z-50 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 border ${themeClasses.card}`}>
-                <Dialog.Title className={`text-lg font-semibold mb-2 ${themeClasses.text.primary}`}>Delete Account</Dialog.Title>
-                <Dialog.Description className={`mb-6 ${themeClasses.text.secondary}`}>
-                  Are you sure you want to permanently delete your account? This will remove all your data and cannot be undone.
-                </Dialog.Description>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleDeleteAccount}
-                    className="flex-1 bg-red-600 text-white py-3 rounded-xl hover:bg-red-700 border border-red-500"
-                  >
-                    Delete Account
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteAccountDialog(false)}
-                    className={`flex-1 border py-3 rounded-xl ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          {/* Change Password Modal */}
+          <ChangePasswordModal
+            isOpen={showChangePasswordDialog}
+            onClose={() => setShowChangePasswordDialog(false)}
+            passwordData={passwordData}
+            onPasswordDataChange={setPasswordData}
+            onSubmit={handleChangePassword}
+            darkMode={darkMode}
+          />
+
+          {/* Clear Data Modal */}
+          <ClearDataModal
+            isOpen={showClearDataDialog}
+            onClose={() => setShowClearDataDialog(false)}
+            onConfirm={handleClearData}
+            darkMode={darkMode}
+          />
+
+          {/* Delete Account Modal */}
+          <DeleteAccountModal
+            isOpen={showDeleteAccountDialog}
+            onClose={() => setShowDeleteAccountDialog(false)}
+            onConfirm={handleDeleteAccount}
+            darkMode={darkMode}
+          />
+
+          {/* Restore Backup Modal */}
+          <RestoreBackupModal
+            isOpen={showRestoreDialog}
+            onClose={() => setShowRestoreDialog(false)}
+            availableBackups={availableBackups}
+            selectedBackup={selectedBackup}
+            onSelectedBackupChange={setSelectedBackup}
+            onRestore={handleRestoreBackup}
+            darkMode={darkMode}
+          />
+
+          {/* AI Chat Modal */}
+          <AIChatModal
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+            messages={chatMessages}
+            newMessage={newMessage}
+            onNewMessageChange={setNewMessage}
+            onSendMessage={sendMessage}
+            darkMode={darkMode}
+          />
         </div>
       </Toast.Provider>
     </div>
