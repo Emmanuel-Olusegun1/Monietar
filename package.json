@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@mono.co/connect.js": "^2.1.0",
     "@prisma/client": "^6.16.1",
     "@prisma/extension-accelerate": "^2.0.2",
     "@prismicio/client": "^7.20.1",

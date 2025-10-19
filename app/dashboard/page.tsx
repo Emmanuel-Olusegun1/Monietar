@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Toast from '@radix-ui/react-toast';
@@ -14,9 +14,10 @@ import {
   Menu, X, Plus, MessageCircle, Send, Bot, XCircle, AlertTriangle,
   Calendar, DollarSign, Euro, Currency, Filter, Download, MoreHorizontal,
   Languages, Edit, Trash2, Save, Key, ChevronRight, Eye, EyeOff,
-  Sun, Moon
+  Sun, Moon, Sparkles, Zap, Target, Shield, Database, Cloud,
+  ArrowUpRight, ArrowDownRight, RefreshCw
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Cell, PieChart as RechartsPieChart, Pie, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Legend } from 'recharts';
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 
 // Import modals
@@ -30,6 +31,14 @@ import { ClearDataModal } from './components/modals/ClearDataModal';
 import { DeleteAccountModal } from './components/modals/DeleteAccountModal';
 import { RestoreBackupModal } from './components/modals/RestoreBackupModal';
 import { AIChatModal } from './components/modals/AIChatModal';
+
+// Import pages
+import { OverviewPage } from './components/pages/OverviewPage';
+import { TransactionsPage } from './components/pages/TransactionsPage';
+import { BudgetsPage } from './components/pages/BudgetsPage';
+import { ComingSoonPage } from './components/pages/ComingSoonPage'
+import { SettingsPage } from './components/pages/SettingsPage';
+import AccountsPage from './components/pages/AccountsPage';
 
 // Import components
 import { Sidebar } from './Sidebar';
@@ -48,13 +57,9 @@ import {
   NavigationItem,
   LanguageOption,
   CurrencyOption,
-  TimeFilter
+  TimeFilter,
+  SidebarProps
 } from './types';
-
-const supabase: SupabaseClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://coihzyskjxedccjpzjzd.supabase.co",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvaWh6eXNranhlZGNjanB6anpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDQ5ODMsImV4cCI6MjA3MjQyMDk4M30.KbvQ6wfBmjov2ZhdF1_t7PX0JLRnfHGUOMbDHtZABLE"
-);
 
 // Import your classes
 import { RuleBasedFinancialAdvisor } from './utils/FinancialAdvisor';
@@ -62,6 +67,31 @@ import { AdvancedFinancialNLP } from './utils/FinancialNLP';
 
 // Import helper functions
 import { getWeekOfMonth, getWeekRange } from './utils/dateHelpers';
+
+// Enhanced Sidebar props interface to fix the TypeScript error
+interface EnhancedSidebarProps extends SidebarProps {
+  setDarkMode: (darkMode: boolean) => void;
+  currency: string;
+  setCurrency: (currency: string) => void;
+  language: string;
+  setLanguage: (language: string) => void;
+}
+
+// Define EnhancedBudget interface locally if not in types.ts
+interface EnhancedBudget {
+  id: string;
+  category: string;
+  budget_limit: number;
+  spent: number;
+  percentage: number;
+  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  created_at?: string; // Add this to match the expected type
+}
+
+const supabase: SupabaseClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://coihzyskjxedccjpzjzd.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvaWh6eXNranhlZGNjanB6anpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDQ5ODMsImV4cCI6MjA3MjQyMDk4M30.KbvQ6wfBmjov2ZhdF1_t7PX0JLRnfHGUOMbDHtZABLE"
+);
 
 export default function Dashboard() {
   const [session, setSession] = useState<Session | null>(null);
@@ -94,6 +124,15 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   
+  // Enhanced state variables for connection monitoring
+  const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>('online');
+  const [databaseStatus, setDatabaseStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
+  const [showSessionExpiredModal, setShowSessionExpiredModal] = useState(false);
+  const [showConnectionErrorModal, setShowConnectionErrorModal] = useState(false);
+  const [showReLoginModal, setShowReLoginModal] = useState(false);
+  const [connectionRetryCount, setConnectionRetryCount] = useState(0);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  
   // State variables
   const [activeTab, setActiveTab] = useState('overview');
   const [showIncomeForm, setShowIncomeForm] = useState(false);
@@ -112,7 +151,8 @@ export default function Dashboard() {
   const [availableBackups, setAvailableBackups] = useState<any[]>([]);
   const [selectedBackup, setSelectedBackup] = useState<string>('');
   const [showBalance, setShowBalance] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
+
   
   // Transaction management states
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -122,7 +162,7 @@ export default function Dashboard() {
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
   
-  // Form data states
+  // Form data states - Fixed period types to match modal expectations
   const [formData, setFormData] = useState({
     amount: '',
     category: '',
@@ -163,22 +203,61 @@ export default function Dashboard() {
     confirmPassword: ''
   });
 
-  // Theme classes based on dark mode
+  // Add missing state variables for the errors
+  const [isClearDataOpen, setIsClearDataOpen] = useState(false);
+  const [isCancelSubscriptionOpen, setIsCancelSubscriptionOpen] = useState(false);
+
+  // Refs for tracking connection issues - Fixed useRef initialization
+  const connectionIssuesRef = useRef<number>(0);
+  const lastConnectionAttemptRef = useRef<number>(Date.now());
+  const autoReconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Enhanced theme classes with modern colors
   const themeClasses = {
-    background: darkMode ? 'bg-gray-900' : 'bg-gray-50',
-    card: darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
-    cardHover: darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50',
+    background: darkMode 
+      ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950' 
+      : 'bg-gradient-to-br from-gray-50 via-white to-blue-50',
+    card: darkMode 
+      ? 'bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-lg border border-gray-700/50 shadow-2xl' 
+      : 'bg-white/80 backdrop-blur-lg border border-gray-200/50 shadow-2xl',
+    cardHover: darkMode 
+      ? 'hover:from-gray-800 hover:to-gray-800/90 hover:border-gray-600/50 transition-all duration-300' 
+      : 'hover:bg-gray-50/90 transition-all duration-300',
     text: {
       primary: darkMode ? 'text-white' : 'text-gray-900',
       secondary: darkMode ? 'text-gray-300' : 'text-gray-600',
-      muted: darkMode ? 'text-gray-400' : 'text-gray-500'
+      muted: darkMode ? 'text-gray-400' : 'text-gray-500',
+      accent: darkMode ? 'text-blue-400' : 'text-blue-600',
+      success: darkMode ? 'text-emerald-400' : 'text-emerald-600',
+      warning: darkMode ? 'text-amber-400' : 'text-amber-600',
+      danger: darkMode ? 'text-red-400' : 'text-red-600'
     },
-    border: darkMode ? 'border-gray-700' : 'border-gray-200',
-    input: darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500',
-    sidebar: darkMode ? 'bg-gray-900 border-gray-800' : 'bg-emerald-900 border-emerald-800',
-    sidebarText: darkMode ? 'text-gray-300' : 'text-emerald-100',
-    sidebarHover: darkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-emerald-800 hover:text-white',
-    sidebarActive: darkMode ? 'bg-gray-800 text-white' : 'bg-emerald-800 text-white'
+    border: darkMode ? 'border-gray-700/50' : 'border-gray-200/50',
+    input: darkMode 
+      ? 'bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400 backdrop-blur-sm' 
+      : 'bg-white/80 border-gray-300 text-gray-900 placeholder-gray-500 backdrop-blur-sm',
+    sidebar: darkMode 
+      ? 'bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 border-gray-800/50' 
+      : 'bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-slate-800/50',
+    sidebarText: darkMode ? 'text-gray-300' : 'text-slate-200',
+    sidebarHover: darkMode 
+      ? 'hover:bg-gray-800/50 hover:text-white backdrop-blur-sm' 
+      : 'hover:bg-slate-800/50 hover:text-white backdrop-blur-sm',
+    sidebarActive: darkMode 
+      ? 'bg-gradient-to-r from-blue-500/20 to-blue-500/20 border-r-2 border-blue-500 text-white' 
+      : 'bg-gradient-to-r from-blue-500/20 to-blue-500/20 border-r-2 border-blue-500 text-white',
+    gradient: {
+      primary: darkMode 
+        ? 'from-blue-500 to-blue-600' 
+        : 'from-blue-600 to-blue-700',
+      success: darkMode 
+        ? 'from-emerald-500 to-emerald-600' 
+        : 'from-emerald-600 to-emerald-700',
+      danger: darkMode 
+        ? 'from-red-500 to-red-600' 
+        : 'from-red-600 to-red-700',
+      premium: 'from-purple-500 via-blue-500 to-blue-600'
+    }
   };
 
   // Helper data arrays
@@ -201,6 +280,7 @@ export default function Dashboard() {
     'Phone Bills', 'Internet Bills', 'Gas Bills', 'Waste Removal', 'Equipment Purchase', 'Building Maintenance',
     'Vehicle Purchase', 'Loan Payments', 'Tax Payments', 'Legal Fees', 'Accounting Fees', 'Others'
   ];
+  
   
   const languagesList: LanguageOption[] = [
     { value: 'en', label: 'English' },
@@ -242,6 +322,225 @@ export default function Dashboard() {
     await supabase.auth.signOut();
     setSession(null);
   };
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastOpen(true);
+  };
+
+  // Enhanced connection monitoring with auto-reconnect and re-login prompts
+  const checkDatabaseConnection = async (isRetry: boolean = false): Promise<boolean> => {
+    try {
+      if (isRetry) {
+        setIsReconnecting(true);
+        setConnectionRetryCount(prev => prev + 1);
+      }
+      
+      setDatabaseStatus('checking');
+      const { data, error } = await supabase.from('profiles').select('count').limit(1);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Connection successful
+      setDatabaseStatus('connected');
+      connectionIssuesRef.current = 0;
+      setConnectionRetryCount(0);
+      setIsReconnecting(false);
+      
+      if (isRetry) {
+        showToast('Connection restored successfully!');
+        setShowConnectionErrorModal(false);
+        setShowReLoginModal(false);
+      }
+      
+      return true;
+    } catch (error: any) { // Fixed: Added type annotation for error
+      console.error('Database connection error:', error);
+      setDatabaseStatus('disconnected');
+      connectionIssuesRef.current++;
+      
+      // Show appropriate modal based on connection issues count
+      if (connectionIssuesRef.current >= 3) {
+        setShowReLoginModal(true);
+      } else if (connectionIssuesRef.current >= 2) {
+        setShowConnectionErrorModal(true);
+      }
+      
+      setIsReconnecting(false);
+      return false;
+    }
+  };
+
+  // Enhanced auto-reconnect function
+  const attemptAutoReconnect = async () => {
+    if (connectionRetryCount >= 3) {
+      // Too many retries, prompt for re-login
+      setShowReLoginModal(true);
+      return;
+    }
+
+    setIsReconnecting(true);
+    showToast(`Attempting to reconnect... (${connectionRetryCount + 1}/3)`);
+
+    // Exponential backoff: 2s, 4s, 8s
+    const delay = Math.pow(2, connectionRetryCount) * 1000;
+    
+    autoReconnectTimeoutRef.current = setTimeout(async () => {
+      const success = await checkDatabaseConnection(true);
+      
+      if (!success && connectionRetryCount < 3) {
+        // Continue retrying
+        attemptAutoReconnect();
+      }
+    }, delay);
+  };
+
+  // Enhanced session monitoring with connection persistence check
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeSession = async () => {
+      if (!mounted) return;
+
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session error:', error);
+          if (mounted) {
+            setShowSessionExpiredModal(true);
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (mounted) {
+          setSession(session);
+          if (session) {
+            // Test database connection before fetching data
+            const connectionOk = await checkDatabaseConnection();
+            if (connectionOk) {
+              await fetchData(session);
+            } else {
+              setShowConnectionErrorModal(true);
+              setLoading(false);
+            }
+          } else {
+            setLoading(false);
+            if (financialData.transactions.length > 0) {
+              setShowSessionExpiredModal(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Initialization error:', error);
+        if (mounted) {
+          setShowSessionExpiredModal(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      setSession(session);
+      
+      if (event === 'SIGNED_OUT') {
+        setShowSessionExpiredModal(true);
+        setFinancialData({
+          income: 0.00,
+          expenses: 0.00,
+          profit: 0.00,
+          transactions: [],
+          budgets: [],
+          alerts: [],
+          aiRecommendations: [
+            'Add your transactions to get personalized financial insights',
+            'Create budgets to track your spending limits',
+            'Monitor your income and expense patterns regularly'
+          ],
+          cashFlowForecast: [
+            { month: 'Apr', forecast: 4500, actual: null },
+            { month: 'May', forecast: 5200, actual: null },
+            { month: 'Jun', forecast: 4800, actual: null },
+            { month: 'Jul', forecast: 5500, actual: null }
+          ]
+        });
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Token was refreshed, try to reconnect
+        const connectionOk = await checkDatabaseConnection();
+        if (connectionOk && session) {
+          await fetchData(session);
+        }
+      }
+      
+      if (session) {
+        setShowSessionExpiredModal(false);
+        const connectionOk = await checkDatabaseConnection();
+        if (connectionOk) {
+          await fetchData(session);
+        }
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      if (autoReconnectTimeoutRef.current) {
+        clearTimeout(autoReconnectTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Enhanced connection monitoring with auto-reconnect
+  useEffect(() => {
+    // Network status monitoring
+    const handleOnline = async () => {
+      setNetworkStatus('online');
+      showToast('Connection restored');
+      
+      // Attempt to reconnect to database when coming back online
+      if (session) {
+        const connectionOk = await checkDatabaseConnection(true);
+        if (connectionOk) {
+          await fetchData(session);
+        }
+      }
+    };
+    
+    const handleOffline = () => {
+      setNetworkStatus('offline');
+      setShowConnectionErrorModal(true);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Periodic database health check (every 30 seconds)
+    const dbHealthCheckInterval = setInterval(async () => {
+      if (session && networkStatus === 'online') {
+        await checkDatabaseConnection();
+      }
+    }, 30000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(dbHealthCheckInterval);
+      if (autoReconnectTimeoutRef.current) {
+        clearTimeout(autoReconnectTimeoutRef.current);
+      }
+    };
+  }, [session, networkStatus]);
 
   // Enhanced AI Chat Function
   const sendMessage = async () => {
@@ -530,7 +829,7 @@ export default function Dashboard() {
   
       showToast('Backup restored successfully!');
       setShowRestoreDialog(false);
-    } catch (error) {
+    } catch (error: any) { // Fixed: Added type annotation for error
       console.error('Error restoring backup:', error);
       showToast('Error restoring backup');
     }
@@ -594,6 +893,13 @@ export default function Dashboard() {
     }
   };
 
+  // Add missing function for subscription cancellation
+  const handleCancelSubscription = async () => {
+    // This would typically call your subscription management API
+    showToast('Subscription cancellation feature coming soon');
+    setIsCancelSubscriptionOpen(false);
+  };
+
   // Helper functions for CSV export
   const convertToCSV = (data: any[]) => {
     if (data.length === 0) return '';
@@ -622,6 +928,124 @@ export default function Dashboard() {
     window.URL.revokeObjectURL(url);
   };
 
+  // Enhanced fetchData function with connection recovery
+  async function fetchData(session: Session) {
+    if (!session) {
+      showToast('No active session. Please log in.');
+      setLoading(false);
+      setShowSessionExpiredModal(true);
+      return;
+    }
+
+    setLoading(true);
+    const userId = session.user.id;
+
+    try {
+      // Test database connection first
+      const connectionOk = await checkDatabaseConnection();
+      if (!connectionOk) {
+        throw new Error('Database connection failed');
+      }
+      
+      // Set a timeout for database operations
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const [transactionsData, budgetsData, profileData] = await Promise.all([
+        supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
+        supabase.from('budgets').select('*').eq('user_id', userId),
+        supabase.from('profiles').select('*').eq('id', userId).single()
+      ]);
+
+      clearTimeout(timeoutId);
+
+      // Handle errors with proper type checking
+      if (transactionsData.error) throw new Error(`Transactions: ${transactionsData.error.message}`);
+      if (budgetsData.error) throw new Error(`Budgets: ${budgetsData.error.message}`);
+      
+      // Calculate financial data
+      const income = (transactionsData.data?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0);
+      const expenses = (transactionsData.data?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0);
+      const profit = income - expenses;
+
+      // Generate AI recommendations based on actual data
+      const aiRecommendations = transactionsData.data && transactionsData.data.length > 0 
+        ? RuleBasedFinancialAdvisor.analyzeSpendingPatterns(transactionsData.data, budgetsData.data || [], formatCurrency).slice(0, 4)
+        : [
+            'Add your transactions to get personalized financial insights',
+            'Create budgets to track your spending limits',
+            'Monitor your income and expense patterns regularly'
+          ];
+
+      setFinancialData(prev => ({
+        ...prev,
+        income,
+        expenses,
+        profit,
+        transactions: transactionsData.data || [],
+        budgets: budgetsData.data || [],
+        alerts: realTimeAlerts,
+        aiRecommendations
+      }));
+
+      // Set user data
+      const userData = {
+        name: profileData?.data?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+        email: session.user.email || 'No email',
+        businessName: profileData?.data?.business_name || session.user.user_metadata?.business_name || 'My Business',
+        avatar: profileData?.data?.avatar || session.user.user_metadata?.avatar_url || '/api/placeholder/40/40',
+        plan: profileData?.data?.plan || 'Free Plan',
+        joinedDate: new Date(profileData?.data?.created_at || session.user.created_at).toISOString().split('T')[0]
+      };
+
+      setUser(userData);
+
+      // Set user settings
+      setUserSettings({
+        fullName: profileData?.data?.full_name || userData.name,
+        email: userData.email,
+        businessName: profileData?.data?.business_name || userData.businessName,
+        phoneNumber: profileData?.data?.phone_number || '',
+        currency: profileData?.data?.currency || 'NGN',
+        language: profileData?.data?.language || 'en',
+        dateFormat: profileData?.data?.date_format || 'MM/DD/YYYY',
+        timezone: profileData?.data?.timezone || 'UTC',
+        notifications: profileData?.data?.notification_settings || {
+          budgetAlerts: true,
+          weeklyReports: true,
+          transactionAlerts: true,
+          aiRecommendations: true
+        }
+      });
+
+    } catch (error: unknown) {
+      console.error('Error fetching data:', error);
+      
+      // Handle different error types safely
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          showToast('Connection timeout. Please check your internet connection.');
+          setShowConnectionErrorModal(true);
+          attemptAutoReconnect();
+        } else if (error.message?.includes('JWT')) {
+          setShowSessionExpiredModal(true);
+          showToast('Session expired. Please log in again.');
+        } else if (error.message?.includes('Database connection failed')) {
+          showToast('Database connection failed. Attempting to reconnect...');
+          attemptAutoReconnect();
+        } else {
+          showToast('Unable to load data. Please try again.');
+          setShowConnectionErrorModal(true);
+        }
+      } else {
+        showToast('An unexpected error occurred. Please try again.');
+        setShowConnectionErrorModal(true);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Load available backups
   useEffect(() => {
     if (showRestoreDialog && session) {
@@ -630,20 +1054,31 @@ export default function Dashboard() {
   }, [showRestoreDialog, session]);
 
   // Update AI recommendations when data changes
-  useEffect(() => {
-    if (financialData.transactions.length > 0) {
-      const recommendations = RuleBasedFinancialAdvisor.analyzeSpendingPatterns(
-        financialData.transactions,
-        financialData.budgets,
-        formatCurrency
-      );
-      
+// Update AI recommendations when data changes - fixed to prevent infinite loops
+useEffect(() => {
+  if (financialData.transactions.length > 0) {
+    const recommendations = RuleBasedFinancialAdvisor.analyzeSpendingPatterns(
+      financialData.transactions,
+      financialData.budgets,
+      formatCurrency
+    );
+    
+    // Only update if recommendations actually changed
+    const newRecommendations = recommendations.slice(0, 4);
+    const currentRecommendations = financialData.aiRecommendations;
+    
+    // Check if recommendations actually changed to avoid unnecessary updates
+    const hasChanged = newRecommendations.length !== currentRecommendations.length ||
+      newRecommendations.some((rec, index) => rec !== currentRecommendations[index]);
+    
+    if (hasChanged) {
       setFinancialData(prev => ({
         ...prev,
-        aiRecommendations: recommendations.slice(0, 4)
+        aiRecommendations: newRecommendations
       }));
     }
-  }, [financialData.transactions, financialData.budgets]);
+  }
+}, [financialData.transactions, financialData.budgets]); // Removed formatCurrency from dependencies
 
   const loadAvailableBackups = async () => {
     if (!session) return;
@@ -688,7 +1123,7 @@ export default function Dashboard() {
     };
   }, [financialData.transactions]);
 
-  // Calculate trend data based on actual transactions and time filter
+  // Calculate trend data based on actual transactions and time filter - Updated for line chart
   const currentTrendData = useMemo(() => {
     if (financialData.transactions.length === 0) {
       return [];
@@ -699,11 +1134,14 @@ export default function Dashboard() {
 
     switch (timeFilter) {
       case 'daily':
-        // Last 7 days
+        // Last 7 days with actual dates
         data = Array.from({ length: 7 }, (_, i) => {
           const date = new Date(now);
           date.setDate(now.getDate() - (6 - i));
-          const period = date.toLocaleDateString('en-US', { weekday: 'short' });
+          const period = date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric' 
+          });
           
           const dayTransactions = financialData.transactions.filter(t => {
             const transactionDate = new Date(t.date);
@@ -806,8 +1244,8 @@ export default function Dashboard() {
     return financialData.transactions.length > 0;
   }, [financialData.transactions]);
 
-  // Real-time budget tracking calculation
-  const budgetsWithRealTimeTracking = useMemo(() => {
+  // Real-time budget tracking calculation with proper typing
+  const budgetsWithRealTimeTracking = useMemo((): EnhancedBudget[] => {
     return financialData.budgets.map(budget => {
       // Calculate spent amount from transactions for this budget category
       const spent = financialData.transactions
@@ -819,11 +1257,18 @@ export default function Dashboard() {
       
       const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
       
-      return {
-        ...budget,
+      // Convert to EnhancedBudget type with proper period conversion
+      const enhancedBudget: EnhancedBudget = {
+        id: budget.id,
+        category: budget.category,
+        budget_limit: budget.budget_limit,
         spent,
-        percentage
+        percentage,
+        period: budget.period as 'daily' | 'weekly' | 'monthly' | 'yearly', // Fixed: Type assertion
+        created_at: budget.created_at // Add this to match the expected type
       };
+      
+      return enhancedBudget;
     });
   }, [financialData.budgets, financialData.transactions]);
 
@@ -859,309 +1304,340 @@ export default function Dashboard() {
     return alerts;
   }, [budgetsWithRealTimeTracking]);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        fetchData(session);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        fetchData(session);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  async function fetchData(session: Session) {
-    if (!session) {
-      showToast('No active session. Please log in.');
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const userId = session.user.id;
-
-    try {
-      // Fetch transactions
-      const { data: transactions, error: transError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('date', { ascending: false });
-
-      // Fetch budgets
-      const { data: budgets, error: budgetsError } = await supabase
-        .from('budgets')
-        .select('*')
-        .eq('user_id', userId);
-
-      // Fetch user profile from a profiles table (you need to create this)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (transError) console.error('Transaction error:', transError);
-      if (budgetsError) console.error('Budget error:', budgetsError);
-      if (profileError) console.error('Profile error:', profileError);
-
-      // Calculate financial data
-      const income = (transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0);
-      const expenses = (transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0);
-      const profit = income - expenses;
-
-      // Generate AI recommendations based on actual data
-      const aiRecommendations = transactions && transactions.length > 0 
-        ? RuleBasedFinancialAdvisor.analyzeSpendingPatterns(transactions, budgets || [], formatCurrency).slice(0, 4)
-        : [
-            'Add your transactions to get personalized financial insights',
-            'Create budgets to track your spending limits',
-            'Monitor your income and expense patterns regularly'
-          ];
-
-      setFinancialData(prev => ({
-        ...prev,
-        income,
-        expenses,
-        profit,
-        transactions: transactions || [],
-        budgets: budgets || [],
-        alerts: realTimeAlerts,
-        aiRecommendations
-      }));
-
-      // Set user data - fallback to session data if profile doesn't exist
-      const userData = {
-        name: profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-        email: session.user.email || 'No email',
-        businessName: profile?.business_name || session.user.user_metadata?.business_name || 'My Business',
-        avatar: profile?.avatar || session.user.user_metadata?.avatar_url || '/api/placeholder/40/40',
-        plan: profile?.plan || 'Free Plan',
-        joinedDate: new Date(profile?.created_at || session.user.created_at).toISOString().split('T')[0]
-      };
-
-      setUser(userData);
-
-      // Set user settings
-      setUserSettings({
-        fullName: profile?.full_name || userData.name,
-        email: userData.email,
-        businessName: profile?.business_name || userData.businessName,
-        phoneNumber: profile?.phone_number || '',
-        currency: profile?.currency || 'NGN',
-        language: profile?.language || 'en',
-        dateFormat: profile?.date_format || 'MM/DD/YYYY',
-        timezone: profile?.timezone || 'UTC',
-        notifications: profile?.notification_settings || {
-          budgetAlerts: true,
-          weeklyReports: true,
-          transactionAlerts: true,
-          aiRecommendations: true
-        }
-      });
-
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      showToast('Error fetching data');
-    } finally {
-      setLoading(false);
-    }
+  // Transaction Management Functions
+const handleAddTransaction = async (type: 'income' | 'expense') => {
+  if (!formData.amount || !formData.category || !session) {
+    showToast('Please fill all required fields or log in');
+    return;
   }
 
-  // Transaction Management Functions
-  const handleAddTransaction = async (type: 'income' | 'expense') => {
-    if (!formData.amount || !formData.category || !session) {
-      showToast('Please fill all required fields or log in');
-      return;
+  try {
+    const newTransaction = {
+      user_id: session.user.id,
+      type,
+      amount: parseFloat(formData.amount),
+      category: formData.category,
+      description: formData.description || '',
+      date: formData.date,
+    };
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert(newTransaction)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Update local state immediately
+    setFinancialData(prev => ({
+      ...prev,
+      transactions: [data, ...prev.transactions],
+      income: type === 'income' ? prev.income + data.amount : prev.income,
+      expenses: type === 'expense' ? prev.expenses + data.amount : prev.expenses,
+      profit: type === 'income' ? prev.profit + data.amount : prev.profit - data.amount
+    }));
+
+    showToast(`${type === 'income' ? 'Income' : 'Expense'} added successfully!`);
+    setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
+    
+    // Close the modal by updating the parent state
+    type === 'income' ? setShowIncomeForm(false) : setShowExpenseForm(false);
+    
+  } catch (error: any) {
+    console.error('Error adding transaction:', error);
+    showToast(`Error adding transaction: ${error.message || 'Please try again'}`);
+    throw error; // Re-throw to let the modal handle the loading state
+  }
+};
+
+const handleEditTransaction = async () => {
+  if (!editingTransaction || !session) {
+    showToast('Please log in to edit transactions');
+    return;
+  }
+
+  try {
+    const updatedFields = {
+      amount: parseFloat(formData.amount),
+      category: formData.category,
+      description: formData.description || '', // Ensure not null
+      date: formData.date
+    };
+
+    console.log('Updating transaction:', editingTransaction.id, updatedFields); // Debug log
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .update(updatedFields)
+      .eq('id', editingTransaction.id)
+      .eq('user_id', session.user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase update error:', error);
+      throw error;
     }
 
-    try {
-      const { error } = await supabase.from('transactions').insert({
-        user_id: session.user.id,
-        type,
-        amount: parseFloat(formData.amount),
-        category: formData.category,
-        description: formData.description,
-        date: formData.date
-      });
+    console.log('Update successful, returned data:', data); // Debug log
 
-      if (error) throw error;
+    // Calculate differences for financial totals
+    const amountDiff = data.amount - editingTransaction.amount;
+    const typeChanged = data.type !== editingTransaction.type;
 
-      showToast(`${type === 'income' ? 'Income' : 'Expense'} added successfully!`);
-      setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
-      type === 'income' ? setShowIncomeForm(false) : setShowExpenseForm(false);
+    // Update local state
+    setFinancialData(prev => {
+      const updatedTransactions = prev.transactions.map(t => 
+        t.id === editingTransaction.id ? data : t
+      );
       
-      // Refresh data
-      if (session) await fetchData(session);
-    } catch (error) {
-      console.error('Error adding transaction:', error);
-      showToast('Error adding transaction');
-    }
-  };
-
-  const handleEditTransaction = async () => {
-    if (!editingTransaction || !session) {
-      showToast('Please log in to edit transactions');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('transactions')
-        .update({
-          amount: parseFloat(formData.amount),
-          category: formData.category,
-          description: formData.description,
-          date: formData.date
-        })
-        .eq('id', editingTransaction.id)
-        .eq('user_id', session.user.id);
-
-      if (error) throw error;
-
-      showToast('Transaction updated successfully!');
-      setEditingTransaction(null);
-      setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
+      let newIncome = prev.income;
+      let newExpenses = prev.expenses;
       
-      // Refresh data
-      await fetchData(session);
-    } catch (error) {
-      console.error('Error updating transaction:', error);
-      showToast('Error updating transaction');
-    }
-  };
-
-  const handleDeleteTransaction = async (transactionId: string) => {
-    if (!session) {
-      showToast('Please log in to delete transactions');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', transactionId)
-        .eq('user_id', session.user.id);
-
-      if (error) throw error;
-
-      showToast('Transaction deleted successfully!');
-      setDeleteTransactionId(null);
+      if (typeChanged) {
+        // Type changed (income <-> expense)
+        if (data.type === 'income') {
+          newIncome += data.amount;
+          newExpenses -= editingTransaction.amount;
+        } else {
+          newIncome -= editingTransaction.amount;
+          newExpenses += data.amount;
+        }
+      } else {
+        // Same type, just amount changed
+        if (data.type === 'income') {
+          newIncome += amountDiff;
+        } else {
+          newExpenses += amountDiff;
+        }
+      }
       
-      // Refresh data
-      await fetchData(session);
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      showToast('Error deleting transaction');
+      const newProfit = newIncome - newExpenses;
+      
+      return {
+        ...prev,
+        transactions: updatedTransactions,
+        income: newIncome,
+        expenses: newExpenses,
+        profit: newProfit
+      };
+    });
+
+    showToast('Transaction updated successfully!');
+    setEditingTransaction(null);
+    setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
+    
+  } catch (error: any) {
+    console.error('Error updating transaction:', error);
+    showToast(`Error updating transaction: ${error.message || 'Please try again'}`);
+  }
+};
+
+// Replace the existing handleDeleteTransaction function with this:
+const handleDeleteTransaction = async (transactionId: string) => {
+  try {
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', transactionId);
+
+    if (error) throw error;
+
+    // Find the transaction to update financial totals
+    const transactionToDelete = financialData.transactions.find(t => t.id === transactionId);
+    
+    if (transactionToDelete) {
+      setFinancialData(prev => ({
+        ...prev,
+        transactions: prev.transactions.filter(t => t.id !== transactionId),
+        income: transactionToDelete.type === 'income' ? prev.income - transactionToDelete.amount : prev.income,
+        expenses: transactionToDelete.type === 'expense' ? prev.expenses - transactionToDelete.amount : prev.expenses,
+        profit: transactionToDelete.type === 'income' ? prev.profit - transactionToDelete.amount : prev.profit + transactionToDelete.amount
+      }));
     }
-  };
+
+    setDeleteTransactionId(null);
+    showToast('Transaction deleted successfully');
+  } catch (error) {
+    console.error('Error deleting transaction:', error);
+    showToast('Error deleting transaction');
+  }
+};
 
   // Budget Management Functions
-  const handleAddBudget = async () => {
-    if (!budgetFormData.category || !budgetFormData.budget_limit || !session) {
-      showToast('Please fill all required fields or log in');
-      return;
-    }
+const handleAddBudget = async () => {
+  if (!budgetFormData.category || !budgetFormData.budget_limit || !session) {
+    showToast('Please fill all required fields or log in');
+    return;
+  }
 
-    try {
-      const { error } = await supabase.from('budgets').insert({
-        user_id: session.user.id,
-        category: budgetFormData.category,
-        spent: 0,
-        budget_limit: parseFloat(budgetFormData.budget_limit),
-        percentage: 0,
-        period: budgetFormData.period
-      });
+  try {
+    // Simplify the object to match only what your database expects
+    const newBudget = {
+      user_id: session.user.id,
+      category: budgetFormData.category,
+      budget_limit: parseFloat(budgetFormData.budget_limit),
+      period: budgetFormData.period,
+      // Remove fields that should be set by database defaults
+      // spent: 0, - might be computed or default in DB
+      // percentage: 0, - might be computed
+      // id: '', - let database generate this
+      // created_at: new Date().toISOString() - let database set this
+    };
 
-      if (error) throw error;
+    console.log('Inserting budget:', newBudget); // Debug log
 
-      showToast('Budget added successfully!');
-      setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
-      setShowBudgetForm(false);
-      
-      // Refresh data
-      if (session) await fetchData(session);
-    } catch (error) {
-      console.error('Error adding budget:', error);
-      showToast('Error adding budget');
-    }
-  };
+    const { data, error } = await supabase
+      .from('budgets')
+      .insert([newBudget]) // Wrap in array if required
+      .select()
+      .single();
 
-  const handleEditBudget = async () => {
-    if (!editingBudget || !session) {
-      showToast('Please log in to edit budgets');
-      return;
-    }
+    if (error) throw error;
 
-    try {
-      const { error } = await supabase
-        .from('budgets')
-        .update({
-          category: budgetFormData.category,
-          budget_limit: parseFloat(budgetFormData.budget_limit),
-          period: budgetFormData.period
-        })
-        .eq('id', editingBudget.id)
-        .eq('user_id', session.user.id);
+    console.log('Insert successful:', data); // Debug log
 
-      if (error) throw error;
+    // Update local state immediately
+    setFinancialData(prev => ({
+      ...prev,
+      budgets: [...prev.budgets, data]
+    }));
 
-      showToast('Budget updated successfully!');
-      setEditingBudget(null);
-      setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
-      
-      // Refresh data
-      await fetchData(session);
-    } catch (error) {
-      console.error('Error updating budget:', error);
-      showToast('Error updating budget');
-    }
-  };
+    showToast('Budget added successfully!');
+    setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
+    setShowBudgetForm(false);
+    
+  } catch (error: any) { // Fixed: Added type annotation for error
+    console.error('Error adding budget:', error);
+    showToast('Error adding budget: ' + error.message);
+  }
+};
 
-  const handleDeleteBudget = async (budgetId: string) => {
+const handleEditBudget = async () => {
+  if (!editingBudget || !session) {
+    showToast('Please log in to edit budgets');
+    return;
+  }
+
+  try {
+    const updatedFields = {
+      category: budgetFormData.category,
+      budget_limit: parseFloat(budgetFormData.budget_limit),
+      period: budgetFormData.period
+    };
+
+    const { data, error } = await supabase
+      .from('budgets')
+      .update(updatedFields)
+      .eq('id', editingBudget.id)
+      .eq('user_id', session.user.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Update local state
+    setFinancialData(prev => ({
+      ...prev,
+      budgets: prev.budgets.map(b => 
+        b.id === editingBudget.id ? data : b
+      )
+    }));
+
+    showToast('Budget updated successfully!');
+    setEditingBudget(null);
+    setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
+    
+  } catch (error) {
+    console.error('Error updating budget:', error);
+    showToast('Error updating budget');
+  }
+};
+
+// Replace the existing handleDeleteBudget function with this:
+const handleDeleteBudget = async (budgetId: string) => {
+  try {
+    const { error } = await supabase
+      .from('budgets')
+      .delete()
+      .eq('id', budgetId);
+
+    if (error) throw error;
+
+    setFinancialData(prev => ({
+      ...prev,
+      budgets: prev.budgets.filter(b => b.id !== budgetId)
+    }));
+
+    setDeleteBudgetId(null);
+    showToast('Budget deleted successfully');
+  } catch (error) {
+    console.error('Error deleting budget:', error);
+    showToast('Error deleting budget');
+  }
+};
+  // Enhanced retry function with session validation
+  const handleRetryConnection = async () => {
     if (!session) {
-      showToast('Please log in to delete budgets');
+      setShowSessionExpiredModal(true);
       return;
     }
 
-    try {
-      const { error } = await supabase
-        .from('budgets')
-        .delete()
-        .eq('id', budgetId)
-        .eq('user_id', session.user.id);
+    setIsReconnecting(true);
+    showToast('Attempting to reconnect...');
 
-      if (error) throw error;
+    // First check if session is still valid
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    
+    if (!currentSession) {
+      setShowSessionExpiredModal(true);
+      setIsReconnecting(false);
+      return;
+    }
 
-      showToast('Budget deleted successfully!');
-      setDeleteBudgetId(null);
-      
-      // Refresh data
-      await fetchData(session);
-    } catch (error) {
-      console.error('Error deleting budget:', error);
-      showToast('Error deleting budget');
+    // Then attempt database connection
+    const connectionOk = await checkDatabaseConnection(true);
+    
+    if (connectionOk) {
+      await fetchData(currentSession);
+    } else {
+      attemptAutoReconnect();
     }
   };
 
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    setToastOpen(true);
+  // Enhanced manual re-login function
+  const handleForceReLogin = () => {
+    // Clear all local state
+    setSession(null);
+    setFinancialData({
+      income: 0.00,
+      expenses: 0.00,
+      profit: 0.00,
+      transactions: [],
+      budgets: [],
+      alerts: [],
+      aiRecommendations: [
+        'Add your transactions to get personalized financial insights',
+        'Create budgets to track your spending limits',
+        'Monitor your income and expense patterns regularly'
+      ],
+      cashFlowForecast: [
+        { month: 'Apr', forecast: 4500, actual: null },
+        { month: 'May', forecast: 5200, actual: null },
+        { month: 'Jun', forecast: 4800, actual: null },
+        { month: 'Jul', forecast: 5500, actual: null }
+      ]
+    });
+    
+    // Reset connection counters
+    connectionIssuesRef.current = 0;
+    setConnectionRetryCount(0);
+    
+    // Close modals and redirect to login
+    setShowReLoginModal(false);
+    setShowConnectionErrorModal(false);
+    setShowSessionExpiredModal(false);
   };
 
   // Get data key for chart based on time filter
@@ -1169,14 +1645,14 @@ export default function Dashboard() {
     return 'period';
   };
 
-  // Custom tooltip for charts
+  // Custom tooltip for line charts with updated colors
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className={`p-4 rounded-lg shadow-md border ${darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+        <div className={`p-4 rounded-xl shadow-lg border backdrop-blur-lg ${darkMode ? 'bg-gray-800/90 border-gray-600 text-white' : 'bg-white/90 border-gray-200 text-gray-900'}`}>
           <p className="font-semibold">{label}</p>
-          <p className="text-emerald-600">Income: {formatCurrency(payload[0].value)}</p>
-          <p className="text-red-600">Expenses: {formatCurrency(payload[1].value)}</p>
+          <p className="text-emerald-500">Income: {formatCurrency(payload[0].value)}</p>
+          <p className="text-red-500">Expenses: {formatCurrency(payload[1].value)}</p>
         </div>
       );
     }
@@ -1196,8 +1672,8 @@ export default function Dashboard() {
     action?: React.ReactNode;
   }) => (
     <div className="text-center sm:py-2">
-      <div className={`w-16 h-16 ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
-        <Icon className={`w-8 h-8 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+      <div className={`w-16 h-16 ${darkMode ? 'bg-gray-800/50' : 'bg-gray-100/50'} rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+        <Icon className={`w-8 h-8 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
       </div>
       <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
       <p className={`mb-6 max-w-sm mx-auto ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{description}</p>
@@ -1216,13 +1692,25 @@ export default function Dashboard() {
     });
   };
 
-  // Start editing a budget
-  const startEditBudget = (budget: Budget) => {
-    setEditingBudget(budget);
+  // Start editing a budget - properly typed for EnhancedBudget
+  const startEditBudget = (budget: EnhancedBudget) => {
+    // Convert EnhancedBudget back to Budget for editing
+    const budgetToEdit: Budget = {
+      id: budget.id,
+      user_id: '', // This will be set from session when saving
+      category: budget.category,
+      budget_limit: budget.budget_limit,
+      spent: budget.spent,
+      percentage: budget.percentage,
+      period: budget.period,
+      created_at: new Date().toISOString()
+    };
+    
+    setEditingBudget(budgetToEdit);
     setBudgetFormData({
       category: budget.category,
       budget_limit: budget.budget_limit.toString(),
-      period: budget.period
+      period: budget.period as 'Monthly' | 'Quarterly' | 'Yearly'
     });
   };
 
@@ -1250,27 +1738,258 @@ export default function Dashboard() {
     setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
   };
 
+  // Enhanced Connection Status Indicators in Header
+  const ConnectionStatus = () => (
+    <div className="flex items-center space-x-2">
+      {/* Network status indicator */}
+      <div className={`hidden sm:flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-medium ${
+        networkStatus === 'online' 
+          ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+          : (darkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700')
+      }`}>
+        <div className={`w-1.5 h-1.5 rounded-full ${
+          networkStatus === 'online' ? 'bg-emerald-500' : 'bg-red-500'
+        }`}></div>
+        <span>{networkStatus === 'online' ? 'Online' : 'Offline'}</span>
+      </div>
+
+      {/* Database status indicator with reconnecting animation */}
+      <div className={`hidden sm:flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-medium ${
+        databaseStatus === 'connected' 
+          ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+          : databaseStatus === 'checking' || isReconnecting
+          ? (darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700')
+          : (darkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700')
+      }`}>
+        {isReconnecting ? (
+          <RefreshCw className="w-3 h-3 animate-spin" />
+        ) : (
+          <div className={`w-1.5 h-1.5 rounded-full ${
+            databaseStatus === 'connected' ? 'bg-emerald-500' : 
+            databaseStatus === 'checking' ? 'bg-amber-500' : 'bg-red-500'
+          }`}></div>
+        )}
+        <span>
+          {isReconnecting ? 'Reconnecting...' :
+           databaseStatus === 'connected' ? 'DB Connected' : 
+           databaseStatus === 'checking' ? 'DB Checking' : 'DB Error'}
+        </span>
+      </div>
+    </div>
+  );
+
+  // Enhanced Re-Login Modal
+  const ReLoginModal = () => (
+    <Dialog.Root open={showReLoginModal} onOpenChange={setShowReLoginModal}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+        <Dialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6 rounded-2xl shadow-2xl z-50 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+          <div className="flex flex-col items-center text-center">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${darkMode ? 'bg-red-500/20' : 'bg-red-100'}`}>
+              <RefreshCw className={`w-8 h-8 ${darkMode ? 'text-red-400' : 'text-red-500'} animate-spin`} />
+            </div>
+            
+            <Dialog.Title className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Connection Issues Detected
+            </Dialog.Title>
+            
+            <Dialog.Description className={`mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              We're having persistent connection issues. This might be due to:
+            </Dialog.Description>
+            
+            <ul className={`text-sm mb-6 text-left space-y-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              <li className="flex items-start space-x-2">
+                <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 flex-shrink-0"></div>
+                <span>Expired authentication session</span>
+              </li>
+              <li className="flex items-start space-x-2">
+                <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 flex-shrink-0"></div>
+                <span>Network connectivity problems</span>
+              </li>
+              <li className="flex items-start space-x-2">
+                <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 flex-shrink-0"></div>
+                <span>Server maintenance or issues</span>
+              </li>
+            </ul>
+            
+            <div className={`text-sm mb-6 p-3 rounded-lg w-full ${darkMode ? 'bg-gray-700/50 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <span>Connection Attempts:</span>
+                <span className="font-semibold">{connectionRetryCount}/3</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Recommended Action:</span>
+                <span className="font-semibold text-amber-500">Re-login</span>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={handleRetryConnection}
+                disabled={isReconnecting}
+                className={`flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
+                  darkMode 
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white disabled:bg-gray-800 disabled:text-gray-500' 
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:bg-gray-300 disabled:text-gray-500'
+                }`}
+              >
+                {isReconnecting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Retrying...</span>
+                  </>
+                ) : (
+                  <span>Try Again</span>
+                )}
+              </button>
+              
+              <button
+                onClick={handleForceReLogin}
+                className="flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
+              >
+                Re-login Now
+              </button>
+            </div>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+
+  // Enhanced Connection Error Modal with auto-retry
+  const ConnectionErrorModal = () => (
+    <Dialog.Root open={showConnectionErrorModal} onOpenChange={setShowConnectionErrorModal}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+        <Dialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6 rounded-2xl shadow-2xl z-50 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+          <div className="flex flex-col items-center text-center">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${darkMode ? 'bg-orange-500/20' : 'bg-orange-100'}`}>
+              <Globe className={`w-8 h-8 ${darkMode ? 'text-orange-400' : 'text-orange-500'}`} />
+            </div>
+            
+            <Dialog.Title className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Connection Issues
+            </Dialog.Title>
+            
+            <Dialog.Description className={`mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              {networkStatus === 'offline' 
+                ? 'You appear to be offline. Please check your internet connection.'
+                : 'We\'re having trouble connecting to our servers.'
+              }
+            </Dialog.Description>
+            
+            <div className={`text-sm mb-6 p-3 rounded-lg w-full ${darkMode ? 'bg-gray-700/50 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <span>Network Status:</span>
+                <span className={`flex items-center ${networkStatus === 'online' ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {networkStatus === 'online' ? (
+                    <>
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></div>
+                      Online
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                      Offline
+                    </>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Database:</span>
+                <span className={`flex items-center ${
+                  databaseStatus === 'connected' ? 'text-emerald-500' : 
+                  databaseStatus === 'checking' ? 'text-amber-500' : 'text-red-500'
+                }`}>
+                  {databaseStatus === 'connected' ? (
+                    <>
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></div>
+                      Connected
+                    </>
+                  ) : databaseStatus === 'checking' ? (
+                    <>
+                      <div className="w-2 h-2 bg-amber-500 rounded-full mr-2"></div>
+                      Checking...
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                      Disconnected
+                    </>
+                  )}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={handleRetryConnection}
+                disabled={isReconnecting}
+                className={`flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
+                  darkMode 
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white disabled:bg-gray-800 disabled:text-gray-500' 
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:bg-gray-300 disabled:text-gray-500'
+                }`}
+              >
+                {isReconnecting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Retrying...</span>
+                  </>
+                ) : (
+                  <span>Retry Connection</span>
+                )}
+              </button>
+              
+              <button
+                onClick={() => window.location.reload()}
+                className="flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
+              >
+                Reload Page
+              </button>
+            </div>
+
+            {connectionRetryCount > 0 && (
+              <div className={`mt-4 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <p>If problems persist, try <button onClick={handleForceReLogin} className="text-blue-400 hover:underline">re-logging in</button></p>
+              </div>
+            )}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+
+  // Enhanced Loading Component with Logo Animation
   if (loading) {
     return (
-      <div className={`flex flex-col items-center justify-center h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-emerald-500"></div>
-        <p className={`mt-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading your dashboard...</p>
+      <div className={`flex flex-col items-center justify-center h-screen ${themeClasses.background}`}>
+        <div className="relative">
+          {/* Logo Animation */}
+            <Image
+                  src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png"
+                  alt="Monietar Logo"
+                  width={160}
+                  height={40}
+                  className="object-contain animate-ping"
+                />
+        </div>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div className={`text-center py-12 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
-        Please log in to access the dashboard. <Link href="/auth/signin" className="text-emerald-600 hover:underline">Signin</Link>
+      <div className={`text-center py-12 ${themeClasses.background} ${themeClasses.text.primary}`}>
+        Please log in to access the dashboard. <Link href="/auth/signin" className="text-blue-400 hover:underline">Signin</Link>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} flex`}>
+    <div className={`min-h-screen ${themeClasses.background} flex`}>
       <Toast.Provider>
-        <Toast.Root open={toastOpen} onOpenChange={setToastOpen} className={`rounded-xl p-4 shadow-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border`}>
+        <Toast.Root open={toastOpen} onOpenChange={setToastOpen} className={`rounded-xl p-4 shadow-lg backdrop-blur-lg border ${darkMode ? 'bg-gray-800/90 border-gray-700' : 'bg-white/90 border-gray-200'} border`}>
           <Toast.Title className="font-semibold"></Toast.Title>
           <Toast.Description className={darkMode ? 'text-gray-200' : 'text-gray-700'}>{toastMessage}</Toast.Description>
         </Toast.Root>
@@ -1285,16 +2004,27 @@ export default function Dashboard() {
           isMobileMenuOpen={isMobileMenuOpen}
           setIsMobileMenuOpen={setIsMobileMenuOpen}
           onLogout={handleLogout}
+          setDarkMode={setDarkMode}
+          currency={currency}
+          setCurrency={setCurrency}
+          language={language}
+          setLanguage={setLanguage}
+          showBalance={showBalance}
+          setShowBalance={setShowBalance}
+          currencies={currencies}
+          languagesList={languagesList}
+          realTimeAlerts={realTimeAlerts}
         />
 
         {/* Main Content with sidebar offset */}
         <div className="flex-1 flex flex-col lg:ml-64">
-          <header className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b backdrop-blur-sm sticky top-0 z-30`}>
+          {/* Enhanced Header with Connection Status */}
+          <header className={`${darkMode ? 'bg-gray-900/80 border-gray-700/50' : 'bg-white/80 border-gray-200/50'} border-b backdrop-blur-xl sticky top-0 z-30`}>
             <div className="flex items-center justify-between px-4 sm:px-6 h-16">
               <div className="lg:hidden">
                 <button
                   onClick={() => setIsMobileMenuOpen(true)}
-                  className={`p-2 rounded-md ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+                  className={`p-2 rounded-xl ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'} backdrop-blur-sm`}
                 >
                   <Menu className="w-6 h-6" />
                 </button>
@@ -1302,10 +2032,13 @@ export default function Dashboard() {
 
               <div className="flex-1 flex justify-center lg:justify-end">
                 <div className="flex items-center space-x-2 sm:space-x-3">
+                  {/* Enhanced Connection Status */}
+                  <ConnectionStatus />
+
                   {/* Dark Mode Toggle */}
                   <button
                     onClick={() => setDarkMode(!darkMode)}
-                    className={`p-2 rounded-xl ${darkMode ? 'hover:bg-gray-700 text-yellow-400' : 'hover:bg-gray-100 text-gray-600'} transition-colors`}
+                    className={`p-2 rounded-xl backdrop-blur-sm ${darkMode ? 'hover:bg-gray-700/50 text-amber-400' : 'hover:bg-gray-100/50 text-gray-600'} transition-all duration-300`}
                     title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                   >
                     {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -1313,14 +2046,14 @@ export default function Dashboard() {
 
                   <button
                     onClick={() => setShowBalance(!showBalance)}
-                    className={`p-2 rounded-xl ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'} transition-colors`}
+                    className={`p-2 rounded-xl backdrop-blur-sm ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'} transition-all duration-300`}
                     title={showBalance ? 'Hide balance' : 'Show balance'}
                   >
                     {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
 
                   <Select.Root value={language} onValueChange={setLanguage}>
-                    <Select.Trigger className={`flex items-center space-x-2 px-3 py-2 rounded-xl hover:cursor-pointer border ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700 border-gray-600' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border-gray-300'}`}>
+                    <Select.Trigger className={`flex items-center space-x-2 px-3 py-2 rounded-xl hover:cursor-pointer border backdrop-blur-sm ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50 border-gray-600/50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 border-gray-300/50'}`}>
                       <Languages className="w-4 h-4" />
                       <Select.Value placeholder="Language" />
                       <Select.Icon>
@@ -1328,13 +2061,13 @@ export default function Dashboard() {
                       </Select.Icon>
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className={`rounded-xl shadow-lg border z-50 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                      <Select.Content className={`rounded-xl shadow-2xl border z-50 backdrop-blur-lg ${darkMode ? 'bg-gray-800/90 border-gray-700/50' : 'bg-white/90 border-gray-200/50'}`}>
                         <Select.Viewport className="p-2">
                           {languagesList.map((lang) => (
                             <Select.Item
                               key={lang.value}
                               value={lang.value}
-                              className={`flex items-center px-3 py-2 rounded-lg hover:cursor-pointer ${darkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                              className={`flex items-center px-3 py-2 rounded-lg hover:cursor-pointer ${darkMode ? 'hover:bg-gray-700/50 text-white' : 'hover:bg-gray-100/50 text-gray-900'}`}
                             >
                               <Select.ItemText>
                                 <div className="flex items-center space-x-2">
@@ -1349,21 +2082,21 @@ export default function Dashboard() {
                   </Select.Root>
 
                   <Select.Root value={currency} onValueChange={setCurrency}>
-                    <Select.Trigger className={`flex items-center space-x-2 px-3 py-2 rounded-xl hover:cursor-pointer border ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700 border-gray-600' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border-gray-300'}`}>
+                    <Select.Trigger className={`flex items-center space-x-2 px-3 py-2 rounded-xl hover:cursor-pointer border backdrop-blur-sm ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50 border-gray-600/50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 border-gray-300/50'}`}>
                       <Select.Value placeholder="Currency" />
                       <Select.Icon>
                         <ChevronDown className="w-4 h-4" />
                       </Select.Icon>
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className={`rounded-xl shadow-lg border z-50 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                      <Select.Content className={`rounded-xl shadow-2xl border z-50 backdrop-blur-lg ${darkMode ? 'bg-gray-800/90 border-gray-700/50' : 'bg-white/90 border-gray-200/50'}`}>
                         <Select.Viewport className="p-2">
                           {currencies.map((curr) => {
                             return (
                               <Select.Item
                                 key={curr.value}
                                 value={curr.value}
-                                className={`flex items-center px-3 py-2 rounded-lg hover:cursor-pointer ${darkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                                className={`flex items-center px-3 py-2 rounded-lg hover:cursor-pointer ${darkMode ? 'hover:bg-gray-700/50 text-white' : 'hover:bg-gray-100/50 text-gray-900'}`}
                               >
                                 <Select.ItemText>
                                   <div className="flex items-center space-x-2">
@@ -1378,23 +2111,23 @@ export default function Dashboard() {
                     </Select.Portal>
                   </Select.Root>
 
-                  <button className={`p-2 rounded-xl relative hover:cursor-pointer ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}>
+                  <button className={`p-2 rounded-xl relative hover:cursor-pointer backdrop-blur-sm ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'}`}>
                     <Bell className="w-5 h-5" />
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-red-500 to-pink-600 text-white text-xs rounded-full flex items-center justify-center shadow-lg">
                       {realTimeAlerts.length}
                     </span>
                   </button>
                   
                   <button 
                     onClick={handleLogout}
-                    className={`p-2 rounded-xl lg:hidden hover:cursor-pointer ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+                    className={`p-2 rounded-xl lg:hidden hover:cursor-pointer backdrop-blur-sm ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'}`}
                   >
                     <LogOut className="w-5 h-5" />
                   </button>
 
                   <button 
                     onClick={handleLogout}
-                    className={`hidden lg:flex items-center space-x-2 px-3 py-2 rounded-xl hover:cursor-pointer ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+                    className={`hidden lg:flex items-center space-x-2 px-3 py-2 rounded-xl hover:cursor-pointer backdrop-blur-sm ${darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'}`}
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="text-sm">Logout</span>
@@ -1406,1212 +2139,125 @@ export default function Dashboard() {
 
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-            {/* Header Actions */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 sm:mb-8">
-              <div>
-                <h1 className={`text-2xl sm:text-3xl font-bold capitalize ${themeClasses.text.primary}`}>
-                  {activeTab}
-                </h1>
-                <p className={`mt-1 sm:mt-2 text-sm sm:text-base ${themeClasses.text.secondary}`}>
-                  {activeTab === 'overview' && 'Monitor your business finances and performance'}
-                  {activeTab === 'transactions' && 'View and manage all transactions'}
-                  {activeTab === 'budgets' && 'Create and track your budgets'}
-                  {activeTab === 'reports' && 'Generate financial reports'}
-                  {activeTab === 'analytics' && 'Analyze your financial data'}
-                  {activeTab === 'settings' && 'Configure your account settings'}
-                </p>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 sm:gap-3 w-auto lg:w-auto">
-                <button 
-                  onClick={() => setShowIncomeForm(true)}
-                  className="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm hover:cursor-pointer text-sm sm:text-base border border-emerald-500">
-                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Add Income</span>
-                </button>
 
-                <button
-                  onClick={() => setShowExpenseForm(true)}
-                  className={`flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 rounded-xl hover:cursor-pointer text-sm sm:text-base border transition-colors shadow-sm ${
-                    darkMode 
-                      ? 'bg-gray-800 text-white hover:bg-gray-700 border-gray-600' 
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                  }`}>
-                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Add Expense</span>
-                </button>
-                            
-                <button
-                 onClick={handleExportData}
-                 className={`flex hover:cursor-pointer items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 rounded-xl transition-colors shadow-sm text-sm sm:text-base border ${
-                  darkMode 
-                    ? 'bg-gray-800 text-white hover:bg-gray-700 border-gray-600' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                 }`}>
-                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Export Report</span>
-                </button>
-              </div>
-            </div>
-                            
-            {/* Overview Content */}
+            {/* Page Content */}
             {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 gap-4 sm:gap-6">
-                {/* Financial Summary */}
-                <div className="xl:col-span-2 2xl:col-span-1">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Total Income</p>
-                          <p className={`text-xl sm:text-2xl font-bold ${themeClasses.text.primary}`}>{formatCurrency(financialData.income)}</p>
-                        </div>
-                        <div className={`p-2 sm:p-3 rounded-xl border ${darkMode ? 'bg-emerald-900/20 border-emerald-800' : 'bg-emerald-100 border-emerald-200'}`}>
-                          <TrendingUp className={`w-5 h-5 sm:w-6 sm:h-6 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                        </div>
-                      </div>
-                    </motion.div>
-                            
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 }}
-                      className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Total Expenses</p>
-                          <p className={`text-xl sm:text-2xl font-bold ${themeClasses.text.primary}`}>{formatCurrency(financialData.expenses)}</p>
-                        </div>
-                        <div className={`p-2 sm:p-3 rounded-xl border ${darkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-100 border-red-200'}`}>
-                          <TrendingDown className={`w-5 h-5 sm:w-6 sm:h-6 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
-                        </div>
-                      </div>
-                    </motion.div>
-                            
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Net Profit</p>
-                          <p className={`text-xl sm:text-2xl font-bold ${themeClasses.text.primary}`}>{formatCurrency(financialData.profit)}</p>
-                        </div>
-                        <div className={`p-2 sm:p-3 rounded-xl border ${darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-100 border-blue-200'}`}>
-                          <Wallet className={`w-5 h-5 sm:w-6 sm:h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                        </div>
-                      </div>
-                    </motion.div>
-                  </div>
-                            
-                  {/* Income vs Expenses Bar Chart with Filter */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }
-                    }
-                    transition={{ delay: 0.3 }}
-                    className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card} mt-4 sm:mt-6`}
-                  >
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
-                      <h3 className={`text-lg font-semibold ${themeClasses.text.primary}`}>Income vs Expenses</h3>
-                      <div className="flex items-center space-x-1 sm:space-x-2">
-                        <div className={`flex rounded-lg p-1 flex-wrap gap-1 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
-                          {timeFilters.map((filter) => {
-                            const Icon = filter.icon;
-                            return (
-                              <button
-                                key={filter.value}
-                                onClick={() => setTimeFilter(filter.value)}
-                                className={`flex items-center px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                                  timeFilter === filter.value
-                                    ? `${darkMode ? 'bg-gray-700 text-emerald-400' : 'bg-white text-emerald-600'} shadow-sm`
-                                    : `${themeClasses.text.secondary} ${darkMode ? 'hover:text-white' : 'hover:text-gray-900'}`
-                                }`}
-                              >
-                                <Icon className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                                <span className="hidden sm:inline">{filter.label}</span>
-                                <span className="sm:hidden">{filter.label.slice(0, 1)}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="h-64 sm:h-80">
-                      {!hasTransactionData ? (
-                        <EmptyState
-                          title="No Transaction Data"
-                          description="Start adding income and expenses to see your financial trends visualized here."
-                          icon={BarChart3}
-                          action={
-                            <div className="flex gap-2 justify-center">
-                              <button 
-                                onClick={() => setShowIncomeForm(true)}
-                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 border border-emerald-500"
-                              >
-                                Add Income
-                              </button>
-                              <button 
-                                onClick={() => setShowExpenseForm(true)}
-                                className={`px-4 py-2 rounded-lg border ${
-                                  darkMode 
-                                    ? 'bg-gray-700 text-white hover:bg-gray-600 border-gray-600' 
-                                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                                }`}
-                              >
-                                Add Expense
-                              </button>
-                            </div>
-                          }
-                        />
-                      ) : currentTrendData.every(d => d.income === 0 && d.expenses === 0) ? (
-                        <div className={`flex items-center justify-center h-full ${themeClasses.text.muted}`}>
-                          No data available for selected time period
-                        </div>
-                      ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={currentTrendData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
-                            <XAxis 
-                              dataKey={getDataKey()}
-                              tick={{ fontSize: 12, fill: darkMode ? '#9CA3AF' : '#6B7280' }}
-                            />
-                            <YAxis 
-                              tick={{ fontSize: 12, fill: darkMode ? '#9CA3AF' : '#6B7280' }}
-                              tickFormatter={(value) => `${formatCurrency(value)}`}
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      )}
-                    </div>
-                  </motion.div>
-                            
-                  {/* Category Breakdown */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card} mt-4 sm:mt-6`}
-                  >
-                    <h3 className={`text-lg font-semibold ${themeClasses.text.primary} mb-4 sm:mb-6`}>Category Breakdown</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                      <div>
-                        <h4 className={`text-sm font-medium text-emerald-600 mb-3 sm:mb-4 text-center ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>Income Sources</h4>
-                        <div className="h-56 sm:h-64">
-                          {categoryBreakdown.income.reduce((sum, item) => sum + item.value, 0) === 0 ? (
-                            <EmptyState
-                              title="No Income Data"
-                              description="Add income transactions to see your income sources breakdown."
-                              icon={TrendingUp}
-                              action={
-                                <button 
-                                  onClick={() => setShowIncomeForm(true)}
-                                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 border border-emerald-500"
-                                >
-                                  Add Income
-                                </button>
-                              }
-                            />
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <RechartsPieChart>
-                                <Pie
-                                  data={categoryBreakdown.income}
-                                  cx="50%"
-                                  cy="50%"
-                                  outerRadius={70}
-                                  dataKey="value"
-                                  label={(props) => {
-                                    const { name, value } = props;
-                                    const total = categoryBreakdown.income.reduce((sum, item) => sum + item.value, 0);
-                                    const percentage = total > 0 ? ((value as number / total) * 100).toFixed(0) : "0";
-                                    return `${name} (${percentage}%)`;
-                                  }}
-                                  labelLine={false}
-                                >
-                                  {categoryBreakdown.income.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5'][index % 6]} />
-                                  ))}
-                                </Pie>
-                                <Tooltip 
-                                  formatter={(value) => formatCurrency(value as number)}
-                                  contentStyle={{ 
-                                    backgroundColor: darkMode ? '#1F2937' : '#FFFFFF', 
-                                    border: darkMode ? '1px solid #374151' : '1px solid #e5e7eb', 
-                                    color: darkMode ? 'white' : '#1F2937',
-                                    borderRadius: '8px'
-                                  }}
-                                />
-                              </RechartsPieChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <h4 className={`text-sm font-medium text-red-600 mb-3 sm:mb-4 text-center ${darkMode ? 'text-red-400' : 'text-red-700'}`}>Expense Categories</h4>
-                        <div className="h-56 sm:h-64">
-                          {categoryBreakdown.expenses.reduce((sum, item) => sum + item.value, 0) === 0 ? (
-                            <EmptyState
-                              title="No Expense Data"
-                              description="Add expense transactions to see your spending categories breakdown."
-                              icon={TrendingDown}
-                              action={
-                                <button 
-                                  onClick={() => setShowExpenseForm(true)}
-                                  className={`px-4 py-2 rounded-lg border ${
-                                    darkMode 
-                                      ? 'bg-gray-700 text-white hover:bg-gray-600 border-gray-600' 
-                                      : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                                  }`}
-                                >
-                                  Add Expense
-                                </button>
-                              }
-                            />
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <RechartsPieChart>
-                                <Pie
-                                  data={categoryBreakdown.expenses}
-                                  cx="50%"
-                                  cy="50%"
-                                  outerRadius={70}
-                                  dataKey="value"
-                                  label={(props) => {
-                                    const { name, value } = props;
-                                    const total = categoryBreakdown.expenses.reduce((sum, item) => sum + item.value, 0);
-                                    const percentage = total > 0 ? ((value as number / total) * 100).toFixed(0) : "0";
-                                    return `${name} (${percentage}%)`;
-                                  }}
-                                  labelLine={false}
-                                >
-                                  {categoryBreakdown.expenses.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={['#dc2626', '#ef4444', '#f87171', '#fca5a5', '#fecaca', '#fee2e2'][index % 6]} />
-                                  ))}
-                                </Pie>
-                                <Tooltip 
-                                  formatter={(value) => formatCurrency(value as number)}
-                                  contentStyle={{ 
-                                    backgroundColor: darkMode ? '#1F2937' : '#FFFFFF', 
-                                    border: darkMode ? '1px solid #374151' : '1px solid #e5e7eb', 
-                                    color: darkMode ? 'white' : '#1F2937',
-                                    borderRadius: '8px'
-                                  }}
-                                />
-                              </RechartsPieChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-                            
-                {/* Middle Column - Budgets & Alerts */}
-                <div className="space-y-4 sm:space-y-6">
-                  {/* Budget Management */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card}`}
-                  >
-                    <div className="flex items-center justify-between mb-4 sm:mb-6">
-                      <h3 className={`text-lg font-semibold ${themeClasses.text.primary}`}>Budget Management</h3>
-                      <button onClick={() => setShowBudgetForm(true)} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'}`}>
-                        <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
-                    </div>
-                    <div className="space-y-3 sm:space-y-4">
-                      {budgetsWithRealTimeTracking.length === 0 ? (
-                        <EmptyState
-                          title="No Budgets Set"
-                          description="Create budgets to track your spending and get alerts when you're nearing your limits."
-                          icon={PieChart}
-                          action={
-                            <button 
-                              onClick={() => setShowBudgetForm(true)}
-                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 border border-emerald-500"
-                            >
-                              Create Budget
-                            </button>
-                          }
-                        />
-                      ) : (
-                        budgetsWithRealTimeTracking.map((budget, index) => (
-                          <div key={budget.id} className={`p-3 sm:p-4 rounded-xl group relative border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                            <div className="flex justify-between items-center mb-2">
-                              <div>
-                                <span className={`text-sm font-medium ${themeClasses.text.primary}`}>{budget.category}</span>
-                                <span className={`text-xs ml-2 ${themeClasses.text.muted}`}>({budget.period})</span>
-                              </div>
-                              <span className={`text-sm ${themeClasses.text.secondary}`}>
-                                {formatCurrency(budget.spent)} / {formatCurrency(budget.budget_limit)}
-                              </span>
-                            </div>
-                            <div className={`w-full rounded-full h-2 mb-2 ${darkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
-                              <div
-                                className={`h-2 rounded-full transition-all duration-500 ${
-                                  budget.percentage >= 90
-                                    ? 'bg-red-500'
-                                    : budget.percentage >= 75
-                                    ? 'bg-yellow-500'
-                                    : 'bg-emerald-500'
-                                }`}
-                                style={{ width: `${Math.min(budget.percentage, 100)}%` }}
-                              ></div>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className={`text-xs ${themeClasses.text.muted}`}>{Math.round(budget.percentage)}% spent</span>
-                              <span className={`text-xs ${themeClasses.text.muted}`}>{formatCurrency(budget.budget_limit - budget.spent)} remaining</span>
-                            </div>
-                            
-                            {/* Edit/Delete buttons */}
-                            <div className="absolute top-3 right-3 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => startEditBudget(budget)}
-                                className={`p-1 rounded transition-colors ${darkMode ? 'text-blue-400 hover:bg-blue-900/20' : 'text-blue-600 hover:bg-blue-100'}`}
-                                title="Edit budget"
-                              >
-                                <Edit className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => setDeleteBudgetId(budget.id)}
-                                className={`p-1 rounded transition-colors ${darkMode ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600 hover:bg-red-100'}`}
-                                title="Delete budget"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </motion.div>
-                            
-                  {/* Alerts */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 }}
-                    className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card}`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className={`text-lg font-semibold ${themeClasses.text.primary}`}>Budget Alerts</h3>
-                      <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                    </div>
-                    <div className="space-y-3">
-                      {realTimeAlerts.length === 0 ? (
-                        <div className={`text-center py-8 ${themeClasses.text.muted}`}>No alerts</div>
-                      ) : (
-                        realTimeAlerts.map((alert, index) => (
-                          <div
-                            key={index}
-                            className={`p-3 sm:p-4 rounded-xl border ${
-                              alert.priority === 'critical'
-                                ? `${darkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`
-                                : alert.priority === 'high'
-                                ? `${darkMode ? 'bg-yellow-900/20 border-yellow-800' : 'bg-yellow-50 border-yellow-200'}`
-                                : `${darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`
-                            }`}
-                          >
-                            <div className="flex items-start">
-                              <div className={`rounded-full p-2 mr-3 ${
-                                alert.priority === 'critical'
-                                  ? `${darkMode ? 'bg-red-900/40 text-red-400' : 'bg-red-100 text-red-600'}`
-                                  : alert.priority === 'high'
-                                  ? `${darkMode ? 'bg-yellow-900/40 text-yellow-400' : 'bg-yellow-100 text-yellow-600'}`
-                                  : `${darkMode ? 'bg-blue-900/40 text-blue-400' : 'bg-blue-100 text-blue-600'}`
-                              }`}>
-                                <AlertTriangle className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <p className={`text-sm font-medium ${
-                                  alert.priority === 'critical'
-                                    ? `${darkMode ? 'text-red-300' : 'text-red-700'}`
-                                    : alert.priority === 'high'
-                                    ? `${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`
-                                    : `${darkMode ? 'text-blue-300' : 'text-blue-700'}`
-                                }`}>
-                                  {alert.message}
-                                </p>
-                                <p className={`text-xs mt-1 ${themeClasses.text.muted}`}>{alert.category}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </motion.div>
-                </div>
-                            
-                {/* Right Column - AI Insights & Recent Transactions */}
-                <div className="space-y-4 sm:space-y-6">
-                  {/* AI Recommendations */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7 }}
-                    className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card}`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className={`text-lg font-semibold ${themeClasses.text.primary}`}>AI Recommendations</h3>
-                      <Lightbulb className="w-5 h-5 text-yellow-500" />
-                    </div>
-                    <div className="space-y-3">
-                      {financialData.aiRecommendations.map((recommendation, index) => (
-                        <div key={index} className={`p-3 sm:p-4 rounded-xl border ${darkMode ? 'bg-gradient-to-r from-emerald-900/20 to-emerald-800/20 border-emerald-800' : 'bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200'}`}>
-                          <div className="flex items-start">
-                            <div className={`rounded-full p-2 mr-3 ${darkMode ? 'bg-emerald-900/40' : 'bg-emerald-100'}`}>
-                              <Lightbulb className={`w-4 h-4 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                            </div>
-                            <p className={`text-sm ${darkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>{recommendation}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                            
-                  {/* Recent Transactions */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 }}
-                    className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card}`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className={`text-lg font-semibold ${themeClasses.text.primary}`}>Recent Transactions</h3>
-                      <button 
-                        onClick={() => setActiveTab('transactions')}
-                        className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-                      >
-                        View All
-                      </button>
-                    </div>
-                    <div className="space-y-3">
-                      {financialData.transactions.length === 0 ? (
-                        <EmptyState
-                          title="No Transactions"
-                          description="Start by adding your first income or expense transaction to track your finances."
-                          icon={CreditCard}
-                          action={
-                            <div className="flex gap-2 justify-center">
-                              <button 
-                                onClick={() => setShowIncomeForm(true)}
-                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 border border-emerald-500"
-                              >
-                                Add Income
-                              </button>
-                              <button 
-                                onClick={() => setShowExpenseForm(true)}
-                                className={`px-4 py-2 rounded-lg border ${
-                                  darkMode 
-                                    ? 'bg-gray-700 text-white hover:bg-gray-600 border-gray-600' 
-                                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                                }`}
-                              >
-                                Add Expense
-                              </button>
-                            </div>
-                          }
-                        />
-                      ) : (
-                        financialData.transactions.slice(0, 5).map((transaction) => (
-                          <div key={transaction.id} className={`flex items-center justify-between p-3 sm:p-4 rounded-xl transition-colors group border ${darkMode ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
-                            <div className="flex items-center">
-                              <div className={`p-2 rounded-lg mr-3 border ${
-                                transaction.type === 'income' 
-                                  ? `${darkMode ? 'bg-emerald-900/40 border-emerald-800' : 'bg-emerald-100 border-emerald-200'}`
-                                  : `${darkMode ? 'bg-red-900/40 border-red-800' : 'bg-red-100 border-red-200'}`
-                              }`}>
-                                {transaction.type === 'income' ? (
-                                  <TrendingUp className={`w-4 h-4 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                                ) : (
-                                  <TrendingDown className={`w-4 h-4 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <p className={`font-medium truncate ${themeClasses.text.primary}`}>{transaction.category}</p>
-                                <p className={`text-sm truncate ${themeClasses.text.secondary}`}>{transaction.description}</p>
-                                <p className={`text-xs mt-1 ${themeClasses.text.muted}`}>
-                                  {new Date(transaction.date).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-                            <p className={`font-semibold text-sm sm:text-base ${
-                              transaction.type === 'income' 
-                                ? `${darkMode ? 'text-emerald-400' : 'text-emerald-600'}` 
-                                : `${darkMode ? 'text-red-400' : 'text-red-600'}`
-                            }`}>
-                              {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </motion.div>
-                            
-                  {/* User Quick Stats */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.9 }}
-                    className={`p-4 sm:p-6 rounded-2xl shadow-sm border ${themeClasses.card}`}
-                  >
-                    <h3 className={`text-lg font-semibold ${themeClasses.text.primary} mb-4`}>Your Account</h3>
-                    <div className="space-y-3">
-                      <div className={`flex justify-between items-center p-3 sm:p-4 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                        <span className={`text-sm ${themeClasses.text.secondary}`}>Plan</span>
-                        <span className="text-sm font-medium text-emerald-600">{user.plan}</span>
-                      </div>
-                      <div className={`flex justify-between items-center p-3 sm:p-4 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                        <span className={`text-sm ${themeClasses.text.secondary}`}>Member since</span>
-                        <span className={`text-sm font-medium ${themeClasses.text.primary}`}>
-                          {new Date(user.joinedDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className={`flex justify-between items-center p-3 sm:p-4 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                        <span className={`text-sm ${themeClasses.text.secondary}`}>Transactions</span>
-                        <span className={`text-sm font-medium ${themeClasses.text.primary}`}>
-                          {financialData.transactions.length} total
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              </div>
+              <OverviewPage
+                financialData={financialData}
+                formatCurrency={formatCurrency}
+                timeFilter={timeFilter}
+                setTimeFilter={setTimeFilter}
+                timeFilters={timeFilters}
+                hasTransactionData={hasTransactionData}
+                currentTrendData={currentTrendData}
+                categoryBreakdown={categoryBreakdown}
+                budgetsWithRealTimeTracking={budgetsWithRealTimeTracking}
+                realTimeAlerts={realTimeAlerts}
+                setShowIncomeForm={setShowIncomeForm}
+                setShowExpenseForm={setShowExpenseForm}
+                setShowBudgetForm={setShowBudgetForm}
+                startEditBudget={startEditBudget}
+                setDeleteBudgetId={setDeleteBudgetId}
+                setActiveTab={setActiveTab}
+                darkMode={darkMode}
+                themeClasses={themeClasses}
+                getDataKey={getDataKey}
+                CustomTooltip={CustomTooltip}
+                EmptyState={EmptyState}
+              />
             )}
-                            
-            {/* Transactions Tab Content */}
+
             {activeTab === 'transactions' && (
-              <div className={`p-6 sm:p-8 rounded-2xl shadow-sm border ${themeClasses.card}`}>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className={`text-lg font-semibold ${themeClasses.text.primary}`}>All Transactions</h3>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setShowIncomeForm(true)}
-                      className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm border border-emerald-500"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Add Income</span>
-                    </button>
-                    <button 
-                      onClick={() => setShowExpenseForm(true)}
-                      className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-xl transition-colors text-sm border ${
-                        darkMode 
-                          ? 'bg-gray-700 text-white hover:bg-gray-600 border-gray-600' 
-                          : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                      }`}
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Add Expense</span>
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {financialData.transactions.length === 0 ? (
-                    <EmptyState
-                      title="No Transactions"
-                      description="Start by adding your first income or expense transaction to track your finances."
-                      icon={CreditCard}
-                      action={
-                        <div className="flex gap-2 justify-center">
-                          <button 
-                            onClick={() => setShowIncomeForm(true)}
-                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 border border-emerald-500"
-                          >
-                            Add Income
-                          </button>
-                          <button 
-                            onClick={() => setShowExpenseForm(true)}
-                            className={`px-4 py-2 rounded-lg border ${
-                              darkMode 
-                                ? 'bg-gray-700 text-white hover:bg-gray-600 border-gray-600' 
-                                : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                            }`}
-                          >
-                            Add Expense
-                          </button>
-                        </div>
-                      }
-                    />
-                  ) : (
-                    financialData.transactions.map((transaction) => (
-                      <div key={transaction.id} className={`flex items-center justify-between p-4 rounded-xl transition-colors group border ${darkMode ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
-                        <div className="flex items-center space-x-4 flex-1">
-                          <div className={`p-3 rounded-lg border ${
-                            transaction.type === 'income' 
-                              ? `${darkMode ? 'bg-emerald-900/40 border-emerald-800' : 'bg-emerald-100 border-emerald-200'}`
-                              : `${darkMode ? 'bg-red-900/40 border-red-800' : 'bg-red-100 border-red-200'}`
-                          }`}>
-                            {transaction.type === 'income' ? (
-                              <TrendingUp className={`w-5 h-5 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                            ) : (
-                              <TrendingDown className={`w-5 h-5 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <p className={`font-medium truncate ${themeClasses.text.primary}`}>{transaction.category}</p>
-                              <span className={`px-2 py-1 text-xs rounded-full border ${
-                                transaction.type === 'income' 
-                                  ? `${darkMode ? 'bg-emerald-900/40 text-emerald-300 border-emerald-800' : 'bg-emerald-100 text-emerald-800 border-emerald-200'}` 
-                                  : `${darkMode ? 'bg-red-900/40 text-red-300 border-red-800' : 'bg-red-100 text-red-800 border-red-200'}`
-                              }`}>
-                                {transaction.type}
-                              </span>
-                            </div>
-                            <p className={`text-sm truncate mt-1 ${themeClasses.text.secondary}`}>
-                              {transaction.description || 'No description'}
-                            </p>
-                            <p className={`text-xs mt-1 ${themeClasses.text.muted}`}>
-                              {new Date(transaction.date).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-3">
-                          <p className={`text-lg font-semibold ${
-                            transaction.type === 'income' 
-                              ? `${darkMode ? 'text-emerald-400' : 'text-emerald-600'}` 
-                              : `${darkMode ? 'text-red-400' : 'text-red-600'}`
-                          }`}>
-                            {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                          </p>
-                          
-                          <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => startEditTransaction(transaction)}
-                              className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-blue-400 hover:bg-blue-900/20' : 'text-blue-600 hover:bg-blue-100'}`}
-                              title="Edit transaction"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteTransactionId(transaction.id)}
-                              className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600 hover:bg-red-100'}`}
-                              title="Delete transaction"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+              <TransactionsPage
+                financialData={financialData}
+                formatCurrency={formatCurrency}
+                setShowIncomeForm={setShowIncomeForm}
+                setShowExpenseForm={setShowExpenseForm}
+                startEditTransaction={startEditTransaction}
+                setDeleteTransactionId={setDeleteTransactionId}
+                darkMode={darkMode}
+                themeClasses={themeClasses}
+                EmptyState={EmptyState}
+              />
             )}
-                            
-            {/* Budgets Tab Content */}
+
             {activeTab === 'budgets' && (
-              <div className={`p-6 sm:p-8 rounded-2xl shadow-sm border ${themeClasses.card}`}>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className={`text-lg font-semibold ${themeClasses.text.primary}`}>Budget Management</h3>
-                  <button 
-                    onClick={() => setShowBudgetForm(true)}
-                    className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm border border-emerald-500"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Create Budget</span>
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {budgetsWithRealTimeTracking.length === 0 ? (
-                    <div className="col-span-full">
-                      <EmptyState
-                        title="No Budgets Set"
-                        description="Create budgets to track your spending and get alerts when you're nearing your limits."
-                        icon={PieChart}
-                        action={
-                          <button 
-                            onClick={() => setShowBudgetForm(true)}
-                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 border border-emerald-500"
-                          >
-                            Create Budget
-                          </button>
-                        }
-                      />
-                    </div>
-                  ) : (
-                    budgetsWithRealTimeTracking.map((budget) => (
-                      <div key={budget.id} className={`p-4 sm:p-6 rounded-xl border group relative ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                        <div className="flex justify-between items-center mb-3">
-                          <div>
-                            <h4 className={`text-lg font-semibold ${themeClasses.text.primary}`}>{budget.category}</h4>
-                            <p className={`text-sm ${themeClasses.text.secondary}`}>{budget.period} Budget</p>
-                          </div>
-                          <div className={`p-2 rounded-lg border ${
-                            budget.percentage >= 90
-                              ? `${darkMode ? 'bg-red-900/40 text-red-400 border-red-800' : 'bg-red-100 text-red-600 border-red-200'}`
-                              : budget.percentage >= 75
-                              ? `${darkMode ? 'bg-yellow-900/40 text-yellow-400 border-yellow-800' : 'bg-yellow-100 text-yellow-600 border-yellow-200'}`
-                              : `${darkMode ? 'bg-emerald-900/40 text-emerald-400 border-emerald-800' : 'bg-emerald-100 text-emerald-600 border-emerald-200'}`
-                          }`}>
-                            {Math.round(budget.percentage)}%
-                          </div>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <div className={`flex justify-between text-sm mb-1 ${themeClasses.text.secondary}`}>
-                            <span>Spent</span>
-                            <span>Limit</span>
-                          </div>
-                          <div className={`w-full rounded-full h-3 mb-2 ${darkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
-                            <div
-                              className={`h-3 rounded-full transition-all duration-500 ${
-                                budget.percentage >= 90
-                                  ? 'bg-red-500'
-                                  : budget.percentage >= 75
-                                  ? 'bg-yellow-500'
-                                  : 'bg-emerald-500'
-                              }`}
-                              style={{ width: `${Math.min(budget.percentage, 100)}%` }}
-                            ></div>
-                          </div>
-                          <div className="flex justify-between text-sm font-medium">
-                            <span className={themeClasses.text.primary}>{formatCurrency(budget.spent)}</span>
-                            <span className={themeClasses.text.primary}>{formatCurrency(budget.budget_limit)}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-between items-center text-sm">
-                          <span className={themeClasses.text.secondary}>
-                            {formatCurrency(budget.budget_limit - budget.spent)} remaining
-                          </span>
-                          <span className={`font-medium ${
-                            budget.percentage >= 90
-                              ? `${darkMode ? 'text-red-400' : 'text-red-600'}`
-                              : budget.percentage >= 75
-                              ? `${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`
-                              : `${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`
-                          }`}>
-                            {budget.percentage >= 90 ? 'Over Budget' : 
-                             budget.percentage >= 75 ? 'Almost There' : 'On Track'}
-                          </span>
-                        </div>
-                        
-                        {/* Edit/Delete buttons */}
-                        <div className="absolute top-4 right-4 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => startEditBudget(budget)}
-                            className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-blue-400 hover:bg-blue-900/20' : 'text-blue-600 hover:bg-blue-100'}`}
-                            title="Edit budget"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteBudgetId(budget.id)}
-                            className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600 hover:bg-red-100'}`}
-                            title="Delete budget"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
+              <BudgetsPage
+                budgetsWithRealTimeTracking={budgetsWithRealTimeTracking}
+                formatCurrency={formatCurrency}
+                setShowBudgetForm={setShowBudgetForm}
+                startEditBudget={startEditBudget}
+                setDeleteBudgetId={setDeleteBudgetId}
+                darkMode={darkMode}
+                themeClasses={themeClasses}
+                EmptyState={EmptyState}
+              />
 
-            {/* Settings Tab Content */}
+            )}
+{/* Add the AccountsPage here */}
+{activeTab === 'connect account' && (
+  <AccountsPage
+    darkMode={darkMode}
+    themeClasses={themeClasses}
+    session={session}
+    showToast={showToast}
+  />
+)}
+
+  {(activeTab === 'reports' || activeTab === 'analytics') && (
+    <ComingSoonPage
+      activeTab={activeTab}
+      darkMode={darkMode}
+      themeClasses={themeClasses}
+    />
+  )}
+
             {activeTab === 'settings' && (
-              <div className={`p-6 sm:p-8 rounded-2xl shadow-sm border ${themeClasses.card}`}>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className={`text-lg font-semibold ${themeClasses.text.primary}`}>Settings</h3>
-                  <button 
-                    onClick={handleSaveSettings}
-                    className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm border border-emerald-500"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>Save Changes</span>
-                  </button>
-                </div>
-                
-                <div className="space-y-6">
-                  {/* Profile Settings */}
-                  <div className={`p-4 sm:p-6 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                    <h4 className={`text-lg font-semibold ${themeClasses.text.primary} mb-4`}>Profile Settings</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${themeClasses.text.secondary}`}>Full Name</label>
-                        <input
-                          type="text"
-                          value={userSettings.fullName}
-                          onChange={(e) => setUserSettings({...userSettings, fullName: e.target.value})}
-                          className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${themeClasses.input}`}
-                          placeholder="Enter your full name"
-                        />
-                      </div>
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${themeClasses.text.secondary}`}>Email</label>
-                        <input
-                          type="email"
-                          value={userSettings.email}
-                          onChange={(e) => setUserSettings({...userSettings, email: e.target.value})}
-                          className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${themeClasses.input}`}
-                          placeholder="Enter your email"
-                        />
-                      </div>
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${themeClasses.text.secondary}`}>Business Name</label>
-                        <input
-                          type="text"
-                          value={userSettings.businessName}
-                          onChange={(e) => setUserSettings({...userSettings, businessName: e.target.value})}
-                          className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${themeClasses.input}`}
-                          placeholder="Enter your business name"
-                        />
-                      </div>
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${themeClasses.text.secondary}`}>Phone Number</label>
-                        <input
-                          type="tel"
-                          value={userSettings.phoneNumber}
-                          onChange={(e) => setUserSettings({...userSettings, phoneNumber: e.target.value})}
-                          className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${themeClasses.input}`}
-                          placeholder="Enter your phone number"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Preferences */}
-                  <div className={`p-4 sm:p-6 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                    <h4 className={`text-lg font-semibold ${themeClasses.text.primary} mb-4`}>Preferences</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${themeClasses.text.secondary}`}>Currency</label>
-                        <select 
-                          value={userSettings.currency}
-                          onChange={(e) => setUserSettings({...userSettings, currency: e.target.value})}
-                          className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${themeClasses.input}`}
-                        >
-                          {currencies.map((curr) => (
-                            <option key={curr.value} value={curr.value} className={darkMode ? 'bg-gray-700' : 'bg-white'}>{curr.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${themeClasses.text.secondary}`}>Language</label>
-                        <select 
-                          value={userSettings.language}
-                          onChange={(e) => setUserSettings({...userSettings, language: e.target.value})}
-                          className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${themeClasses.input}`}
-                        >
-                          {languagesList.map((lang) => (
-                            <option key={lang.value} value={lang.value} className={darkMode ? 'bg-gray-700' : 'bg-white'}>{lang.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${themeClasses.text.secondary}`}>Date Format</label>
-                        <select 
-                          value={userSettings.dateFormat}
-                          onChange={(e) => setUserSettings({...userSettings, dateFormat: e.target.value})}
-                          className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${themeClasses.input}`}
-                        >
-                          <option value="MM/DD/YYYY" className={darkMode ? 'bg-gray-700' : 'bg-white'}>MM/DD/YYYY</option>
-                          <option value="DD/MM/YYYY" className={darkMode ? 'bg-gray-700' : 'bg-white'}>DD/MM/YYYY</option>
-                          <option value="YYYY-MM-DD" className={darkMode ? 'bg-gray-700' : 'bg-white'}>YYYY-MM-DD</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${themeClasses.text.secondary}`}>Time Zone</label>
-                        <select 
-                          value={userSettings.timezone}
-                          onChange={(e) => setUserSettings({...userSettings, timezone: e.target.value})}
-                          className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${themeClasses.input}`}
-                        >
-                          <option value="UTC" className={darkMode ? 'bg-gray-700' : 'bg-white'}>UTC</option>
-                          <option value="Africa/Lagos" className={darkMode ? 'bg-gray-700' : 'bg-white'}>West Africa Time (WAT)</option>
-                          <option value="America/New_York" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Eastern Time (ET)</option>
-                          <option value="Europe/London" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Greenwich Mean Time (GMT)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notification Preferences */}
-                  <div className={`p-4 sm:p-6 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                    <h4 className={`text-lg font-semibold ${themeClasses.text.primary} mb-4`}>Notification Preferences</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`font-medium ${themeClasses.text.primary}`}>Budget Alerts</p>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Get notified when you're close to budget limits</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
-                            checked={userSettings.notifications.budgetAlerts}
-                            onChange={(e) => setUserSettings({
-                              ...userSettings, 
-                              notifications: {...userSettings.notifications, budgetAlerts: e.target.checked}
-                            })}
-                          />
-                          <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
-                            darkMode 
-                              ? 'bg-gray-600 peer-focus:ring-emerald-800 peer-checked:bg-emerald-600' 
-                              : 'bg-gray-200 peer-focus:ring-emerald-300 peer-checked:bg-emerald-600'
-                          }`}></div>
-                        </label>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`font-medium ${themeClasses.text.primary}`}>Weekly Reports</p>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Receive weekly financial summary emails</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
-                            checked={userSettings.notifications.weeklyReports}
-                            onChange={(e) => setUserSettings({
-                              ...userSettings, 
-                              notifications: {...userSettings.notifications, weeklyReports: e.target.checked}
-                            })}
-                          />
-                          <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
-                            darkMode 
-                              ? 'bg-gray-600 peer-focus:ring-emerald-800 peer-checked:bg-emerald-600' 
-                              : 'bg-gray-200 peer-focus:ring-emerald-300 peer-checked:bg-emerald-600'
-                          }`}></div>
-                        </label>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`font-medium ${themeClasses.text.primary}`}>Transaction Alerts</p>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Get notified for large transactions</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
-                            checked={userSettings.notifications.transactionAlerts}
-                            onChange={(e) => setUserSettings({
-                              ...userSettings, 
-                              notifications: {...userSettings.notifications, transactionAlerts: e.target.checked}
-                            })}
-                          />
-                          <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
-                            darkMode 
-                              ? 'bg-gray-600 peer-focus:ring-emerald-800 peer-checked:bg-emerald-600' 
-                              : 'bg-gray-200 peer-focus:ring-emerald-300 peer-checked:bg-emerald-600'
-                          }`}></div>
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`font-medium ${themeClasses.text.primary}`}>AI Recommendations</p>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Receive AI-powered financial insights</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
-                            checked={userSettings.notifications.aiRecommendations}
-                            onChange={(e) => setUserSettings({
-                              ...userSettings, 
-                              notifications: {...userSettings.notifications, aiRecommendations: e.target.checked}
-                            })}
-                          />
-                          <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
-                            darkMode 
-                              ? 'bg-gray-600 peer-focus:ring-emerald-800 peer-checked:bg-emerald-600' 
-                              : 'bg-gray-200 peer-focus:ring-emerald-300 peer-checked:bg-emerald-600'
-                          }`}></div>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Data Management */}
-                  <div className={`p-4 sm:p-6 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                    <h4 className={`text-lg font-semibold ${themeClasses.text.primary} mb-4`}>Data Management</h4>
-                    <div className="space-y-4">
-                      <div className={`flex items-center justify-between p-3 rounded-lg border ${darkMode ? 'bg-gray-600 border-gray-500' : 'bg-white border-gray-200'}`}>
-                        <div>
-                          <p className={`font-medium ${themeClasses.text.primary}`}>Export Data</p>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Download your financial data as CSV</p>
-                        </div>
-                        <button 
-                          onClick={handleExportData}
-                          className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm border border-blue-500"
-                        >
-                          <Download className="w-4 h-4" />
-                          <span>Export</span>
-                        </button>
-                      </div>
-                    
-                      
-                      <div className={`flex items-center justify-between p-3 rounded-lg border ${darkMode ? 'bg-gray-600 border-red-800' : 'bg-white border-red-200'}`}>
-                        <div>
-                          <p className={`font-medium ${darkMode ? 'text-red-300' : 'text-red-700'}`}>Clear All Data</p>
-                          <p className={`text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}>Permanently delete all your financial data</p>
-                        </div>
-                        <button 
-                          onClick={() => setShowClearDataDialog(true)}
-                          className="flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm border border-red-500"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span>Clear</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Backup Management */}
-                  <div className={`p-4 sm:p-6 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                    <h4 className={`text-lg font-semibold ${themeClasses.text.primary} mb-4`}>Backup Management</h4>
-                    <div className="space-y-4">
-                      <div className={`flex items-center justify-between p-3 rounded-lg border ${darkMode ? 'bg-gray-600 border-gray-500' : 'bg-white border-gray-200'}`}>
-                        <div>
-                          <p className={`font-medium ${themeClasses.text.primary}`}>Create Backup</p>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Save your current data as a backup</p>
-                        </div>
-                        <button 
-                          onClick={handleBackupData}
-                          className="flex items-center space-x-2 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm border border-emerald-500"
-                        >
-                          <Save className="w-4 h-4" />
-                          <span>Backup</span>
-                        </button>
-                      </div>
-                      
-                      <div className={`flex items-center justify-between p-3 rounded-lg border ${darkMode ? 'bg-gray-600 border-gray-500' : 'bg-white border-gray-200'}`}>
-                        <div>
-                          <p className={`font-medium ${themeClasses.text.primary}`}>Restore Backup</p>
-                          <p className={`text-sm ${themeClasses.text.secondary}`}>Restore from a previous backup</p>
-                        </div>
-                        <button 
-                          onClick={() => setShowRestoreDialog(true)}
-                          className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm border border-blue-500"
-                        >
-                          <Download className="w-4 h-4" />
-                          <span>Restore</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Account Settings */}
-                  <div className={`p-4 sm:p-6 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                    <h4 className={`text-lg font-semibold ${themeClasses.text.primary} mb-4`}>Account Settings</h4>
-                    <div className="space-y-3">
-                      <button 
-                        onClick={() => setShowChangePasswordDialog(true)}
-                        className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors group ${
-                          darkMode ? 'bg-gray-600 border-gray-500 hover:bg-gray-500' : 'bg-white border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className={`p-2 rounded-lg border ${darkMode ? 'bg-blue-900/40 border-blue-800' : 'bg-blue-100 border-blue-200'}`}>
-                            <Key className={`w-4 h-4 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                          </div>
-                          <div>
-                            <p className={`font-medium ${themeClasses.text.primary}`}>Change Password</p>
-                            <p className={`text-sm ${themeClasses.text.secondary}`}>Update your account password</p>
-                          </div>
-                        </div>
-                        <ChevronRight className={`w-4 h-4 group-hover:${darkMode ? 'text-gray-300' : 'text-gray-600'} ${themeClasses.text.muted}`} />
-                      </button>
-                      
-                      <button 
-                        onClick={() => setActiveTab('notifications')}
-                        className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors group ${
-                          darkMode ? 'bg-gray-600 border-gray-500 hover:bg-gray-500' : 'bg-white border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className={`p-2 rounded-lg border ${darkMode ? 'bg-purple-900/40 border-purple-800' : 'bg-purple-100 border-purple-200'}`}>
-                            <Bell className={`w-4 h-4 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
-                          </div>
-                          <div>
-                            <p className={`font-medium ${themeClasses.text.primary}`}>Notification Settings</p>
-                            <p className={`text-sm ${themeClasses.text.secondary}`}>Manage how you receive notifications</p>
-                          </div>
-                        </div>
-                        <ChevronRight className={`w-4 h-4 group-hover:${darkMode ? 'text-gray-300' : 'text-gray-600'} ${themeClasses.text.muted}`} />
-                      </button>
-                      
-                      <button 
-                        onClick={() => setShowDeleteAccountDialog(true)}
-                        className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors group ${
-                          darkMode ? 'bg-gray-600 border-red-800 hover:bg-red-900/20' : 'bg-white border-red-200 hover:bg-red-50'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className={`p-2 rounded-lg border ${darkMode ? 'bg-red-900/40 border-red-800' : 'bg-red-100 border-red-200'}`}>
-                            <LogOut className={`w-4 h-4 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
-                          </div>
-                          <div>
-                            <p className={`font-medium ${darkMode ? 'text-red-300' : 'text-red-700'}`}>Delete Account</p>
-                            <p className={`text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}>Permanently delete your account</p>
-                          </div>
-                        </div>
-                        <ChevronRight className={`w-4 h-4 ${darkMode ? 'text-red-400 group-hover:text-red-300' : 'text-red-500 group-hover:text-red-600'}`} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab !== 'overview' && activeTab !== 'transactions' && activeTab !== 'budgets' && activeTab !== 'settings' && (
-              <div className={`p-6 sm:p-8 rounded-2xl shadow-sm border ${themeClasses.card}`}>
-                <div className="text-center py-8 sm:py-12">
-                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 border ${
-                    darkMode ? 'bg-emerald-900/20 border-emerald-800' : 'bg-emerald-100 border-emerald-200'
-                  }`}>
-                    {activeTab === 'reports' && <FileText className={`w-6 h-6 sm:w-8 sm:h-8 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />}
-                    {activeTab === 'analytics' && <BarChart3  className={`w-6 h-6 sm:w-8 sm:h-8 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />}
-                  </div>
-                  <h3 className={`text-lg sm:text-xl font-semibold mb-2 capitalize ${themeClasses.text.primary}`}>{activeTab}</h3>
-                  <p className={`text-sm sm:text-base ${themeClasses.text.secondary}`}>This section is coming soon. Stay tuned!!!</p>
-                </div>
-              </div>
+              <SettingsPage
+                userSettings={userSettings}
+                setUserSettings={setUserSettings}
+                currencies={currencies}
+                languagesList={languagesList}
+                darkMode={darkMode}
+                themeClasses={themeClasses}
+                handleSaveSettings={handleSaveSettings}
+                handleExportData={handleExportData}
+                handleBackupData={handleBackupData}
+                setShowChangePasswordDialog={setShowChangePasswordDialog}
+                setShowClearDataDialog={setShowClearDataDialog}
+                setShowDeleteAccountDialog={setShowDeleteAccountDialog}
+                setShowRestoreDialog={setShowRestoreDialog}
+                setActiveTab={setActiveTab}
+              />
             )}
           </main>
                             
-          {/* AI Chat Button */}
+          {/* Enhanced AI Chat Button */}
           <button
             onClick={() => setIsChatOpen(true)}
-            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-colors flex items-center justify-center z-40 hover:cursor-pointer border border-emerald-500"
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-full shadow-2xl hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 flex items-center justify-center z-40 hover:cursor-pointer border border-blue-500/30 backdrop-blur-sm hover:scale-110"
           >
             <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
-          {/* MODALS SECTION - All modals imported and used here */}
+          {/* Enhanced Connection Modals */}
+          <ReLoginModal />
+          <ConnectionErrorModal />
+
+          {/* MODALS SECTION */}
           
           {/* Add Income Modal */}
-          <AddTransactionModal
-            isOpen={showIncomeForm}
-            onClose={() => setShowIncomeForm(false)}
-            type="income"
-            formData={formData}
-            onFormDataChange={setFormData}
-            onSubmit={() => handleAddTransaction('income')}
-            categories={categories}
-            darkMode={darkMode}
-          />
+  <AddTransactionModal
+  isOpen={showIncomeForm}
+  onClose={() => setShowIncomeForm(false)}
+  type="income"
+  formData={formData}
+  onFormDataChange={setFormData}
+  onSubmit={() => handleAddTransaction('income')}
+  categories={categories}
+  darkMode={darkMode}
+  // Remove isLoading prop since we're handling it internally now
+/>
 
           {/* Add Expense Modal */}
           <AddTransactionModal
@@ -2661,24 +2307,54 @@ export default function Dashboard() {
           />
 
           {/* Delete Transaction Confirmation */}
-          <DeleteConfirmationModal
-            isOpen={!!deleteTransactionId}
-            onClose={() => setDeleteTransactionId(null)}
-            onConfirm={() => deleteTransactionId && handleDeleteTransaction(deleteTransactionId)}
-            title="Delete Transaction"
-            description="Are you sure you want to delete this transaction? This action cannot be undone."
-            darkMode={darkMode}
-          />
+       {/* For less critical actions - use warning type */}
+{/* Delete Transaction Confirmation Modal */}
+<DeleteConfirmationModal
+  isOpen={!!deleteTransactionId}
+  onClose={() => setDeleteTransactionId(null)}
+  onConfirm={() => deleteTransactionId && handleDeleteTransaction(deleteTransactionId)}
+  title="Delete Transaction"
+  description="Are you sure you want to delete this transaction? This action cannot be undone."
+  confirmText="Delete Transaction"
+  darkMode={darkMode}
+  type="danger"
+/>
 
-          {/* Delete Budget Confirmation */}
-          <DeleteConfirmationModal
-            isOpen={!!deleteBudgetId}
-            onClose={() => setDeleteBudgetId(null)}
-            onConfirm={() => deleteBudgetId && handleDeleteBudget(deleteBudgetId)}
-            title="Delete Budget"
-            description="Are you sure you want to delete this budget? This action cannot be undone."
-            darkMode={darkMode}
-          />
+{/* Delete Budget Confirmation Modal */}
+<DeleteConfirmationModal
+  isOpen={!!deleteBudgetId}
+  onClose={() => setDeleteBudgetId(null)}
+  onConfirm={() => deleteBudgetId && handleDeleteBudget(deleteBudgetId)}
+  title="Delete Budget"
+  description="Are you sure you want to delete this budget? This action cannot be undone."
+  confirmText="Delete Budget"
+  darkMode={darkMode}
+  type="danger"
+/>
+
+{/* Clear Data Modal */}
+<DeleteConfirmationModal
+  isOpen={showClearDataDialog}
+  onClose={() => setShowClearDataDialog(false)}
+  onConfirm={handleClearData}
+  title="Clear All Data"
+  description="This will remove all transactions and budgets. This action cannot be undone and will reset your financial tracking completely."
+  confirmText="Clear All Data"
+  darkMode={darkMode}
+  type="danger"
+/>
+
+{/* Delete Account Modal */}
+<DeleteConfirmationModal
+  isOpen={showDeleteAccountDialog}
+  onClose={() => setShowDeleteAccountDialog(false)}
+  onConfirm={handleDeleteAccount}
+  title="Delete Account"
+  description="This will permanently delete your account and all associated data. This action cannot be undone."
+  confirmText="Delete Account"
+  darkMode={darkMode}
+  type="danger"
+/>
 
           {/* Change Password Modal */}
           <ChangePasswordModal
@@ -2727,6 +2403,48 @@ export default function Dashboard() {
             onSendMessage={sendMessage}
             darkMode={darkMode}
           />
+
+          {/* Session Expired Modal */}
+          <Dialog.Root open={showSessionExpiredModal} onOpenChange={setShowSessionExpiredModal}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+              <Dialog.Content className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6 rounded-2xl shadow-2xl z-50 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+                <div className="flex flex-col items-center text-center">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${darkMode ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                    <AlertTriangle className={`w-8 h-8 ${darkMode ? 'text-red-400' : 'text-red-500'}`} />
+                  </div>
+                  
+                  <Dialog.Title className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Session Expired
+                  </Dialog.Title>
+                  
+                  <Dialog.Description className={`mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Your session has expired or is no longer valid. Please log in again to continue using Monietar.
+                  </Dialog.Description>
+                  
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => setShowSessionExpiredModal(false)}
+                      className={`flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-200 ${
+                        darkMode 
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                    
+                    <Link 
+                      href="/auth/signin" 
+                      className="flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-center"
+                    >
+                      Go to Sign In
+                    </Link>
+                  </div>
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
         </div>
       </Toast.Provider>
     </div>

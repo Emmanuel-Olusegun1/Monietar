@@ -16,9 +16,19 @@ export interface Budget {
   spent: number;
   budget_limit: number;
   percentage: number;
-  period: 'Monthly' | 'Quarterly' | 'Yearly';
+  period: 'monthly' | 'quarterly' | 'yearly';
   created_at?: string;
 }
+
+export interface EnhancedBudget {
+  id: string;
+  category: string;
+  budget_limit: number;
+  spent: number;
+  percentage: number;
+  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+}
+
 
 export interface Alert {
   type: 'alert' | 'warning' | 'info';
@@ -45,6 +55,28 @@ export interface UserInfo {
   avatar: string;
   plan: string;
   joinedDate: string;
+}
+
+// Add this to your types.ts file or create it in the same file
+
+export interface SidebarProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  user: UserInfo;
+  darkMode: boolean;
+  isMobileMenuOpen: boolean;
+  setIsMobileMenuOpen: (isOpen: boolean) => void;
+  onLogout: () => void;
+  setDarkMode: (darkMode: boolean) => void;
+  currency: string;
+  setCurrency: (currency: string) => void;
+  language: string;
+  setLanguage: (language: string) => void;
+  showBalance: boolean;
+  setShowBalance: (show: boolean) => void;
+  currencies: CurrencyOption[];
+  languagesList: LanguageOption[];
+  realTimeAlerts: Alert[];
 }
 
 export interface CategoryData {
