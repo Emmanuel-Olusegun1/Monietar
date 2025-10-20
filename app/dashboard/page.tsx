@@ -18,7 +18,8 @@ import {
   ArrowUpRight, ArrowDownRight, RefreshCw
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Legend } from 'recharts';
-import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Session } from '@supabase/supabase-js';
 
 // Import modals
 import { AddTransactionModal } from './components/modals/AddTransactionModal';
@@ -69,7 +70,7 @@ import { AdvancedFinancialNLP } from './utils/FinancialNLP';
 import { getWeekOfMonth, getWeekRange } from './utils/dateHelpers';
 
 // Enhanced Sidebar props interface to fix the TypeScript error
-interface EnhancedSidebarProps extends SidebarProps {
+interface EnhancedSidebarProps extends Omit<SidebarProps, 'setDarkMode' | 'currency' | 'setCurrency' | 'language' | 'setLanguage'> {
   setDarkMode: (darkMode: boolean) => void;
   currency: string;
   setCurrency: (currency: string) => void;
@@ -85,13 +86,420 @@ interface EnhancedBudget {
   spent: number;
   percentage: number;
   period: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  created_at?: string; // Add this to match the expected type
+  created_at?: string;
 }
 
-const supabase: SupabaseClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://coihzyskjxedccjpzjzd.supabase.co",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvaWh6eXNranhlZGNjanB6anpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDQ5ODMsImV4cCI6MjA3MjQyMDk4M30.KbvQ6wfBmjov2ZhdF1_t7PX0JLRnfHGUOMbDHtZABLE"
-);
+// Create Supabase client
+const supabase = createClientComponentClient();
+
+// MOCK_DATA for frontend development
+const MOCK_DATA = {
+  transactions: [
+    {
+      id: '1',
+      user_id: 'user-001',
+      type: 'income',
+      amount: 50000,
+      category: 'Selling Products',
+      description: 'Monthly product sales',
+      date: new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString()
+    },
+    {
+      id: '2',
+      user_id: 'user-001',
+      type: 'expense',
+      amount: 15000,
+      category: 'Worker Pay',
+      description: 'Staff salaries',
+      date: new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString()
+    },
+    {
+      id: '3',
+      user_id: 'user-001',
+      type: 'income',
+      amount: 25000,
+      category: 'Service Work',
+      description: 'Consulting services',
+      date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+      created_at: new Date(Date.now() - 86400000).toISOString()
+    }
+  ],
+  budgets: [
+    {
+      id: '1',
+      user_id: 'user-001',
+      category: 'Worker Pay',
+      budget_limit: 20000,
+      spent: 15000,
+      percentage: 75,
+      period: 'monthly',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: '2',
+      user_id: 'user-001',
+      category: 'Marketing Costs',
+      budget_limit: 5000,
+      spent: 3000,
+      percentage: 60,
+      period: 'monthly',
+      created_at: new Date().toISOString()
+    }
+  ],
+  profile: {
+    full_name: 'John Doe',
+    business_name: 'Doe Enterprises',
+    email: 'john@doe.com',
+    phone_number: '+234 901 234 5678',
+    currency: 'NGN',
+    language: 'en',
+    date_format: 'MM/DD/YYYY',
+    timezone: 'UTC',
+    notification_settings: {
+      budgetAlerts: true,
+      weeklyReports: true,
+      transactionAlerts: true,
+      aiRecommendations: true
+    },
+    plan: 'Free Plan',
+    created_at: new Date().toISOString()
+  }
+};
+
+// Mock API service using MOCK_DATA
+const apiService = {
+  async fetchTransactions(userId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Return mock transactions for the user
+    return {
+      transactions: MOCK_DATA.transactions.filter(t => t.user_id === userId)
+    };
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch(`/api/transactions?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Transactions: ${response.statusText}`);
+    }
+
+    return await response.json();
+    */
+  },
+
+  async fetchBudgets(userId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Return mock budgets for the user
+    return {
+      budgets: MOCK_DATA.budgets.filter(b => b.user_id === userId)
+    };
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch(`/api/budgets?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Budgets: ${response.statusText}`);
+    }
+
+    return await response.json();
+    */
+  },
+
+  async fetchProfile(userId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Return mock profile
+    return {
+      profile: MOCK_DATA.profile
+    };
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch(`/api/profile?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Profile: ${response.statusText}`);
+    }
+
+    return await response.json();
+    */
+  },
+
+  async addTransaction(transactionData: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Create mock transaction
+    const newTransaction = {
+      id: `mock-${Date.now()}`,
+      user_id: session.user.id,
+      ...transactionData,
+      created_at: new Date().toISOString()
+    };
+    
+    // Add to mock data
+    MOCK_DATA.transactions.push(newTransaction);
+    
+    return {
+      transaction: newTransaction
+    };
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch('/api/transactions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(transactionData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to add transaction');
+    }
+
+    return await response.json();
+    */
+  },
+
+  async updateTransaction(transactionId: string, transactionData: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Update mock transaction
+    const transactionIndex = MOCK_DATA.transactions.findIndex(t => t.id === transactionId);
+    if (transactionIndex !== -1) {
+      MOCK_DATA.transactions[transactionIndex] = {
+        ...MOCK_DATA.transactions[transactionIndex],
+        ...transactionData
+      };
+      
+      return {
+        transaction: MOCK_DATA.transactions[transactionIndex]
+      };
+    }
+    
+    throw new Error('Transaction not found');
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch(`/api/transactions/${transactionId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(transactionData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to update transaction');
+    }
+
+    return await response.json();
+    */
+  },
+
+  async deleteTransaction(transactionId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Remove from mock data
+    const transactionIndex = MOCK_DATA.transactions.findIndex(t => t.id === transactionId);
+    if (transactionIndex !== -1) {
+      MOCK_DATA.transactions.splice(transactionIndex, 1);
+      return { success: true };
+    }
+    
+    throw new Error('Transaction not found');
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch(`/api/transactions/${transactionId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to delete transaction');
+    }
+
+    return await response.json();
+    */
+  },
+
+  async addBudget(budgetData: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Create mock budget
+    const newBudget = {
+      id: `mock-budget-${Date.now()}`,
+      user_id: session.user.id,
+      ...budgetData,
+      spent: 0,
+      percentage: 0,
+      created_at: new Date().toISOString()
+    };
+    
+    // Add to mock data
+    MOCK_DATA.budgets.push(newBudget);
+    
+    return {
+      budget: newBudget
+    };
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch('/api/budgets', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(budgetData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to add budget');
+    }
+
+    return await response.json();
+    */
+  },
+
+  async updateBudget(budgetId: string, budgetData: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Update mock budget
+    const budgetIndex = MOCK_DATA.budgets.findIndex(b => b.id === budgetId);
+    if (budgetIndex !== -1) {
+      MOCK_DATA.budgets[budgetIndex] = {
+        ...MOCK_DATA.budgets[budgetIndex],
+        ...budgetData
+      };
+      
+      return {
+        budget: MOCK_DATA.budgets[budgetIndex]
+      };
+    }
+    
+    throw new Error('Budget not found');
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch(`/api/budgets/${budgetId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(budgetData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to update budget');
+    }
+
+    return await response.json();
+    */
+  },
+
+  async deleteBudget(budgetId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Remove from mock data
+    const budgetIndex = MOCK_DATA.budgets.findIndex(b => b.id === budgetId);
+    if (budgetIndex !== -1) {
+      MOCK_DATA.budgets.splice(budgetIndex, 1);
+      return { success: true };
+    }
+    
+    throw new Error('Budget not found');
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch(`/api/budgets/${budgetId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to delete budget');
+    }
+
+    return await response.json();
+    */
+  },
+
+  async saveSettings(settings: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Update mock profile
+    MOCK_DATA.profile = {
+      ...MOCK_DATA.profile,
+      ...settings
+    };
+    
+    return { success: true };
+    
+    // REAL API CALL - COMMENTED OUT
+    /*
+    const response = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(settings)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to save settings');
+    }
+
+    return await response.json();
+    */
+  }
+};
 
 export default function Dashboard() {
   const [session, setSession] = useState<Session | null>(null);
@@ -281,7 +689,6 @@ export default function Dashboard() {
     'Vehicle Purchase', 'Loan Payments', 'Tax Payments', 'Legal Fees', 'Accounting Fees', 'Others'
   ];
   
-  
   const languagesList: LanguageOption[] = [
     { value: 'en', label: 'English' },
     { value: 'fr', label: 'French' },
@@ -321,6 +728,8 @@ export default function Dashboard() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
+    // Redirect to signin page after logout
+    window.location.href = '/auth/signin';
   };
 
   const showToast = (message: string) => {
@@ -328,177 +737,58 @@ export default function Dashboard() {
     setToastOpen(true);
   };
 
-  // Enhanced connection monitoring with auto-reconnect and re-login prompts
-  const checkDatabaseConnection = async (isRetry: boolean = false): Promise<boolean> => {
-    try {
-      if (isRetry) {
-        setIsReconnecting(true);
-        setConnectionRetryCount(prev => prev + 1);
-      }
-      
-      setDatabaseStatus('checking');
-      const { data, error } = await supabase.from('profiles').select('count').limit(1);
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Connection successful
-      setDatabaseStatus('connected');
-      connectionIssuesRef.current = 0;
-      setConnectionRetryCount(0);
-      setIsReconnecting(false);
-      
-      if (isRetry) {
-        showToast('Connection restored successfully!');
-        setShowConnectionErrorModal(false);
-        setShowReLoginModal(false);
-      }
-      
-      return true;
-    } catch (error: any) { // Fixed: Added type annotation for error
-      console.error('Database connection error:', error);
-      setDatabaseStatus('disconnected');
-      connectionIssuesRef.current++;
-      
-      // Show appropriate modal based on connection issues count
-      if (connectionIssuesRef.current >= 3) {
-        setShowReLoginModal(true);
-      } else if (connectionIssuesRef.current >= 2) {
-        setShowConnectionErrorModal(true);
-      }
-      
-      setIsReconnecting(false);
-      return false;
-    }
-  };
-
-  // Enhanced auto-reconnect function
-  const attemptAutoReconnect = async () => {
-    if (connectionRetryCount >= 3) {
-      // Too many retries, prompt for re-login
-      setShowReLoginModal(true);
-      return;
-    }
-
-    setIsReconnecting(true);
-    showToast(`Attempting to reconnect... (${connectionRetryCount + 1}/3)`);
-
-    // Exponential backoff: 2s, 4s, 8s
-    const delay = Math.pow(2, connectionRetryCount) * 1000;
-    
-    autoReconnectTimeoutRef.current = setTimeout(async () => {
-      const success = await checkDatabaseConnection(true);
-      
-      if (!success && connectionRetryCount < 3) {
-        // Continue retrying
-        attemptAutoReconnect();
-      }
-    }, delay);
-  };
-
   // Enhanced session monitoring with connection persistence check
   useEffect(() => {
-    let mounted = true;
-
-    const initializeSession = async () => {
-      if (!mounted) return;
-
+    const getSession = async () => {
       try {
+        setLoading(true);
+        
+        // Use Supabase directly to check session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Session error:', error);
-          if (mounted) {
-            setShowSessionExpiredModal(true);
-            setLoading(false);
-          }
+          // Redirect to signin if there's an error getting session
+          window.location.href = '/auth/signin';
           return;
         }
-
-        if (mounted) {
-          setSession(session);
-          if (session) {
-            // Test database connection before fetching data
-            const connectionOk = await checkDatabaseConnection();
-            if (connectionOk) {
-              await fetchData(session);
-            } else {
-              setShowConnectionErrorModal(true);
-              setLoading(false);
-            }
-          } else {
-            setLoading(false);
-            if (financialData.transactions.length > 0) {
-              setShowSessionExpiredModal(true);
-            }
-          }
+        
+        if (!session) {
+          // No session found, redirect to signin
+          window.location.href = '/auth/signin';
+          return;
         }
+        
+        // We have a valid session
+        setSession(session);
+        await fetchData(session);
+        
       } catch (error) {
-        console.error('Initialization error:', error);
-        if (mounted) {
-          setShowSessionExpiredModal(true);
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      setSession(session);
-      
-      if (event === 'SIGNED_OUT') {
-        setShowSessionExpiredModal(true);
-        setFinancialData({
-          income: 0.00,
-          expenses: 0.00,
-          profit: 0.00,
-          transactions: [],
-          budgets: [],
-          alerts: [],
-          aiRecommendations: [
-            'Add your transactions to get personalized financial insights',
-            'Create budgets to track your spending limits',
-            'Monitor your income and expense patterns regularly'
-          ],
-          cashFlowForecast: [
-            { month: 'Apr', forecast: 4500, actual: null },
-            { month: 'May', forecast: 5200, actual: null },
-            { month: 'Jun', forecast: 4800, actual: null },
-            { month: 'Jul', forecast: 5500, actual: null }
-          ]
-        });
-      } else if (event === 'TOKEN_REFRESHED') {
-        // Token was refreshed, try to reconnect
-        const connectionOk = await checkDatabaseConnection();
-        if (connectionOk && session) {
-          await fetchData(session);
-        }
-      }
-      
-      if (session) {
-        setShowSessionExpiredModal(false);
-        const connectionOk = await checkDatabaseConnection();
-        if (connectionOk) {
-          await fetchData(session);
-        }
-      } else {
+        console.error('Authentication error:', error);
+        window.location.href = '/auth/signin';
+      } finally {
         setLoading(false);
       }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-      if (autoReconnectTimeoutRef.current) {
-        clearTimeout(autoReconnectTimeoutRef.current);
-      }
     };
+
+    getSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          // Redirect to signin on sign out
+          window.location.href = '/auth/signin';
+        } else if (event === 'SIGNED_IN' && session) {
+          setSession(session);
+          await fetchData(session);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          setSession(session);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Enhanced connection monitoring with auto-reconnect
@@ -507,14 +797,6 @@ export default function Dashboard() {
     const handleOnline = async () => {
       setNetworkStatus('online');
       showToast('Connection restored');
-      
-      // Attempt to reconnect to database when coming back online
-      if (session) {
-        const connectionOk = await checkDatabaseConnection(true);
-        if (connectionOk) {
-          await fetchData(session);
-        }
-      }
     };
     
     const handleOffline = () => {
@@ -525,17 +807,9 @@ export default function Dashboard() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Periodic database health check (every 30 seconds)
-    const dbHealthCheckInterval = setInterval(async () => {
-      if (session && networkStatus === 'online') {
-        await checkDatabaseConnection();
-      }
-    }, 30000);
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      clearInterval(dbHealthCheckInterval);
       if (autoReconnectTimeoutRef.current) {
         clearTimeout(autoReconnectTimeoutRef.current);
       }
@@ -596,7 +870,7 @@ export default function Dashboard() {
     }
   };
 
-  // Settings Functions
+  // Settings Functions with Mock API
   const handleSaveSettings = async () => {
     if (!session) {
       showToast('Please log in to save settings');
@@ -604,23 +878,7 @@ export default function Dashboard() {
     }
 
     try {
-      // Update user profile in database
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: session.user.id,
-          full_name: userSettings.fullName,
-          business_name: userSettings.businessName,
-          phone_number: userSettings.phoneNumber,
-          currency: userSettings.currency,
-          language: userSettings.language,
-          date_format: userSettings.dateFormat,
-          timezone: userSettings.timezone,
-          notification_settings: userSettings.notifications,
-          updated_at: new Date().toISOString()
-        });
-
-      if (profileError) throw profileError;
+      await apiService.saveSettings(userSettings, session);
 
       // Update user state
       setUser({
@@ -634,9 +892,9 @@ export default function Dashboard() {
       setLanguage(userSettings.language);
 
       showToast('Settings saved successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving settings:', error);
-      showToast('Error saving settings');
+      showToast(`Error saving settings: ${error.message || 'Please try again'}`);
     }
   };
 
@@ -661,14 +919,16 @@ export default function Dashboard() {
         password: passwordData.newPassword
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || 'Failed to change password');
+      }
 
       showToast('Password updated successfully!');
       setShowChangePasswordDialog(false);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error changing password:', error);
-      showToast('Error changing password');
+      showToast(`Error changing password: ${error.message || 'Please try again'}`);
     }
   };
 
@@ -679,27 +939,25 @@ export default function Dashboard() {
     }
 
     try {
-      // Fetch all user data
-      const [transactionsData, budgetsData] = await Promise.all([
-        supabase.from('transactions').select('*').eq('user_id', session.user.id),
-        supabase.from('budgets').select('*').eq('user_id', session.user.id)
-      ]);
-
-      if (transactionsData.error) throw transactionsData.error;
-      if (budgetsData.error) throw budgetsData.error;
-
-      // Create CSV content
-      const transactionsCSV = convertToCSV(transactionsData.data || []);
-      const budgetsCSV = convertToCSV(budgetsData.data || []);
-
-      // Create and download files
-      downloadCSV(transactionsCSV, 'transactions.csv');
-      downloadCSV(budgetsCSV, 'budgets.csv');
+      // Simulate export with mock data
+      const csvContent = "data:text/csv;charset=utf-8," 
+        + "Type,Amount,Category,Description,Date\n"
+        + financialData.transactions.map(t => 
+            `${t.type},${t.amount},${t.category},${t.description || ''},${t.date}`
+          ).join("\n");
+      
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "financial-data-export.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
       showToast('Data exported successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting data:', error);
-      showToast('Error exporting data');
+      showToast(`Error exporting data: ${error.message || 'Please try again'}`);
     }
   };
 
@@ -710,41 +968,12 @@ export default function Dashboard() {
     }
   
     try {
-      // Fetch all user data
-      const [transactionsData, budgetsData, profileData] = await Promise.all([
-        supabase.from('transactions').select('*').eq('user_id', session.user.id),
-        supabase.from('budgets').select('*').eq('user_id', session.user.id),
-        supabase.from('profiles').select('*').eq('id', session.user.id).single()
-      ]);
-  
-      if (transactionsData.error) throw transactionsData.error;
-      if (budgetsData.error) throw budgetsData.error;
-  
-      // Create backup data object
-      const backupData = {
-        transactions: transactionsData.data || [],
-        budgets: budgetsData.data || [],
-        profile: profileData.data || {},
-        backup_date: new Date().toISOString(),
-        version: '1.0'
-      };
-  
-      // Store in backups table
-      const { error } = await supabase
-        .from('backups')
-        .insert({
-          user_id: session.user.id,
-          backup_data: backupData,
-          backup_type: 'full',
-          file_size: JSON.stringify(backupData).length
-        });
-  
-      if (error) throw error;
-  
+      // Simulate backup creation
+      await new Promise(resolve => setTimeout(resolve, 1000));
       showToast('Backup created successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating backup:', error);
-      showToast('Error creating backup');
+      showToast(`Error creating backup: ${error.message || 'Please try again'}`);
     }
   };
 
@@ -755,83 +984,17 @@ export default function Dashboard() {
     }
   
     try {
-      // Get the backup data
-      const { data: backup, error: fetchError } = await supabase
-        .from('backups')
-        .select('*')
-        .eq('id', backupId)
-        .eq('user_id', session.user.id)
-        .single();
-  
-      if (fetchError) throw fetchError;
-      if (!backup?.backup_data) throw new Error('No backup data found');
-  
-      const backupData = backup.backup_data;
-  
-      // Start restore process - delete existing data first
-      const [deleteTransactions, deleteBudgets] = await Promise.all([
-        supabase.from('transactions').delete().eq('user_id', session.user.id),
-        supabase.from('budgets').delete().eq('user_id', session.user.id)
-      ]);
-  
-      if (deleteTransactions.error) throw deleteTransactions.error;
-      if (deleteBudgets.error) throw deleteBudgets.error;
-  
-      // Restore transactions - preserve original IDs if they exist
-      if (backupData.transactions && backupData.transactions.length > 0) {
-        const transactionsToInsert = backupData.transactions.map((t: any) => ({
-          ...t,
-          user_id: session.user.id,
-          id: t.id || undefined
-        })).filter((t: any) => t.id !== undefined);
-  
-        if (transactionsToInsert.length > 0) {
-          const { error: transactionsError } = await supabase
-            .from('transactions')
-            .insert(transactionsToInsert);
-  
-          if (transactionsError) throw transactionsError;
-        }
-      }
-  
-      // Restore budgets - preserve original IDs if they exist
-      if (backupData.budgets && backupData.budgets.length > 0) {
-        const budgetsToInsert = backupData.budgets.map((b: any) => ({
-          ...b,
-          user_id: session.user.id,
-          id: b.id || undefined
-        })).filter((b: any) => b.id !== undefined);
-  
-        if (budgetsToInsert.length > 0) {
-          const { error: budgetsError } = await supabase
-            .from('budgets')
-            .insert(budgetsToInsert);
-  
-          if (budgetsError) throw budgetsError;
-        }
-      }
-  
-      // Restore profile settings if available
-      if (backupData.profile) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: session.user.id,
-            ...backupData.profile,
-            updated_at: new Date().toISOString()
-          });
-  
-        if (profileError) console.warn('Could not restore profile:', profileError);
-      }
-  
+      // Simulate backup restoration
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Refresh the dashboard data
       await fetchData(session);
-  
+
       showToast('Backup restored successfully!');
       setShowRestoreDialog(false);
-    } catch (error: any) { // Fixed: Added type annotation for error
+    } catch (error: any) {
       console.error('Error restoring backup:', error);
-      showToast('Error restoring backup');
+      showToast(`Error restoring backup: ${error.message || 'Please try again'}`);
     }
   };
 
@@ -842,23 +1005,18 @@ export default function Dashboard() {
     }
 
     try {
-      // Delete all user data
-      const [transactionsResult, budgetsResult] = await Promise.all([
-        supabase.from('transactions').delete().eq('user_id', session.user.id),
-        supabase.from('budgets').delete().eq('user_id', session.user.id)
-      ]);
-
-      if (transactionsResult.error) throw transactionsResult.error;
-      if (budgetsResult.error) throw budgetsResult.error;
+      // Clear mock data for this user
+      MOCK_DATA.transactions = MOCK_DATA.transactions.filter(t => t.user_id !== session.user.id);
+      MOCK_DATA.budgets = MOCK_DATA.budgets.filter(b => b.user_id !== session.user.id);
 
       // Refresh data
       await fetchData(session);
 
       setShowClearDataDialog(false);
       showToast('All data cleared successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error clearing data:', error);
-      showToast('Error clearing data');
+      showToast(`Error clearing data: ${error.message || 'Please try again'}`);
     }
   };
 
@@ -869,27 +1027,17 @@ export default function Dashboard() {
     }
 
     try {
-      // First delete all user data
-      await handleClearData();
-
-      // Then delete user profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', session.user.id);
-
-      if (profileError) throw profileError;
-
-      // Finally delete auth user
-      const { error: authError } = await supabase.auth.admin.deleteUser(session.user.id);
-      
-      if (authError) throw authError;
+      // Clear user data from mock data
+      MOCK_DATA.transactions = MOCK_DATA.transactions.filter(t => t.user_id !== session.user.id);
+      MOCK_DATA.budgets = MOCK_DATA.budgets.filter(b => b.user_id !== session.user.id);
 
       showToast('Account deleted successfully!');
       await supabase.auth.signOut();
-    } catch (error) {
+      // Redirect to signin page after account deletion
+      window.location.href = '/auth/signin';
+    } catch (error: any) {
       console.error('Error deleting account:', error);
-      showToast('Error deleting account');
+      showToast(`Error deleting account: ${error.message || 'Please try again'}`);
     }
   };
 
@@ -900,35 +1048,7 @@ export default function Dashboard() {
     setIsCancelSubscriptionOpen(false);
   };
 
-  // Helper functions for CSV export
-  const convertToCSV = (data: any[]) => {
-    if (data.length === 0) return '';
-    
-    const headers = Object.keys(data[0]);
-    const csvRows = [headers.join(',')];
-    
-    for (const row of data) {
-      const values = headers.map(header => {
-        const escaped = ('' + row[header]).replace(/"/g, '\\"');
-        return `"${escaped}"`;
-      });
-      csvRows.push(values.join(','));
-    }
-    
-    return csvRows.join('\n');
-  };
-
-  const downloadCSV = (csvContent: string, fileName: string) => {
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  // Enhanced fetchData function with connection recovery
+  // Enhanced fetchData function with mock API
   async function fetchData(session: Session) {
     if (!session) {
       showToast('No active session. Please log in.');
@@ -941,36 +1061,21 @@ export default function Dashboard() {
     const userId = session.user.id;
 
     try {
-      // Test database connection first
-      const connectionOk = await checkDatabaseConnection();
-      if (!connectionOk) {
-        throw new Error('Database connection failed');
-      }
-      
-      // Set a timeout for database operations
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
+      // Use mock API service to get data
       const [transactionsData, budgetsData, profileData] = await Promise.all([
-        supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
-        supabase.from('budgets').select('*').eq('user_id', userId),
-        supabase.from('profiles').select('*').eq('id', userId).single()
+        apiService.fetchTransactions(userId, session),
+        apiService.fetchBudgets(userId, session),
+        apiService.fetchProfile(userId, session)
       ]);
 
-      clearTimeout(timeoutId);
-
-      // Handle errors with proper type checking
-      if (transactionsData.error) throw new Error(`Transactions: ${transactionsData.error.message}`);
-      if (budgetsData.error) throw new Error(`Budgets: ${budgetsData.error.message}`);
-      
       // Calculate financial data
-      const income = (transactionsData.data?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0);
-      const expenses = (transactionsData.data?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0);
+      const income = (transactionsData.transactions?.filter((t: Transaction) => t.type === 'income').reduce((sum: number, t: Transaction) => sum + t.amount, 0) || 0);
+      const expenses = (transactionsData.transactions?.filter((t: Transaction) => t.type === 'expense').reduce((sum: number, t: Transaction) => sum + t.amount, 0) || 0);
       const profit = income - expenses;
 
       // Generate AI recommendations based on actual data
-      const aiRecommendations = transactionsData.data && transactionsData.data.length > 0 
-        ? RuleBasedFinancialAdvisor.analyzeSpendingPatterns(transactionsData.data, budgetsData.data || [], formatCurrency).slice(0, 4)
+      const aiRecommendations = transactionsData.transactions && transactionsData.transactions.length > 0 
+        ? RuleBasedFinancialAdvisor.analyzeSpendingPatterns(transactionsData.transactions, budgetsData.budgets || [], formatCurrency).slice(0, 4)
         : [
             'Add your transactions to get personalized financial insights',
             'Create budgets to track your spending limits',
@@ -982,35 +1087,35 @@ export default function Dashboard() {
         income,
         expenses,
         profit,
-        transactions: transactionsData.data || [],
-        budgets: budgetsData.data || [],
+        transactions: transactionsData.transactions || [],
+        budgets: budgetsData.budgets || [],
         alerts: realTimeAlerts,
         aiRecommendations
       }));
 
       // Set user data
       const userData = {
-        name: profileData?.data?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+        name: profileData?.profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
         email: session.user.email || 'No email',
-        businessName: profileData?.data?.business_name || session.user.user_metadata?.business_name || 'My Business',
-        avatar: profileData?.data?.avatar || session.user.user_metadata?.avatar_url || '/api/placeholder/40/40',
-        plan: profileData?.data?.plan || 'Free Plan',
-        joinedDate: new Date(profileData?.data?.created_at || session.user.created_at).toISOString().split('T')[0]
+        businessName: profileData?.profile?.business_name || session.user.user_metadata?.business_name || 'My Business',
+        avatar: profileData?.profile?.avatar || session.user.user_metadata?.avatar_url || '/api/placeholder/40/40',
+        plan: profileData?.profile?.plan || 'Free Plan',
+        joinedDate: new Date(profileData?.profile?.created_at || session.user.created_at).toISOString().split('T')[0]
       };
 
       setUser(userData);
 
       // Set user settings
       setUserSettings({
-        fullName: profileData?.data?.full_name || userData.name,
+        fullName: profileData?.profile?.full_name || userData.name,
         email: userData.email,
-        businessName: profileData?.data?.business_name || userData.businessName,
-        phoneNumber: profileData?.data?.phone_number || '',
-        currency: profileData?.data?.currency || 'NGN',
-        language: profileData?.data?.language || 'en',
-        dateFormat: profileData?.data?.date_format || 'MM/DD/YYYY',
-        timezone: profileData?.data?.timezone || 'UTC',
-        notifications: profileData?.data?.notification_settings || {
+        businessName: profileData?.profile?.business_name || userData.businessName,
+        phoneNumber: profileData?.profile?.phone_number || '',
+        currency: profileData?.profile?.currency || 'NGN',
+        language: profileData?.profile?.language || 'en',
+        dateFormat: profileData?.profile?.date_format || 'MM/DD/YYYY',
+        timezone: profileData?.profile?.timezone || 'UTC',
+        notifications: profileData?.profile?.notification_settings || {
           budgetAlerts: true,
           weeklyReports: true,
           transactionAlerts: true,
@@ -1026,13 +1131,9 @@ export default function Dashboard() {
         if (error.name === 'AbortError') {
           showToast('Connection timeout. Please check your internet connection.');
           setShowConnectionErrorModal(true);
-          attemptAutoReconnect();
         } else if (error.message?.includes('JWT')) {
           setShowSessionExpiredModal(true);
           showToast('Session expired. Please log in again.');
-        } else if (error.message?.includes('Database connection failed')) {
-          showToast('Database connection failed. Attempting to reconnect...');
-          attemptAutoReconnect();
         } else {
           showToast('Unable to load data. Please try again.');
           setShowConnectionErrorModal(true);
@@ -1046,6 +1147,246 @@ export default function Dashboard() {
     }
   }
 
+  // Transaction Management Functions with Mock API
+  const handleAddTransaction = async (type: 'income' | 'expense') => {
+    if (!formData.amount || !formData.category || !session) {
+      showToast('Please fill all required fields or log in');
+      return;
+    }
+
+    try {
+      const data = await apiService.addTransaction({
+        type,
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        description: formData.description || '',
+        date: formData.date,
+      }, session);
+
+      // Update local state immediately
+      setFinancialData(prev => ({
+        ...prev,
+        transactions: [data.transaction, ...prev.transactions],
+        income: type === 'income' ? prev.income + data.transaction.amount : prev.income,
+        expenses: type === 'expense' ? prev.expenses + data.transaction.amount : prev.expenses,
+        profit: type === 'income' ? prev.profit + data.transaction.amount : prev.profit - data.transaction.amount
+      }));
+
+      showToast(`${type === 'income' ? 'Income' : 'Expense'} added successfully!`);
+      setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
+      
+      // Close the modal
+      type === 'income' ? setShowIncomeForm(false) : setShowExpenseForm(false);
+      
+    } catch (error: any) {
+      console.error('Error adding transaction:', error);
+      showToast(`Error adding transaction: ${error.message || 'Please try again'}`);
+      throw error;
+    }
+  };
+
+  const handleEditTransaction = async () => {
+    if (!editingTransaction || !session) {
+      showToast('Please log in to edit transactions');
+      return;
+    }
+
+    try {
+      const data = await apiService.updateTransaction(editingTransaction.id, {
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        description: formData.description || '',
+        date: formData.date
+      }, session);
+
+      // Calculate differences for financial totals
+      const amountDiff = data.transaction.amount - editingTransaction.amount;
+      const typeChanged = data.transaction.type !== editingTransaction.type;
+
+      // Update local state
+      setFinancialData(prev => {
+        const updatedTransactions = prev.transactions.map(t => 
+          t.id === editingTransaction.id ? data.transaction : t
+        );
+        
+        let newIncome = prev.income;
+        let newExpenses = prev.expenses;
+        
+        if (typeChanged) {
+          if (data.transaction.type === 'income') {
+            newIncome += data.transaction.amount;
+            newExpenses -= editingTransaction.amount;
+          } else {
+            newIncome -= editingTransaction.amount;
+            newExpenses += data.transaction.amount;
+          }
+        } else {
+          if (data.transaction.type === 'income') {
+            newIncome += amountDiff;
+          } else {
+            newExpenses += amountDiff;
+          }
+        }
+        
+        const newProfit = newIncome - newExpenses;
+        
+        return {
+          ...prev,
+          transactions: updatedTransactions,
+          income: newIncome,
+          expenses: newExpenses,
+          profit: newProfit
+        };
+      });
+
+      showToast('Transaction updated successfully!');
+      setEditingTransaction(null);
+      setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
+      
+    } catch (error: any) {
+      console.error('Error updating transaction:', error);
+      showToast(`Error updating transaction: ${error.message || 'Please try again'}`);
+    }
+  };
+
+  const handleDeleteTransaction = async (transactionId: string) => {
+    try {
+      await apiService.deleteTransaction(transactionId, session);
+
+      // Find the transaction to update financial totals
+      const transactionToDelete = financialData.transactions.find(t => t.id === transactionId);
+      
+      if (transactionToDelete) {
+        setFinancialData(prev => ({
+          ...prev,
+          transactions: prev.transactions.filter(t => t.id !== transactionId),
+          income: transactionToDelete.type === 'income' ? prev.income - transactionToDelete.amount : prev.income,
+          expenses: transactionToDelete.type === 'expense' ? prev.expenses - transactionToDelete.amount : prev.expenses,
+          profit: transactionToDelete.type === 'income' ? prev.profit - transactionToDelete.amount : prev.profit + transactionToDelete.amount
+        }));
+      }
+
+      setDeleteTransactionId(null);
+      showToast('Transaction deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting transaction:', error);
+      showToast(`Error deleting transaction: ${error.message || 'Please try again'}`);
+    }
+  };
+
+  // Budget Management Functions with Mock API
+  const handleAddBudget = async () => {
+    if (!budgetFormData.category || !budgetFormData.budget_limit || !session) {
+      showToast('Please fill all required fields or log in');
+      return;
+    }
+
+    try {
+      const data = await apiService.addBudget({
+        category: budgetFormData.category,
+        budget_limit: parseFloat(budgetFormData.budget_limit),
+        period: budgetFormData.period,
+      }, session);
+
+      // Update local state immediately
+      setFinancialData(prev => ({
+        ...prev,
+        budgets: [...prev.budgets, data.budget]
+      }));
+
+      showToast('Budget added successfully!');
+      setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
+      setShowBudgetForm(false);
+      
+    } catch (error: any) {
+      console.error('Error adding budget:', error);
+      showToast(`Error adding budget: ${error.message || 'Please try again'}`);
+    }
+  };
+
+  const handleEditBudget = async () => {
+    if (!editingBudget || !session) {
+      showToast('Please log in to edit budgets');
+      return;
+    }
+
+    try {
+      const data = await apiService.updateBudget(editingBudget.id, {
+        category: budgetFormData.category,
+        budget_limit: parseFloat(budgetFormData.budget_limit),
+        period: budgetFormData.period
+      }, session);
+
+      // Update local state
+      setFinancialData(prev => ({
+        ...prev,
+        budgets: prev.budgets.map(b => 
+          b.id === editingBudget.id ? data.budget : b
+        )
+      }));
+
+      showToast('Budget updated successfully!');
+      setEditingBudget(null);
+      setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
+      
+    } catch (error: any) {
+      console.error('Error updating budget:', error);
+      showToast(`Error updating budget: ${error.message || 'Please try again'}`);
+    }
+  };
+
+  const handleDeleteBudget = async (budgetId: string) => {
+    try {
+      await apiService.deleteBudget(budgetId, session);
+
+      setFinancialData(prev => ({
+        ...prev,
+        budgets: prev.budgets.filter(b => b.id !== budgetId)
+      }));
+
+      setDeleteBudgetId(null);
+      showToast('Budget deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting budget:', error);
+      showToast(`Error deleting budget: ${error.message || 'Please try again'}`);
+    }
+  };
+
+  // Enhanced manual re-login function
+  const handleForceReLogin = () => {
+    // Clear all local state
+    setSession(null);
+    setFinancialData({
+      income: 0.00,
+      expenses: 0.00,
+      profit: 0.00,
+      transactions: [],
+      budgets: [],
+      alerts: [],
+      aiRecommendations: [
+        'Add your transactions to get personalized financial insights',
+        'Create budgets to track your spending limits',
+        'Monitor your income and expense patterns regularly'
+      ],
+      cashFlowForecast: [
+        { month: 'Apr', forecast: 4500, actual: null },
+        { month: 'May', forecast: 5200, actual: null },
+        { month: 'Jun', forecast: 4800, actual: null },
+        { month: 'Jul', forecast: 5500, actual: null }
+      ]
+    });
+    
+    // Reset connection counters
+    connectionIssuesRef.current = 0;
+    setConnectionRetryCount(0);
+    
+    // Close modals and redirect to login
+    setShowReLoginModal(false);
+    setShowConnectionErrorModal(false);
+    setShowSessionExpiredModal(false);
+    window.location.href = '/auth/signin';
+  };
+
   // Load available backups
   useEffect(() => {
     if (showRestoreDialog && session) {
@@ -1053,46 +1394,46 @@ export default function Dashboard() {
     }
   }, [showRestoreDialog, session]);
 
-  // Update AI recommendations when data changes
-// Update AI recommendations when data changes - fixed to prevent infinite loops
-useEffect(() => {
-  if (financialData.transactions.length > 0) {
-    const recommendations = RuleBasedFinancialAdvisor.analyzeSpendingPatterns(
-      financialData.transactions,
-      financialData.budgets,
-      formatCurrency
-    );
-    
-    // Only update if recommendations actually changed
-    const newRecommendations = recommendations.slice(0, 4);
-    const currentRecommendations = financialData.aiRecommendations;
-    
-    // Check if recommendations actually changed to avoid unnecessary updates
-    const hasChanged = newRecommendations.length !== currentRecommendations.length ||
-      newRecommendations.some((rec, index) => rec !== currentRecommendations[index]);
-    
-    if (hasChanged) {
-      setFinancialData(prev => ({
-        ...prev,
-        aiRecommendations: newRecommendations
-      }));
-    }
-  }
-}, [financialData.transactions, financialData.budgets]); // Removed formatCurrency from dependencies
-
   const loadAvailableBackups = async () => {
     if (!session) return;
     
-    const { data: backups, error } = await supabase
-      .from('backups')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false });
-
-    if (!error && backups) {
-      setAvailableBackups(backups);
+    try {
+      // Simulate loading backups
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setAvailableBackups([
+        { id: 'backup-1', name: 'Backup 1', date: new Date().toISOString() },
+        { id: 'backup-2', name: 'Backup 2', date: new Date(Date.now() - 86400000).toISOString() }
+      ]);
+    } catch (error) {
+      console.error('Error loading backups:', error);
     }
   };
+
+  // Update AI recommendations when data changes
+  useEffect(() => {
+    if (financialData.transactions.length > 0) {
+      const recommendations = RuleBasedFinancialAdvisor.analyzeSpendingPatterns(
+        financialData.transactions,
+        financialData.budgets,
+        formatCurrency
+      );
+      
+      // Only update if recommendations actually changed
+      const newRecommendations = recommendations.slice(0, 4);
+      const currentRecommendations = financialData.aiRecommendations;
+      
+      // Check if recommendations actually changed to avoid unnecessary updates
+      const hasChanged = newRecommendations.length !== currentRecommendations.length ||
+        newRecommendations.some((rec, index) => rec !== currentRecommendations[index]);
+      
+      if (hasChanged) {
+        setFinancialData(prev => ({
+          ...prev,
+          aiRecommendations: newRecommendations
+        }));
+      }
+    }
+  }, [financialData.transactions, financialData.budgets]);
 
   // Calculate category breakdown from actual transactions
   const categoryBreakdown = useMemo(() => {
@@ -1123,7 +1464,7 @@ useEffect(() => {
     };
   }, [financialData.transactions]);
 
-  // Calculate trend data based on actual transactions and time filter - Updated for line chart
+  // Calculate trend data based on actual transactions and time filter
   const currentTrendData = useMemo(() => {
     if (financialData.transactions.length === 0) {
       return [];
@@ -1264,8 +1605,8 @@ useEffect(() => {
         budget_limit: budget.budget_limit,
         spent,
         percentage,
-        period: budget.period as 'daily' | 'weekly' | 'monthly' | 'yearly', // Fixed: Type assertion
-        created_at: budget.created_at // Add this to match the expected type
+        period: budget.period as 'daily' | 'weekly' | 'monthly' | 'yearly',
+        created_at: budget.created_at
       };
       
       return enhancedBudget;
@@ -1303,342 +1644,6 @@ useEffect(() => {
     
     return alerts;
   }, [budgetsWithRealTimeTracking]);
-
-  // Transaction Management Functions
-const handleAddTransaction = async (type: 'income' | 'expense') => {
-  if (!formData.amount || !formData.category || !session) {
-    showToast('Please fill all required fields or log in');
-    return;
-  }
-
-  try {
-    const newTransaction = {
-      user_id: session.user.id,
-      type,
-      amount: parseFloat(formData.amount),
-      category: formData.category,
-      description: formData.description || '',
-      date: formData.date,
-    };
-
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert(newTransaction)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Update local state immediately
-    setFinancialData(prev => ({
-      ...prev,
-      transactions: [data, ...prev.transactions],
-      income: type === 'income' ? prev.income + data.amount : prev.income,
-      expenses: type === 'expense' ? prev.expenses + data.amount : prev.expenses,
-      profit: type === 'income' ? prev.profit + data.amount : prev.profit - data.amount
-    }));
-
-    showToast(`${type === 'income' ? 'Income' : 'Expense'} added successfully!`);
-    setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
-    
-    // Close the modal by updating the parent state
-    type === 'income' ? setShowIncomeForm(false) : setShowExpenseForm(false);
-    
-  } catch (error: any) {
-    console.error('Error adding transaction:', error);
-    showToast(`Error adding transaction: ${error.message || 'Please try again'}`);
-    throw error; // Re-throw to let the modal handle the loading state
-  }
-};
-
-const handleEditTransaction = async () => {
-  if (!editingTransaction || !session) {
-    showToast('Please log in to edit transactions');
-    return;
-  }
-
-  try {
-    const updatedFields = {
-      amount: parseFloat(formData.amount),
-      category: formData.category,
-      description: formData.description || '', // Ensure not null
-      date: formData.date
-    };
-
-    console.log('Updating transaction:', editingTransaction.id, updatedFields); // Debug log
-
-    const { data, error } = await supabase
-      .from('transactions')
-      .update(updatedFields)
-      .eq('id', editingTransaction.id)
-      .eq('user_id', session.user.id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Supabase update error:', error);
-      throw error;
-    }
-
-    console.log('Update successful, returned data:', data); // Debug log
-
-    // Calculate differences for financial totals
-    const amountDiff = data.amount - editingTransaction.amount;
-    const typeChanged = data.type !== editingTransaction.type;
-
-    // Update local state
-    setFinancialData(prev => {
-      const updatedTransactions = prev.transactions.map(t => 
-        t.id === editingTransaction.id ? data : t
-      );
-      
-      let newIncome = prev.income;
-      let newExpenses = prev.expenses;
-      
-      if (typeChanged) {
-        // Type changed (income <-> expense)
-        if (data.type === 'income') {
-          newIncome += data.amount;
-          newExpenses -= editingTransaction.amount;
-        } else {
-          newIncome -= editingTransaction.amount;
-          newExpenses += data.amount;
-        }
-      } else {
-        // Same type, just amount changed
-        if (data.type === 'income') {
-          newIncome += amountDiff;
-        } else {
-          newExpenses += amountDiff;
-        }
-      }
-      
-      const newProfit = newIncome - newExpenses;
-      
-      return {
-        ...prev,
-        transactions: updatedTransactions,
-        income: newIncome,
-        expenses: newExpenses,
-        profit: newProfit
-      };
-    });
-
-    showToast('Transaction updated successfully!');
-    setEditingTransaction(null);
-    setFormData({ amount: '', category: '', description: '', date: new Date().toISOString().split('T')[0] });
-    
-  } catch (error: any) {
-    console.error('Error updating transaction:', error);
-    showToast(`Error updating transaction: ${error.message || 'Please try again'}`);
-  }
-};
-
-// Replace the existing handleDeleteTransaction function with this:
-const handleDeleteTransaction = async (transactionId: string) => {
-  try {
-    const { error } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('id', transactionId);
-
-    if (error) throw error;
-
-    // Find the transaction to update financial totals
-    const transactionToDelete = financialData.transactions.find(t => t.id === transactionId);
-    
-    if (transactionToDelete) {
-      setFinancialData(prev => ({
-        ...prev,
-        transactions: prev.transactions.filter(t => t.id !== transactionId),
-        income: transactionToDelete.type === 'income' ? prev.income - transactionToDelete.amount : prev.income,
-        expenses: transactionToDelete.type === 'expense' ? prev.expenses - transactionToDelete.amount : prev.expenses,
-        profit: transactionToDelete.type === 'income' ? prev.profit - transactionToDelete.amount : prev.profit + transactionToDelete.amount
-      }));
-    }
-
-    setDeleteTransactionId(null);
-    showToast('Transaction deleted successfully');
-  } catch (error) {
-    console.error('Error deleting transaction:', error);
-    showToast('Error deleting transaction');
-  }
-};
-
-  // Budget Management Functions
-const handleAddBudget = async () => {
-  if (!budgetFormData.category || !budgetFormData.budget_limit || !session) {
-    showToast('Please fill all required fields or log in');
-    return;
-  }
-
-  try {
-    // Simplify the object to match only what your database expects
-    const newBudget = {
-      user_id: session.user.id,
-      category: budgetFormData.category,
-      budget_limit: parseFloat(budgetFormData.budget_limit),
-      period: budgetFormData.period,
-      // Remove fields that should be set by database defaults
-      // spent: 0, - might be computed or default in DB
-      // percentage: 0, - might be computed
-      // id: '', - let database generate this
-      // created_at: new Date().toISOString() - let database set this
-    };
-
-    console.log('Inserting budget:', newBudget); // Debug log
-
-    const { data, error } = await supabase
-      .from('budgets')
-      .insert([newBudget]) // Wrap in array if required
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    console.log('Insert successful:', data); // Debug log
-
-    // Update local state immediately
-    setFinancialData(prev => ({
-      ...prev,
-      budgets: [...prev.budgets, data]
-    }));
-
-    showToast('Budget added successfully!');
-    setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
-    setShowBudgetForm(false);
-    
-  } catch (error: any) { // Fixed: Added type annotation for error
-    console.error('Error adding budget:', error);
-    showToast('Error adding budget: ' + error.message);
-  }
-};
-
-const handleEditBudget = async () => {
-  if (!editingBudget || !session) {
-    showToast('Please log in to edit budgets');
-    return;
-  }
-
-  try {
-    const updatedFields = {
-      category: budgetFormData.category,
-      budget_limit: parseFloat(budgetFormData.budget_limit),
-      period: budgetFormData.period
-    };
-
-    const { data, error } = await supabase
-      .from('budgets')
-      .update(updatedFields)
-      .eq('id', editingBudget.id)
-      .eq('user_id', session.user.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Update local state
-    setFinancialData(prev => ({
-      ...prev,
-      budgets: prev.budgets.map(b => 
-        b.id === editingBudget.id ? data : b
-      )
-    }));
-
-    showToast('Budget updated successfully!');
-    setEditingBudget(null);
-    setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
-    
-  } catch (error) {
-    console.error('Error updating budget:', error);
-    showToast('Error updating budget');
-  }
-};
-
-// Replace the existing handleDeleteBudget function with this:
-const handleDeleteBudget = async (budgetId: string) => {
-  try {
-    const { error } = await supabase
-      .from('budgets')
-      .delete()
-      .eq('id', budgetId);
-
-    if (error) throw error;
-
-    setFinancialData(prev => ({
-      ...prev,
-      budgets: prev.budgets.filter(b => b.id !== budgetId)
-    }));
-
-    setDeleteBudgetId(null);
-    showToast('Budget deleted successfully');
-  } catch (error) {
-    console.error('Error deleting budget:', error);
-    showToast('Error deleting budget');
-  }
-};
-  // Enhanced retry function with session validation
-  const handleRetryConnection = async () => {
-    if (!session) {
-      setShowSessionExpiredModal(true);
-      return;
-    }
-
-    setIsReconnecting(true);
-    showToast('Attempting to reconnect...');
-
-    // First check if session is still valid
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    
-    if (!currentSession) {
-      setShowSessionExpiredModal(true);
-      setIsReconnecting(false);
-      return;
-    }
-
-    // Then attempt database connection
-    const connectionOk = await checkDatabaseConnection(true);
-    
-    if (connectionOk) {
-      await fetchData(currentSession);
-    } else {
-      attemptAutoReconnect();
-    }
-  };
-
-  // Enhanced manual re-login function
-  const handleForceReLogin = () => {
-    // Clear all local state
-    setSession(null);
-    setFinancialData({
-      income: 0.00,
-      expenses: 0.00,
-      profit: 0.00,
-      transactions: [],
-      budgets: [],
-      alerts: [],
-      aiRecommendations: [
-        'Add your transactions to get personalized financial insights',
-        'Create budgets to track your spending limits',
-        'Monitor your income and expense patterns regularly'
-      ],
-      cashFlowForecast: [
-        { month: 'Apr', forecast: 4500, actual: null },
-        { month: 'May', forecast: 5200, actual: null },
-        { month: 'Jun', forecast: 4800, actual: null },
-        { month: 'Jul', forecast: 5500, actual: null }
-      ]
-    });
-    
-    // Reset connection counters
-    connectionIssuesRef.current = 0;
-    setConnectionRetryCount(0);
-    
-    // Close modals and redirect to login
-    setShowReLoginModal(false);
-    setShowConnectionErrorModal(false);
-    setShowSessionExpiredModal(false);
-  };
 
   // Get data key for chart based on time filter
   const getDataKey = () => {
@@ -1753,7 +1758,7 @@ const handleDeleteBudget = async (budgetId: string) => {
         <span>{networkStatus === 'online' ? 'Online' : 'Offline'}</span>
       </div>
 
-      {/* Database status indicator with reconnecting animation */}
+      {/* Database status indicator */}
       <div className={`hidden sm:flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-medium ${
         databaseStatus === 'connected' 
           ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
@@ -1825,22 +1830,14 @@ const handleDeleteBudget = async (budgetId: string) => {
             
             <div className="flex gap-3 w-full">
               <button
-                onClick={handleRetryConnection}
-                disabled={isReconnecting}
+                onClick={() => window.location.reload()}
                 className={`flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
                   darkMode 
                     ? 'bg-gray-700 hover:bg-gray-600 text-white disabled:bg-gray-800 disabled:text-gray-500' 
                     : 'bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:bg-gray-300 disabled:text-gray-500'
                 }`}
               >
-                {isReconnecting ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Retrying...</span>
-                  </>
-                ) : (
-                  <span>Try Again</span>
-                )}
+                <span>Try Again</span>
               </button>
               
               <button
@@ -1923,29 +1920,21 @@ const handleDeleteBudget = async (budgetId: string) => {
             
             <div className="flex gap-3 w-full">
               <button
-                onClick={handleRetryConnection}
-                disabled={isReconnecting}
+                onClick={() => window.location.reload()}
                 className={`flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
                   darkMode 
                     ? 'bg-gray-700 hover:bg-gray-600 text-white disabled:bg-gray-800 disabled:text-gray-500' 
                     : 'bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:bg-gray-300 disabled:text-gray-500'
                 }`}
               >
-                {isReconnecting ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Retrying...</span>
-                  </>
-                ) : (
-                  <span>Retry Connection</span>
-                )}
+                <span>Reload Page</span>
               </button>
               
               <button
-                onClick={() => window.location.reload()}
+                onClick={handleForceReLogin}
                 className="flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
               >
-                Reload Page
+                Re-login Now
               </button>
             </div>
 
@@ -1971,17 +1960,23 @@ const handleDeleteBudget = async (budgetId: string) => {
                   alt="Monietar Logo"
                   width={160}
                   height={40}
-                  className="object-contain animate-ping"
+                  className="object-contain animate-pulse"
                 />
         </div>
+        <p className={`mt-4 ${themeClasses.text.secondary}`}>Loading your dashboard...</p>
       </div>
     );
   }
 
+  // If no session found, redirect to signin page
   if (!session) {
+    // This will trigger the redirect in useEffect, but we show a message meanwhile
     return (
-      <div className={`text-center py-12 ${themeClasses.background} ${themeClasses.text.primary}`}>
-        Please log in to access the dashboard. <Link href="/auth/signin" className="text-blue-400 hover:underline">Signin</Link>
+      <div className={`flex flex-col items-center justify-center h-screen ${themeClasses.background}`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p className={themeClasses.text.primary}>Redirecting to signin page...</p>
+        </div>
       </div>
     );
   }
@@ -2256,7 +2251,6 @@ const handleDeleteBudget = async (budgetId: string) => {
   onSubmit={() => handleAddTransaction('income')}
   categories={categories}
   darkMode={darkMode}
-  // Remove isLoading prop since we're handling it internally now
 />
 
           {/* Add Expense Modal */}
@@ -2307,8 +2301,6 @@ const handleDeleteBudget = async (budgetId: string) => {
           />
 
           {/* Delete Transaction Confirmation */}
-       {/* For less critical actions - use warning type */}
-{/* Delete Transaction Confirmation Modal */}
 <DeleteConfirmationModal
   isOpen={!!deleteTransactionId}
   onClose={() => setDeleteTransactionId(null)}
