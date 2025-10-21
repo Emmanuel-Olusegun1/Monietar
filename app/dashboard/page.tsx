@@ -88,10 +88,362 @@ interface EnhancedBudget {
   created_at?: string; // Add this to match the expected type
 }
 
+<<<<<<< HEAD
 const supabase: SupabaseClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://coihzyskjxedccjpzjzd.supabase.co",
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvaWh6eXNranhlZGNjanB6anpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDQ5ODMsImV4cCI6MjA3MjQyMDk4M30.KbvQ6wfBmjov2ZhdF1_t7PX0JLRnfHGUOMbDHtZABLE"
 );
+=======
+// Create Supabase client
+const supabase = createClientComponentClient();
+
+// Fintech Chatbot Service
+class FintechChatbotService {
+  // Generate embeddings using OpenAI (you'll need an API key)
+  static async generateEmbedding(text: string): Promise<number[] | null> {
+    try {
+      // For free tier, we can use a simple TF-IDF like approach or use Groq
+      // Since OpenAI isn't free, we'll implement a keyword-based matching system
+      return this.simpleTextToVector(text);
+    } catch (error) {
+      console.error('Error generating embedding:', error);
+      return null;
+    }
+  }
+
+  // Simple text vectorization for free tier (basic keyword matching)
+  private static simpleTextToVector(text: string): number[] {
+    // This is a simplified approach - in production you'd want proper embeddings
+    const fintechKeywords = [
+      'cash flow', 'budget', 'expense', 'income', 'revenue', 'profit',
+      'burn rate', 'forecast', 'management', 'analysis', 'optimization',
+      'working capital', 'liquidity', 'financial', 'money', 'cost',
+      'savings', 'investment', 'cash', 'budgeting', 'tracking'
+    ];
+    
+    const vector = new Array(fintechKeywords.length).fill(0);
+    const words = text.toLowerCase().split(/\s+/);
+    
+    words.forEach(word => {
+      const index = fintechKeywords.findIndex(keyword => 
+        keyword.includes(word) || word.includes(keyword)
+      );
+      if (index !== -1) {
+        vector[index] += 1;
+      }
+    });
+    
+    return vector;
+  }
+
+  // Semantic search in fintech knowledge base
+  static async searchFintechKnowledge(query: string, limit: number = 3) {
+    try {
+      const queryVector = this.simpleTextToVector(query);
+      
+      // Convert to PostgreSQL vector format
+      const vectorStr = `[${queryVector.join(',')}]`;
+      
+      const { data, error } = await supabase
+        .rpc('match_fintech_documents', {
+          query_embedding: vectorStr,
+          match_count: limit
+        });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error searching fintech knowledge:', error);
+      
+      // Fallback: keyword-based search
+      const { data, error } = await supabase
+        .from('fintech_knowledge_base')
+        .select('*')
+        .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+        .limit(limit);
+
+      if (error) throw error;
+      return data || [];
+    }
+  }
+
+  // Save chat conversation
+  static async saveConversation(userId: string, title: string) {
+    const { data, error } = await supabase
+      .from('chat_conversations')
+      .insert([
+        { user_id: userId, title }
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  // Save chat message
+  static async saveMessage(conversationId: string, role: string, content: string) {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert([
+        { conversation_id: conversationId, role, content }
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  // Get user's chat history
+  static async getChatHistory(userId: string, limit: number = 10) {
+    const { data, error } = await supabase
+      .from('chat_conversations')
+      .select(`
+        *,
+        chat_messages (*)
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data || [];
+  }
+}
+
+// MOCK_DATA for frontend development
+const MOCK_DATA = {
+  transactions: [
+    {
+      id: '1',
+      user_id: 'user-001',
+      type: 'income',
+      amount: 50000,
+      category: 'Selling Products',
+      description: 'Monthly product sales',
+      date: new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString()
+    },
+    {
+      id: '2',
+      user_id: 'user-001',
+      type: 'expense',
+      amount: 15000,
+      category: 'Worker Pay',
+      description: 'Staff salaries',
+      date: new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString()
+    },
+    {
+      id: '3',
+      user_id: 'user-001',
+      type: 'income',
+      amount: 25000,
+      category: 'Service Work',
+      description: 'Consulting services',
+      date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+      created_at: new Date(Date.now() - 86400000).toISOString()
+    }
+  ],
+  budgets: [
+    {
+      id: '1',
+      user_id: 'user-001',
+      category: 'Worker Pay',
+      budget_limit: 20000,
+      spent: 15000,
+      percentage: 75,
+      period: 'monthly',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: '2',
+      user_id: 'user-001',
+      category: 'Marketing Costs',
+      budget_limit: 5000,
+      spent: 3000,
+      percentage: 60,
+      period: 'monthly',
+      created_at: new Date().toISOString()
+    }
+  ],
+  profile: {
+    full_name: 'John Doe',
+    business_name: 'Doe Enterprises',
+    email: 'john@doe.com',
+    phone_number: '+234 901 234 5678',
+    currency: 'NGN',
+    language: 'en',
+    date_format: 'MM/DD/YYYY',
+    timezone: 'UTC',
+    notification_settings: {
+      budgetAlerts: true,
+      weeklyReports: true,
+      transactionAlerts: true,
+      aiRecommendations: true
+    },
+    plan: 'Free Plan',
+    created_at: new Date().toISOString()
+  }
+};
+
+// Mock API service using MOCK_DATA
+const apiService = {
+  async fetchTransactions(userId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Return mock transactions for the user
+    return {
+      transactions: MOCK_DATA.transactions.filter(t => t.user_id === userId)
+    };
+  },
+
+  async fetchBudgets(userId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Return mock budgets for the user
+    return {
+      budgets: MOCK_DATA.budgets.filter(b => b.user_id === userId)
+    };
+  },
+
+  async fetchProfile(userId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Return mock profile
+    return {
+      profile: MOCK_DATA.profile
+    };
+  },
+
+  async addTransaction(transactionData: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Create mock transaction
+    const newTransaction = {
+      id: `mock-${Date.now()}`,
+      user_id: session.user.id,
+      ...transactionData,
+      created_at: new Date().toISOString()
+    };
+    
+    // Add to mock data
+    MOCK_DATA.transactions.push(newTransaction);
+    
+    return {
+      transaction: newTransaction
+    };
+  },
+
+  async updateTransaction(transactionId: string, transactionData: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Update mock transaction
+    const transactionIndex = MOCK_DATA.transactions.findIndex(t => t.id === transactionId);
+    if (transactionIndex !== -1) {
+      MOCK_DATA.transactions[transactionIndex] = {
+        ...MOCK_DATA.transactions[transactionIndex],
+        ...transactionData
+      };
+      
+      return {
+        transaction: MOCK_DATA.transactions[transactionIndex]
+      };
+    }
+    
+    throw new Error('Transaction not found');
+  },
+
+  async deleteTransaction(transactionId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Remove from mock data
+    const transactionIndex = MOCK_DATA.transactions.findIndex(t => t.id === transactionId);
+    if (transactionIndex !== -1) {
+      MOCK_DATA.transactions.splice(transactionIndex, 1);
+      return { success: true };
+    }
+    
+    throw new Error('Transaction not found');
+  },
+
+  async addBudget(budgetData: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Create mock budget
+    const newBudget = {
+      id: `mock-budget-${Date.now()}`,
+      user_id: session.user.id,
+      ...budgetData,
+      spent: 0,
+      percentage: 0,
+      created_at: new Date().toISOString()
+    };
+    
+    // Add to mock data
+    MOCK_DATA.budgets.push(newBudget);
+    
+    return {
+      budget: newBudget
+    };
+  },
+
+  async updateBudget(budgetId: string, budgetData: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Update mock budget
+    const budgetIndex = MOCK_DATA.budgets.findIndex(b => b.id === budgetId);
+    if (budgetIndex !== -1) {
+      MOCK_DATA.budgets[budgetIndex] = {
+        ...MOCK_DATA.budgets[budgetIndex],
+        ...budgetData
+      };
+      
+      return {
+        budget: MOCK_DATA.budgets[budgetIndex]
+      };
+    }
+    
+    throw new Error('Budget not found');
+  },
+
+  async deleteBudget(budgetId: string, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Remove from mock data
+    const budgetIndex = MOCK_DATA.budgets.findIndex(b => b.id === budgetId);
+    if (budgetIndex !== -1) {
+      MOCK_DATA.budgets.splice(budgetIndex, 1);
+      return { success: true };
+    }
+    
+    throw new Error('Budget not found');
+  },
+
+  async saveSettings(settings: any, session: Session) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Update mock profile
+    MOCK_DATA.profile = {
+      ...MOCK_DATA.profile,
+      ...settings
+    };
+    
+    return { success: true };
+  }
+};
+>>>>>>> 2bee47bc14e07266e24983f25bb2a6382b9e80a9
 
 export default function Dashboard() {
   const [session, setSession] = useState<Session | null>(null);
@@ -306,6 +658,16 @@ export default function Dashboard() {
     { value: 'yearly', label: 'Yearly', icon: Calendar }
   ];
 
+  // Fintech suggested questions for the chatbot
+  const fintechSuggestedQuestions = [
+    "How can I improve my cash flow?",
+    "What's the difference between profit and cash flow?",
+    "How do I calculate my burn rate?",
+    "Best practices for expense tracking?",
+    "How to create a cash flow forecast?",
+    "What is working capital management?"
+  ];
+
   // Helper functions
   const formatCurrency = (amount: number): string => {
     if (!showBalance && amount !== 0) {
@@ -328,6 +690,7 @@ export default function Dashboard() {
     setToastOpen(true);
   };
 
+<<<<<<< HEAD
   // Enhanced connection monitoring with auto-reconnect and re-login prompts
   const checkDatabaseConnection = async (isRetry: boolean = false): Promise<boolean> => {
     try {
@@ -395,6 +758,125 @@ export default function Dashboard() {
         attemptAutoReconnect();
       }
     }, delay);
+=======
+  // Enhanced AI response generator with fintech context
+  const generateAIResponseWithContext = async (
+    userQuestion: string, 
+    relevantKnowledge: any[],
+    financialData: FinancialData
+  ): Promise<string> => {
+    
+    // Build context from relevant fintech knowledge
+    const knowledgeContext = relevantKnowledge.length > 0 
+      ? `Relevant Financial Knowledge:\n${relevantKnowledge.map(k => `- ${k.content}`).join('\n')}`
+      : 'No specific financial knowledge found for this query.';
+
+    // Build user data context
+    const userDataContext = financialData.transactions.length > 0
+      ? `User Financial Snapshot:\n- Income: ${formatCurrency(financialData.income)}\n- Expenses: ${formatCurrency(financialData.expenses)}\n- Profit: ${formatCurrency(financialData.profit)}\n- Total Transactions: ${financialData.transactions.length}`
+      : 'No transaction data available yet.';
+
+    const prompt = `
+You are a specialized AI financial advisor focused on cash flow management and fintech. 
+Your expertise includes budgeting, expense tracking, cash flow analysis, and financial optimization.
+
+${knowledgeContext}
+
+${userDataContext}
+
+User Question: "${userQuestion}"
+
+Guidelines for your response:
+1. Focus on practical, actionable advice for cash flow management
+2. Use financial terminology appropriately but explain complex concepts
+3. Provide specific examples when helpful
+4. Reference the user's financial data if relevant
+5. Keep responses concise but comprehensive
+6. If the question is outside cash flow management, politely redirect to financial topics
+7. Suggest related financial concepts they might find helpful
+
+Response:
+`;
+
+    // Use your existing AI processor with the enhanced prompt
+    return AdvancedFinancialNLP.processQuery(
+      prompt,
+      financialData.transactions,
+      financialData.budgets,
+      (amount: number) => formatCurrency(amount)
+    );
+  };
+
+  // Enhanced AI Chat Function with Supabase Integration
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !session) return;
+
+    const userMessage: ChatMessage = { 
+      id: Date.now(), 
+      text: newMessage, 
+      sender: 'user' 
+    };
+    setChatMessages(prev => [...prev, userMessage]);
+    setNewMessage('');
+
+    // Show typing indicator
+    const typingMessage: ChatMessage = { 
+      id: Date.now() + 0.5, 
+      text: "Analyzing your cash flow question...", 
+      sender: 'ai' 
+    };
+    setChatMessages(prev => [...prev, typingMessage]);
+
+    try {
+      // Search for relevant fintech knowledge from Supabase
+      const relevantKnowledge = await FintechChatbotService.searchFintechKnowledge(newMessage);
+      
+      // Get AI response with fintech context
+      const aiResponse = await generateAIResponseWithContext(
+        newMessage, 
+        relevantKnowledge,
+        financialData
+      );
+
+      // Remove typing indicator and add actual response
+      setChatMessages(prev => 
+        prev.filter(msg => msg.id !== typingMessage.id).concat({
+          id: Date.now() + 1,
+          text: aiResponse,
+          sender: 'ai'
+        })
+      );
+
+      // Save to conversation history in Supabase
+      try {
+        if (chatMessages.length === 0) {
+          // First message in conversation
+          const conversation = await FintechChatbotService.saveConversation(
+            session.user.id, 
+            newMessage.substring(0, 50) + '...'
+          );
+          await FintechChatbotService.saveMessage(conversation.id, 'user', newMessage);
+          await FintechChatbotService.saveMessage(conversation.id, 'assistant', aiResponse);
+        } else {
+          // For existing conversations, you might want to implement conversation tracking
+          // This is a simplified version
+        }
+      } catch (saveError) {
+        console.error('Error saving chat history:', saveError);
+        // Don't show error to user for save failures
+      }
+
+    } catch (error) {
+      console.error('AI response error:', error);
+      setChatMessages(prev => 
+        prev.filter(msg => msg.id !== typingMessage.id).concat({
+          id: Date.now() + 1,
+          text: "I'm having trouble accessing financial insights right now. Please try again later or ask about cash flow management, budgeting, or financial analysis.",
+          sender: 'ai'
+        })
+      );
+    }
+>>>>>>> 2bee47bc14e07266e24983f25bb2a6382b9e80a9
   };
 
   // Enhanced session monitoring with connection persistence check
@@ -542,6 +1024,7 @@ export default function Dashboard() {
     };
   }, [session, networkStatus]);
 
+<<<<<<< HEAD
   // Enhanced AI Chat Function
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -597,6 +1080,9 @@ export default function Dashboard() {
   };
 
   // Settings Functions
+=======
+  // Settings Functions with Mock API
+>>>>>>> 2bee47bc14e07266e24983f25bb2a6382b9e80a9
   const handleSaveSettings = async () => {
     if (!session) {
       showToast('Please log in to save settings');
@@ -2393,7 +2879,7 @@ const handleDeleteBudget = async (budgetId: string) => {
             darkMode={darkMode}
           />
 
-          {/* AI Chat Modal */}
+          {/* Enhanced AI Chat Modal with Fintech Suggestions */}
           <AIChatModal
             isOpen={isChatOpen}
             onClose={() => setIsChatOpen(false)}
@@ -2402,6 +2888,7 @@ const handleDeleteBudget = async (budgetId: string) => {
             onNewMessageChange={setNewMessage}
             onSendMessage={sendMessage}
             darkMode={darkMode}
+            suggestedQuestions={fintechSuggestedQuestions}
           />
 
           {/* Session Expired Modal */}
