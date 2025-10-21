@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -38,27 +38,45 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend, Area, AreaChart } from 'recharts';
 
 interface OverviewPageProps {
-  financialData: any;
-  formatCurrency: (amount: number) => string;
-  timeFilter: string;
-  setTimeFilter: (filter: string) => void;
-  timeFilters: any[];
-  hasTransactionData: boolean;
-  currentTrendData: any[];
-  categoryBreakdown: any;
-  budgetsWithRealTimeTracking: any[];
-  realTimeAlerts: any[];
+  darkMode: boolean;
+  themeClasses: any;
   setShowIncomeForm: (show: boolean) => void;
   setShowExpenseForm: (show: boolean) => void;
   setShowBudgetForm: (show: boolean) => void;
-  startEditBudget: (budget: any) => void;
-  setDeleteBudgetId: (id: string | null) => void;
   setActiveTab: (tab: string) => void;
-  darkMode: boolean;
-  themeClasses: any;
-  getDataKey: () => string;
-  CustomTooltip: any;
-  EmptyState: any;
+}
+
+interface FinancialData {
+  income: number;
+  expenses: number;
+  profit: number;
+  aiRecommendations?: string[];
+}
+
+interface Budget {
+  id: string;
+  category: string;
+  budget_limit: number;
+  spent: number;
+  percentage: number;
+}
+
+interface Alert {
+  message: string;
+  priority: 'critical' | 'high' | 'medium';
+}
+
+interface CategoryBreakdown {
+  income: Array<{
+    name: string;
+    value: number;
+  }>;
+}
+
+interface TrendData {
+  period: string;
+  income: number;
+  expenses: number;
 }
 
 const categoryColors: { [key: string]: string } = {
@@ -73,35 +91,219 @@ const categoryColors: { [key: string]: string } = {
   'default': '#6b7280'
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api';
+
 export const OverviewPage: React.FC<OverviewPageProps> = ({
-  financialData,
-  formatCurrency,
-  timeFilter,
-  setTimeFilter,
-  timeFilters,
-  hasTransactionData,
-  currentTrendData,
-  categoryBreakdown,
-  budgetsWithRealTimeTracking,
-  realTimeAlerts,
+  darkMode,
+  themeClasses,
   setShowIncomeForm,
   setShowExpenseForm,
   setShowBudgetForm,
-  startEditBudget,
-  setDeleteBudgetId,
-  setActiveTab,
-  darkMode,
-  themeClasses,
-  getDataKey,
-  CustomTooltip,
-  EmptyState
+  setActiveTab
 }) => {
   const [showProfitOnChart, setShowProfitOnChart] = useState(true);
   const [chartType, setChartType] = useState<'line' | 'area'>('area');
   const [searchTerm, setSearchTerm] = useState('');
+  const [timeFilter, setTimeFilter] = useState('monthly');
   const [selectedTimeFilter, setSelectedTimeFilter] = useState(timeFilter);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Enhanced Empty State for New Users - Inspired by BudgetsPage
+  // State for API data
+  const [financialData, setFinancialData] = useState<FinancialData>({
+    income: 0,
+    expenses: 0,
+    profit: 0,
+    aiRecommendations: []
+  });
+  const [budgetsWithRealTimeTracking, setBudgetsWithRealTimeTracking] = useState<Budget[]>([]);
+  const [realTimeAlerts, setRealTimeAlerts] = useState<Alert[]>([]);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown>({ income: [] });
+  const [currentTrendData, setCurrentTrendData] = useState<TrendData[]>([]);
+
+  const timeFilters = [
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'yearly', label: 'Yearly' }
+  ];
+
+  // API Calls
+  const fetchFinancialData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch all data in parallel
+      const [
+        financialResponse,
+        budgetsResponse,
+        alertsResponse,
+        categoriesResponse,
+        trendsResponse
+      ] = await Promise.all([
+        fetch(`${API_BASE_URL}/financial/overview?timeFilter=${timeFilter}`),
+        fetch(`${API_BASE_URL}/budgets?timeFilter=${timeFilter}`),
+        fetch(`${API_BASE_URL}/alerts`),
+        fetch(`${API_BASE_URL}/categories/breakdown?type=income&timeFilter=${timeFilter}`),
+        fetch(`${API_BASE_URL}/trends?timeFilter=${timeFilter}`)
+      ]);
+
+      if (!financialResponse.ok || !budgetsResponse.ok || !alertsResponse.ok || 
+          !categoriesResponse.ok || !trendsResponse.ok) {
+        throw new Error('Failed to fetch financial data');
+      }
+
+      const [
+        financialData,
+        budgetsData,
+        alertsData,
+        categoriesData,
+        trendsData
+      ] = await Promise.all([
+        financialResponse.json(),
+        budgetsResponse.json(),
+        alertsResponse.json(),
+        categoriesResponse.json(),
+        trendsResponse.json()
+      ]);
+
+      setFinancialData(financialData);
+      setBudgetsWithRealTimeTracking(budgetsData.budgets || []);
+      setRealTimeAlerts(alertsData.alerts || []);
+      setCategoryBreakdown(categoriesData);
+      setCurrentTrendData(trendsData.trends || []);
+
+    } catch (err) {
+      console.error('Error fetching financial data:', err);
+      setError('Failed to load financial data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addTransaction = async (transactionData: any) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(transactionData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add transaction');
+      }
+
+      // Refresh data after adding transaction
+      await fetchFinancialData();
+      return await response.json();
+    } catch (err) {
+      console.error('Error adding transaction:', err);
+      throw err;
+    }
+  };
+
+  const deleteBudget = async (budgetId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/budgets/${budgetId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete budget');
+      }
+
+      // Refresh data after deleting budget
+      await fetchFinancialData();
+    } catch (err) {
+      console.error('Error deleting budget:', err);
+      throw err;
+    }
+  };
+
+  // Effects
+  useEffect(() => {
+    fetchFinancialData();
+  }, [timeFilter]);
+
+  // Utility functions
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const hasTransactionData = financialData.income > 0 || financialData.expenses > 0;
+
+  const getDataKey = () => {
+    switch (timeFilter) {
+      case 'daily': return 'period';
+      case 'weekly': return 'week';
+      case 'monthly': return 'month';
+      case 'yearly': return 'year';
+      default: return 'period';
+    }
+  };
+
+  // Custom Tooltip Component
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className={`p-3 rounded-lg border backdrop-blur-sm ${
+          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        } shadow-lg`}>
+          <p className={`font-medium ${themeClasses.text.primary}`}>{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {entry.name}: {formatCurrency(entry.value)}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Empty State Component
+  const EmptyState = () => (
+    <div className={`text-center py-16 rounded-2xl border-2 border-dashed ${themeClasses.border}`}>
+      <BarChart className={`w-16 h-16 mx-auto mb-4 ${themeClasses.text.muted}`} />
+      <h3 className={`text-2xl font-bold mb-3 ${themeClasses.text.primary}`}>
+        No Financial Data Yet
+      </h3>
+      <p className={`text-lg mb-8 max-w-md mx-auto ${themeClasses.text.secondary}`}>
+        Start tracking your income and expenses to unlock powerful insights, charts, and financial recommendations.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <motion.button
+          whileHover={{ scale: 1.05, y: -2 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setShowIncomeForm(true)}
+          className="inline-flex hover:cursor-pointer items-center space-x-3 px-8 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-lg hover:shadow-xl font-semibold"
+        >
+          <Plus className="w-6 h-6" />
+          <span>Add Your First Income</span>
+        </motion.button>
+        
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setShowExpenseForm(true)}
+          className="inline-flex hover:cursor-pointer items-center space-x-3 px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
+        >
+          <TrendingDown className="w-5 h-5" />
+          <span>Add Expense</span>
+        </motion.button>
+      </div>
+    </div>
+  );
+
+  // Enhanced Empty State for New Users
   const renderEmptyState = () => (
     <div className="space-y-8">
       {/* Header */}
@@ -114,40 +316,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </p>
       </div>
 
-      {/* Enhanced Empty State - BudgetsPage Style */}
-      <div className={`text-center py-16 rounded-2xl border-2 border-dashed ${themeClasses.border}`}>
-        <BarChart className={`w-16 h-16 mx-auto mb-4 ${themeClasses.text.muted}`} />
-     
-        <h3 className={`text-2xl font-bold mb-3 ${themeClasses.text.primary}`}>
-          No Financial Data Yet
-        </h3>
-        <p className={`text-lg mb-8 max-w-md mx-auto ${themeClasses.text.secondary}`}>
-          Start tracking your income and expenses to unlock powerful insights, charts, and financial recommendations.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <motion.button
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setShowIncomeForm(true)}
-            className="inline-flex hover:cursor-pointer items-center space-x-3 px-8 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-lg hover:shadow-xl font-semibold hover:cursor-pointer"
-          >
-            <Plus className="w-6 h-6" />
-            <span>Add Your First Income</span>
-          </motion.button>
-          
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setShowExpenseForm(true)}
-            className="inline-flex hover:cursor-pointer items-center space-x-3 px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 font-medium hover:cursor-pointer"
-          >
-            <TrendingDown className="w-5 h-5" />
-            <span>Add Expense</span>
-          </motion.button>
-        </div>
-      </div>
+      {/* Enhanced Empty State */}
+      <EmptyState />
 
-      {/* Features Section - BudgetsPage Style */}
+      {/* Features Section */}
       <div className={`mt-12 p-8 rounded-2xl ${themeClasses.card}`}>
         <h3 className={`text-2xl font-bold text-center mb-8 ${themeClasses.text.primary}`}>
           Why Track Your Finances?
@@ -201,6 +373,37 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       </div>
     </div>
   );
+
+  // Loading State
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className={themeClasses.text.primary}>Loading financial data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error State
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h3 className={`text-xl font-bold mb-2 ${themeClasses.text.primary}`}>Error Loading Data</h3>
+          <p className={`mb-4 ${themeClasses.text.secondary}`}>{error}</p>
+          <button
+            onClick={fetchFinancialData}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Enhanced Financial Health Section
   const renderFinancialHealth = () => {
@@ -445,7 +648,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               financialData.profit >= 0 ? 'text-blue-500' : 'text-red-500'
             }`} />
           </div>
-        
         </div>
         <h3 className={`text-2xl sm:text-3xl font-bold mb-2 bg-gradient-to-r ${
           financialData.profit >= 0 ? 'from-blue-600 to-blue-500' : 'from-red-600 to-red-500'
@@ -1087,7 +1289,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   Monitor your business performance and financial health
                 </p>
               </div>
-          
             </div>
 
             {/* All Sections Stacked Vertically */}

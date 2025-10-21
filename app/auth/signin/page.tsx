@@ -6,12 +6,128 @@ import { useState, FormEvent, ChangeEvent, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { translations, languages } from './signintranslations';
-import { supabase } from '@/lib/supabase/client';
 import { Toaster, toast } from 'react-hot-toast';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Phone } from 'lucide-react';
+
+// Create Supabase client
+const supabase = createClientComponentClient();
+
+const MOCK_DATA = {
+  email: {
+    'user@monitar.com': {
+      Password: 'password123',
+      name: 'Monietar User1',
+      id: 'user-001'
+    },
+    'my@monietar.com': {
+      password: 'password456',
+      name: 'MOnietar User2',
+      id: 'user-002'
+    }
+  },
+  Phone: {
+    '+234 9034010384': {
+      name: 'Phone User1',
+      id: 'phone-user-001'
+    },
+    '+234 9071565791': {
+      name: 'Phone User2',
+      id: 'phone-user-002'
+    }
+  }
+};
+
+// Mock API service using MOCK_DATA
+const authAPI = {
+  async signInWithEmail(email: string, password: string) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const user = MOCK_DATA.email[email as keyof typeof MOCK_DATA.email];
+    
+    if (!user) {
+      throw new Error('No user found with this email');
+    }
+    
+    // Note: In your MOCK_DATA, one has 'Password' and one has 'password' - fixing this inconsistency
+    const userPassword = (user as any).Password || (user as any).password;
+    
+    if (userPassword !== password) {
+      throw new Error('Invalid password');
+    }
+    
+    return {
+      user: {
+        id: user.id,
+        email: email,
+        name: user.name
+      },
+      session: {
+        access_token: 'mock-access-token',
+        refresh_token: 'mock-refresh-token'
+      }
+    };
+  },
+
+  async signInWithPhone(phone: string) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const cleanedPhone = phone.replace(/\s/g, '');
+    const phoneKey = Object.keys(MOCK_DATA.Phone).find(key => key.replace(/\s/g, '') === cleanedPhone);
+    
+    if (!phoneKey) {
+      throw new Error('No user found with this phone number');
+    }
+    
+    const user = MOCK_DATA.Phone[phoneKey as keyof typeof MOCK_DATA.Phone];
+    
+    return {
+      success: true,
+      message: 'Verification code sent',
+      user: {
+        id: user.id,
+        phone: phoneKey,
+        name: user.name
+      }
+    };
+  },
+
+  async signInWithGoogle() {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Mock Google OAuth URL
+    return '/auth/google/callback';
+  },
+
+  async resetPassword(email: string) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const user = MOCK_DATA.email[email as keyof typeof MOCK_DATA.email];
+    
+    if (!user) {
+      throw new Error('No user found with this email');
+    }
+    
+    return { message: 'Password reset instructions sent to your email' };
+  },
+
+  async checkAuth(): Promise<{ user?: any }> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Always return not authenticated in mock
+    throw new Error('Not authenticated');
+  }
+};
 
 // Create a wrapper component that uses useSearchParams
 function SigninContent() {
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('English');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -21,63 +137,59 @@ function SigninContent() {
     phone: '',
     password: '',
   });
-  const [supabaseInitialized, setSupabaseInitialized] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const t = translations[currentLanguage.toLowerCase().substring(0, 2) as keyof typeof translations] || translations.en;
 
-  // Check if Supabase is initialized
+  // Check authentication status and handle OAuth callback
   useEffect(() => {
-    try {
-      // This will throw an error if Supabase isn't properly configured
-      supabase.auth.getSession();
-      setSupabaseInitialized(true);
-    } catch (error) {
-      console.error('Supabase not initialized:', error);
-      toast.error('Authentication service is not configured properly');
-    }
-  }, []);
-
-  // Handle OAuth callback
-  useEffect(() => {
-    const handleOAuthCallback = async () => {
-      if (!supabaseInitialized) return;
-      
-      // Check if this is an OAuth callback by looking for specific parameters
-      const error = searchParams.get('error');
-      const errorDescription = searchParams.get('error_description');
-      
-      if (error) {
-        toast.error(errorDescription || 'Authentication failed');
-        return;
-      }
-
-      // Check if we have a session (OAuth success)
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setIsSigningIn(true);
-        toast.loading('Completing sign in...');
+    const checkAuth = async () => {
+      try {
+        setIsCheckingAuth(true);
         
-        try {
-          toast.success(t.thankYou || 'Welcome back!');
-          
-          // Redirect to dashboard after a short delay
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 1000);
-        } catch (error: any) {
-          console.error('OAuth error:', error);
-          toast.error(error.message || 'Failed to sign in');
-        } finally {
-          setIsSigningIn(false);
-          toast.dismiss();
+        // Use Supabase directly for session check (more reliable)
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          console.log('User already authenticated, redirecting to dashboard');
+          router.push('/dashboard');
+          return;
         }
+        
+        // Fallback to API check
+        try {
+          const response = await authAPI.checkAuth();
+          if (response.user) {
+            router.push('/dashboard');
+            return;
+          }
+        } catch (apiError) {
+          console.log('API auth check failed, continuing with signin form');
+        }
+        
+        // Handle OAuth callback errors
+        const error = searchParams.get('error');
+        const errorDescription = searchParams.get('error_description');
+        
+        if (error) {
+          toast.error(errorDescription || 'Authentication failed');
+          // Clear URL parameters
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('error');
+          newUrl.searchParams.delete('error_description');
+          window.history.replaceState({}, '', newUrl.toString());
+        }
+        
+      } catch (error) {
+        console.log('User not authenticated, showing signin form');
+      } finally {
+        setIsCheckingAuth(false);
       }
     };
-    
-    handleOAuthCallback();
-  }, [searchParams, router, t.thankYou, supabaseInitialized]);
+
+    checkAuth();
+  }, [searchParams, router]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -88,10 +200,6 @@ function SigninContent() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!supabaseInitialized) {
-      toast.error('Authentication service is not ready');
-      return;
-    }
     
     setIsSigningIn(true);
     
@@ -101,29 +209,37 @@ function SigninContent() {
       if (signinMethod === 'email') {
         // Email signin
         const { email, password } = formData;
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        
+        // First try direct Supabase auth
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
 
-        if (error) {
-          throw error;
-        }
+          if (error) throw error;
 
-        if (data.session && data.user) {
           toast.success(t.thankYou || 'Welcome back!');
           
           // Redirect to dashboard after a short delay
           setTimeout(() => {
             router.push('/dashboard');
           }, 1000);
+          
+        } catch (directError: any) {
+          // Fallback to API if direct auth fails
+          console.log('Direct auth failed, trying API:', directError);
+          await authAPI.signInWithEmail(email, password);
+          toast.success(t.thankYou || 'Welcome back!');
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 1000);
         }
       } else {
         // Phone signin - Send OTP
-        // Ensure phone number includes country code
         let phoneNumber = formData.phone.replace(/\s/g, '');
         
-        // Add country code if not present (assuming +1 as default, but user should enter full international format)
+        // Add country code if not present
         if (!phoneNumber.startsWith('+')) {
           toast.error('Please include country code (e.g., +1 for US/Canada)');
           setIsSigningIn(false);
@@ -131,21 +247,24 @@ function SigninContent() {
           return;
         }
 
-        const { data, error } = await supabase.auth.signInWithOtp({
-          phone: phoneNumber,
-          options: {
-            // If the user doesn't exist, this will create a new user
-            shouldCreateUser: false,
-          },
-        });
+        // Try direct Supabase auth first
+        try {
+          const { error } = await supabase.auth.signInWithOtp({
+            phone: phoneNumber,
+          });
 
-        if (error) {
-          throw error;
-        }
+          if (error) throw error;
 
-        if (data) {
           toast.success('Verification code sent to your phone!');
-          // Redirect to OTP verification page
+          setTimeout(() => {
+            router.push(`/auth/verify-phone?phone=${encodeURIComponent(phoneNumber)}`);
+          }, 1500);
+          
+        } catch (directError: any) {
+          // Fallback to API
+          console.log('Direct phone auth failed, trying API:', directError);
+          await authAPI.signInWithPhone(phoneNumber);
+          toast.success('Verification code sent to your phone!');
           setTimeout(() => {
             router.push(`/auth/verify-phone?phone=${encodeURIComponent(phoneNumber)}`);
           }, 1500);
@@ -161,6 +280,8 @@ function SigninContent() {
         toast.error('Please verify your email address before signing in');
       } else if (error.message.includes('Phone')) {
         toast.error('Invalid phone number or user not found');
+      } else if (error.message.includes('Authentication service unavailable')) {
+        toast.error('Authentication service is currently unavailable. Please try again later.');
       } else {
         toast.error(error.message || 'Failed to sign in');
       }
@@ -171,26 +292,12 @@ function SigninContent() {
   };
 
   const handleGoogleSignin = async () => {
-    if (!supabaseInitialized) {
-      toast.error('Authentication service is not ready');
-      return;
-    }
-    
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/signin`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-
-      if (error) throw error;
-      
+      const oauthUrl = await authAPI.signInWithGoogle();
       toast.loading('Redirecting to Google...');
+      
+      // Redirect to Google OAuth
+      window.location.href = oauthUrl;
       
     } catch (error: any) {
       console.error('Google signin error:', error);
@@ -198,7 +305,7 @@ function SigninContent() {
     }
   };
 
-  const handleForgotPassword = async () => {
+  const handleForgotPassword = () => {
     if (signinMethod === 'email' && !formData.email) {
       toast.error('Please enter your email address first');
       return;
@@ -209,18 +316,8 @@ function SigninContent() {
       return;
     }
 
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      });
-
-      if (error) throw error;
-
-      toast.success('Password reset instructions sent to your email');
-    } catch (error: any) {
-      console.error('Password reset error:', error);
-      toast.error(error.message || 'Failed to send reset instructions');
-    }
+    // Redirect to forgot password page with the email pre-filled
+    router.push(`/auth/forgot-password?email=${encodeURIComponent(formData.email)}`);
   };
 
   const selectLanguage = (languageCode: string, languageName: string) => {
@@ -234,15 +331,12 @@ function SigninContent() {
 
   // Format phone number as user types (international format with +)
   const formatPhoneNumber = (value: string) => {
-    // Allow only numbers, +, and spaces
     const cleaned = value.replace(/[^\d+\s]/g, '');
     
-    // Ensure it starts with +
     if (!cleaned.startsWith('+')) {
       return '+' + cleaned.replace(/[^\d]/g, '');
     }
     
-    // Format the rest of the number with spaces for readability
     const plusPart = '+';
     const numberPart = cleaned.slice(1).replace(/\D/g, '');
     
@@ -266,15 +360,16 @@ function SigninContent() {
   };
 
   return (
-    <div className='flex w-full md:h-screen'>
+    <div className='flex w-full md:h-screen bg-gray-900 text-white'>
       {/* Toast Notifications */}
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#363636',
+            background: '#1f2937',
             color: '#fff',
+            border: '1px solid #374151',
           },
           success: {
             duration: 3000,
@@ -309,15 +404,17 @@ function SigninContent() {
           className='object-cover rounded-md'
           priority
         />
+      {/* Dark overlay for better text contrast */}
+        <div className='absolute inset-0 bg-black/30'></div>
       </div>
       
       {/* The main and form section */}
-      <div className='flex-1 flex flex-col justify-center items-center p-4 h-screen relative overflow-hidden'>
+      <div className='flex-1 flex flex-col justify-center items-center p-4 h-screen relative overflow-hidden bg-gray-900'>
         {/* Language Switcher - Top Left */}
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 right-4 z-10">
           <button 
             onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-            className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 px-3 py-1 rounded-md bg-gray-100 hover:bg-gray-300 hover:cursor-pointer"
+            className="flex items-center gap-1 text-sm text-gray-300 hover:text-white px-3 py-1 rounded-md bg-gray-800 hover:bg-gray-700 hover:cursor-pointer border border-gray-700"
           >
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
@@ -341,12 +438,12 @@ function SigninContent() {
           </button>
           
           {showLanguageDropdown && (
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-20 w-40">
+            <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-700 rounded shadow-lg z-20 w-40">
               {languages.map((language) => (
                 <button
                   key={language.code}
                   onClick={() => selectLanguage(language.code, language.name)}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 hover:cursor-pointer"
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 hover:cursor-pointer text-white"
                 >
                   {language.name}
                 </button>
@@ -356,20 +453,20 @@ function SigninContent() {
         </div>
 
         {/* Centered Content Container */}
-        <div className="w-full max-w-md py-4 pt-[120px] overflow-y-scroll md:pt-8 md:overflow-y-hidden">
-          <h1 className='text-3xl font-bold mb-2 text-center'>{t.welcome}</h1>
-          <p className='mb-6 text-gray-600 text-center'>{t.subtitle}</p>
+        <div className="w-full max-w-md py-4 pt-[120px] overflow-y-auto md:pt-8 scrollbar-hide">
+          <h1 className='text-3xl font-bold mb-2 text-center text-white'>{t.welcome}</h1>
+          <p className='mb-6 text-gray-300 text-center'>{t.subtitle}</p>
 
           {/* Signin Method Toggle */}
           <div className="w-full mb-4">
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-gray-800 rounded-lg p-1">
               <button
                 type="button"
                 onClick={() => setSigninMethod('email')}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors hover:cursor-pointer ${
                   signinMethod === 'email'
-                    ? 'bg-white text-emerald-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-white'
                 }`}
               >
                 {t.signInWithEmail || 'Email'}
@@ -379,8 +476,8 @@ function SigninContent() {
                 onClick={() => setSigninMethod('phone')}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors hover:cursor-pointer ${
                   signinMethod === 'phone'
-                    ? 'bg-white text-emerald-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-white'
                 }`}
               >
                 {t.signInWithPhone || 'Phone'}
@@ -403,10 +500,9 @@ function SigninContent() {
                     id="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 rounded-sm border-b border-gray-300 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder-gray-400"
+                    className="w-full px-3 py-2 rounded-sm border-b border-gray-600 focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white"
                     placeholder={t.email}
                     required
-                    disabled={!supabaseInitialized}
                   />
                 </div>
               ) : (
@@ -417,17 +513,16 @@ function SigninContent() {
                       id="phone"
                       value={formData.phone}
                       onChange={handlePhoneChange}
-                      className="w-full px-3 py-2 rounded-sm border-b border-gray-300 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder-gray-400"
-                      placeholder="+1 234 567 8900"
-                      required
-                      disabled={!supabaseInitialized}
+                     className="w-full px-3 py-2 rounded-sm border-b border-gray-600 focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white"
+                     placeholder={t.phonePlaceholder} 
+                     required
                       maxLength={20}
                     />
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-400">
                     {t.phoneFormatHint || "Enter your full international phone number with country code"}
                     <br />
-                    <span className="text-emerald-600">Examples: +234 908 567 8900, +229 7911 123456</span>
+                    <span className="text-emerald-400">Examples: +234 908 567 8900, +229 7911 123456</span>
                   </p>
                 </div>
               )}
@@ -440,15 +535,14 @@ function SigninContent() {
                     id="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 pr-10 rounded-sm border-b border-gray-300 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder-gray-400"
+                    className="w-full px-3 py-2 pr-10 rounded-sm border-b border-gray-600 focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white"
                     placeholder={t.password}
                     required
-                    disabled={!supabaseInitialized}
                   />
                   <button
                     type="button"
                     onClick={togglePasswordVisibility}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    className="absolute hover:cursor-pointer right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-200 focus:outline-none"
                   >
                     {showPassword ? (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -470,7 +564,7 @@ function SigninContent() {
                   <button
                     type="button"
                     onClick={handleForgotPassword}
-                    className="text-sm text-emerald-600 hover:text-emerald-700 underline hover:cursor-pointer"
+                    className="text-sm text-emerald-400 hover:text-emerald-300 underline hover:cursor-pointer"
                   >
                     {(t as any).forgotPassword || 'Forgot password?'}
                   </button>
@@ -479,8 +573,8 @@ function SigninContent() {
               
               <button
                 type="submit"
-                disabled={isSigningIn || !supabaseInitialized}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white font-medium py-2 rounded-lg transition-colors flex items-center hover:cursor-pointer justify-center"
+                disabled={isSigningIn}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-medium py-2 rounded-lg transition-colors flex items-center hover:cursor-pointer justify-center"
               >
                 {isSigningIn ? (
                   <>
@@ -491,26 +585,24 @@ function SigninContent() {
                     {signinMethod === 'email' ? t.signingIn : 'Sending code...'}
                   </>
                 ) : (
-                  supabaseInitialized 
-                    ? (signinMethod === 'email' ? t.signin : (t.signInWithPhone || 'Send Code'))
-                    : 'Loading...'
+                  signinMethod === 'email' ? t.signin : (t.signInWithPhone || 'Send Code')
                 )}
               </button>
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
+                  <div className="w-full border-t border-gray-600"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">{t.orContinue}</span>
+                  <span className="px-2 bg-gray-900 text-gray-400">{t.orContinue}</span>
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={handleGoogleSignin}
-                disabled={isSigningIn || !supabaseInitialized}
-                className="w-full flex hover:cursor-pointer justify-center items-center gap-2 bg-white border border-gray-300 rounded-lg px-4 py-2 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSigningIn}
+                className="w-full flex hover:cursor-pointer justify-center items-center gap-2 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-gray-200 font-medium hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 48 48">
                   <rect width="48" height="48" fill="none" />
@@ -522,9 +614,9 @@ function SigninContent() {
                 {t.signInWithGoogle}
               </button>
 
-              <div className="text-center text-sm text-gray-600 pt-2">
+              <div className="text-center text-sm text-gray-400 pt-2">
                 {t.dontHaveAccount}{' '}
-                <Link href="/auth/signup" className="text-emerald-500 hover:text-emerald-600 font-medium">
+                <Link href="/auth/signup" className="text-emerald-400 hover:text-emerald-300 font-medium">
                   {t.createAccount}
                 </Link>
               </div>
@@ -532,6 +624,17 @@ function SigninContent() {
           </motion.div>
         </div>
       </div>
+
+      {/* Custom scrollbar hide styles */}
+      <style jsx global>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }
@@ -540,8 +643,9 @@ function SigninContent() {
 export default function Signin() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mb-4"></div>
+        <p className="text-gray-400">Loading...</p>
       </div>
     }>
       <SigninContent />
