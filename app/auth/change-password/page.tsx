@@ -223,6 +223,36 @@ export default function ChangePasswordPage() {
     success: 'Your password has been updated successfully'
   };
 
+  // Helper function to determine if a step is completed
+  const isStepCompleted = (step: Step) => {
+    switch (step) {
+      case 'current':
+        return currentStep !== 'current';
+      case 'new':
+        return currentStep === 'confirm' || currentStep === 'success';
+      case 'confirm':
+        return currentStep === 'success';
+      case 'success':
+        return currentStep === 'success';
+      default:
+        return false;
+    }
+  };
+
+  // Helper function to determine connector color
+  const getConnectorColor = (step: Step) => {
+    switch (step) {
+      case 'current':
+        return currentStep !== 'current' ? 'bg-emerald-500' : 'bg-gray-600';
+      case 'new':
+        return (currentStep === 'confirm' || currentStep === 'success') ? 'bg-emerald-500' : 'bg-gray-600';
+      case 'confirm':
+        return currentStep === 'success' ? 'bg-emerald-500' : 'bg-gray-600';
+      default:
+        return 'bg-gray-600';
+    }
+  };
+
   return (
     <div className="flex w-full md:h-screen bg-gray-900">
       {/* Toast Notifications */}
@@ -289,21 +319,11 @@ export default function ChangePasswordPage() {
                   <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
                     currentStep === step 
                       ? 'bg-emerald-500 border-emerald-500 text-white' 
-                      : currentStep === 'success' || (
-                          step === 'current' ||
-                          (step === 'new' && currentStep !== 'current') ||
-                          (step === 'confirm' && (currentStep === 'confirm' || currentStep === 'success')) ||
-                          (step === 'success' && currentStep === 'success')
-                        )
+                      : isStepCompleted(step)
                       ? 'bg-emerald-500 border-emerald-500 text-white'
                       : 'border-gray-600 text-gray-400'
                   }`}>
-                    {currentStep === step || (
-                      step === 'current' ||
-                      (step === 'new' && currentStep !== 'current') ||
-                      (step === 'confirm' && (currentStep === 'confirm' || currentStep === 'success')) ||
-                      (step === 'success' && currentStep === 'success')
-                    ) ? (
+                    {currentStep === step || isStepCompleted(step) ? (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
@@ -312,14 +332,7 @@ export default function ChangePasswordPage() {
                     )}
                   </div>
                   {index < 3 && (
-                    <div className={`w-12 h-0.5 mx-2 ${
-                      currentStep === 'success' || (
-                        (step === 'current' && currentStep !== 'current') ||
-                        (step === 'new' && (currentStep === 'confirm' || currentStep === 'success'))
-                      )
-                        ? 'bg-emerald-500'
-                        : 'bg-gray-600'
-                    }`} />
+                    <div className={`w-12 h-0.5 mx-2 ${getConnectorColor(step)}`} />
                   )}
                 </div>
               ))}

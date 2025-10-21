@@ -285,16 +285,6 @@ export default function ForgotPasswordPage() {
                     >
                       Back to Sign In
                     </button>
-                    
-                    <button
-                      onClick={() => {
-                        setIsSubmitted(false);
-                        setEmail('');
-                      }}
-                      className="w-full hover:cursor-pointer border border-gray-600 hover:bg-gray-700 text-gray-300 font-medium py-3 rounded-lg transition-colors"
-                    >
-                      Try Another Email
-                    </button>
                   </div>
 
                   <div className="text-sm text-gray-400">
