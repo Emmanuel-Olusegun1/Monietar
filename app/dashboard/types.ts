@@ -9,6 +9,8 @@ export interface Transaction {
   created_at?: string;
 }
 
+
+
 export interface Budget {
   id: string;
   user_id: string;

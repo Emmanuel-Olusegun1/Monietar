@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -108,20 +108,30 @@ export default function VerifyPhonePage() {
   const [lastAttemptTime, setLastAttemptTime] = useState<number>(0);
   const [currentStep, setCurrentStep] = useState<'message' | 'verification'>('message');
   const [isLoading, setIsLoading] = useState(true);
+  const [hasMounted, setHasMounted] = useState(false);
   
   const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(6).fill(null));
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Maximum attempts before lockout
   const MAX_ATTEMPTS = 5;
   const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
+  // Set mounted state to handle client-side only operations
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   useEffect(() => {
     const initializePhoneNumber = async () => {
+      if (!hasMounted) return;
+      
       try {
         setIsLoading(true);
-        const phoneFromParams = searchParams.get('phone');
+        
+        // Get search params from URL on client side only
+        const urlParams = new URLSearchParams(window.location.search);
+        const phoneFromParams = urlParams.get('phone');
         
         if (phoneFromParams) {
           // Use the phone number from URL parameters
@@ -168,10 +178,12 @@ export default function VerifyPhonePage() {
     };
 
     initializePhoneNumber();
-  }, [searchParams, router]);
+  }, [hasMounted, router]);
 
   // Countdown timer
   useEffect(() => {
+    if (!hasMounted) return;
+    
     let timer: NodeJS.Timeout;
     if (countdown > 0) {
       timer = setTimeout(() => {
@@ -182,24 +194,25 @@ export default function VerifyPhonePage() {
       localStorage.removeItem('otp_countdown');
     }
     return () => clearTimeout(timer);
-  }, [countdown]);
+  }, [countdown, hasMounted]);
 
   const isLockedOut = useCallback(() => {
+    if (!hasMounted) return false;
     if (attempts >= MAX_ATTEMPTS) {
       const timeSinceLastAttempt = Date.now() - lastAttemptTime;
       return timeSinceLastAttempt < LOCKOUT_DURATION;
     }
     return false;
-  }, [attempts, lastAttemptTime]);
+  }, [attempts, lastAttemptTime, hasMounted]);
 
   const getRemainingLockoutTime = useCallback(() => {
-    if (!isLockedOut()) return 0;
+    if (!hasMounted || !isLockedOut()) return 0;
     const timeSinceLastAttempt = Date.now() - lastAttemptTime;
     return Math.ceil((LOCKOUT_DURATION - timeSinceLastAttempt) / 1000);
-  }, [isLockedOut, lastAttemptTime]);
+  }, [isLockedOut, lastAttemptTime, hasMounted]);
 
   const handleOtpChange = useCallback((element: HTMLInputElement, index: number) => {
-    if (isLockedOut()) return;
+    if (!hasMounted || isLockedOut()) return;
     
     const value = element.value;
     if (value && isNaN(Number(value))) return;
@@ -223,10 +236,10 @@ export default function VerifyPhonePage() {
         nextInput.focus();
       }
     }
-  }, [otp, isLockedOut]);
+  }, [otp, isLockedOut, hasMounted]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (isLockedOut()) return;
+    if (!hasMounted || isLockedOut()) return;
 
     if (e.key === 'Backspace') {
       if (!otp[index] && index > 0) {
@@ -251,10 +264,10 @@ export default function VerifyPhonePage() {
         nextInput.focus();
       }
     }
-  }, [otp, isLockedOut]);
+  }, [otp, isLockedOut, hasMounted]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    if (isLockedOut()) return;
+    if (!hasMounted || isLockedOut()) return;
 
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text/plain').trim();
@@ -277,10 +290,12 @@ export default function VerifyPhonePage() {
         nextInput.focus();
       }
     }
-  }, [otp, isLockedOut]);
+  }, [otp, isLockedOut, hasMounted]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!hasMounted) return;
     
     if (isLockedOut()) {
       const remainingTime = getRemainingLockoutTime();
@@ -346,6 +361,8 @@ export default function VerifyPhonePage() {
   };
 
   const handleResendCode = async () => {
+    if (!hasMounted) return;
+    
     if (countdown > 0) {
       toast.error(`Please wait ${countdown} seconds before requesting a new code`);
       return;
@@ -374,6 +391,8 @@ export default function VerifyPhonePage() {
   };
 
   const formatPhoneNumber = (phone: string) => {
+    if (!hasMounted) return phone;
+    
     // Remove all non-digit characters except the plus sign
     const cleaned = phone.replace(/[^\d+]/g, '');
     
@@ -413,7 +432,7 @@ export default function VerifyPhonePage() {
   const remainingLockoutTime = getRemainingLockoutTime();
 
   // Show loading state
-  if (isLoading) {
+  if (!hasMounted || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
         <div className="bg-gray-800 rounded-xl shadow-2xl p-8 w-full max-w-sm border border-gray-700 text-center">

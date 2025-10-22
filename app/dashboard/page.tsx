@@ -59,8 +59,10 @@ import {
   LanguageOption,
   CurrencyOption,
   TimeFilter,
-  SidebarProps
+  SidebarProps,
 } from './types';
+
+
 
 // Import your classes
 import { RuleBasedFinancialAdvisor } from './utils/FinancialAdvisor';
@@ -86,355 +88,198 @@ interface EnhancedBudget {
   spent: number;
   percentage: number;
   period: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  created_at?: string;
+  created_at: string;
 }
 
 // Create Supabase client
 const supabase = createClientComponentClient();
 
-// Fintech Chatbot Service
-class FintechChatbotService {
-  // Generate embeddings using OpenAI (you'll need an API key)
-  static async generateEmbedding(text: string): Promise<number[] | null> {
-    try {
-      // For free tier, we can use a simple TF-IDF like approach or use Groq
-      // Since OpenAI isn't free, we'll implement a keyword-based matching system
-      return this.simpleTextToVector(text);
-    } catch (error) {
-      console.error('Error generating embedding:', error);
-      return null;
-    }
-  }
-
-  // Simple text vectorization for free tier (basic keyword matching)
-  private static simpleTextToVector(text: string): number[] {
-    // This is a simplified approach - in production you'd want proper embeddings
-    const fintechKeywords = [
-      'cash flow', 'budget', 'expense', 'income', 'revenue', 'profit',
-      'burn rate', 'forecast', 'management', 'analysis', 'optimization',
-      'working capital', 'liquidity', 'financial', 'money', 'cost',
-      'savings', 'investment', 'cash', 'budgeting', 'tracking'
-    ];
-    
-    const vector = new Array(fintechKeywords.length).fill(0);
-    const words = text.toLowerCase().split(/\s+/);
-    
-    words.forEach(word => {
-      const index = fintechKeywords.findIndex(keyword => 
-        keyword.includes(word) || word.includes(keyword)
-      );
-      if (index !== -1) {
-        vector[index] += 1;
-      }
-    });
-    
-    return vector;
-  }
-
-  // Semantic search in fintech knowledge base
-  static async searchFintechKnowledge(query: string, limit: number = 3) {
-    try {
-      const queryVector = this.simpleTextToVector(query);
-      
-      // Convert to PostgreSQL vector format
-      const vectorStr = `[${queryVector.join(',')}]`;
-      
-      const { data, error } = await supabase
-        .rpc('match_fintech_documents', {
-          query_embedding: vectorStr,
-          match_count: limit
-        });
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error searching fintech knowledge:', error);
-      
-      // Fallback: keyword-based search
-      const { data, error } = await supabase
-        .from('fintech_knowledge_base')
-        .select('*')
-        .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
-        .limit(limit);
-
-      if (error) throw error;
-      return data || [];
-    }
-  }
-
-  // Save chat conversation
-  static async saveConversation(userId: string, title: string) {
-    const { data, error } = await supabase
-      .from('chat_conversations')
-      .insert([
-        { user_id: userId, title }
-      ])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  // Save chat message
-  static async saveMessage(conversationId: string, role: string, content: string) {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .insert([
-        { conversation_id: conversationId, role, content }
-      ])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  // Get user's chat history
-  static async getChatHistory(userId: string, limit: number = 10) {
-    const { data, error } = await supabase
-      .from('chat_conversations')
-      .select(`
-        *,
-        chat_messages (*)
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data || [];
-  }
-}
-
-// MOCK_DATA for frontend development
-const MOCK_DATA = {
-  transactions: [
-    {
-      id: '1',
-      user_id: 'user-001',
-      type: 'income',
-      amount: 50000,
-      category: 'Selling Products',
-      description: 'Monthly product sales',
-      date: new Date().toISOString().split('T')[0],
-      created_at: new Date().toISOString()
-    },
-    {
-      id: '2',
-      user_id: 'user-001',
-      type: 'expense',
-      amount: 15000,
-      category: 'Worker Pay',
-      description: 'Staff salaries',
-      date: new Date().toISOString().split('T')[0],
-      created_at: new Date().toISOString()
-    },
-    {
-      id: '3',
-      user_id: 'user-001',
-      type: 'income',
-      amount: 25000,
-      category: 'Service Work',
-      description: 'Consulting services',
-      date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-      created_at: new Date(Date.now() - 86400000).toISOString()
-    }
-  ],
-  budgets: [
-    {
-      id: '1',
-      user_id: 'user-001',
-      category: 'Worker Pay',
-      budget_limit: 20000,
-      spent: 15000,
-      percentage: 75,
-      period: 'monthly',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: '2',
-      user_id: 'user-001',
-      category: 'Marketing Costs',
-      budget_limit: 5000,
-      spent: 3000,
-      percentage: 60,
-      period: 'monthly',
-      created_at: new Date().toISOString()
-    }
-  ],
-  profile: {
-    full_name: 'John Doe',
-    business_name: 'Doe Enterprises',
-    email: 'john@doe.com',
-    phone_number: '+234 901 234 5678',
-    currency: 'NGN',
-    language: 'en',
-    date_format: 'MM/DD/YYYY',
-    timezone: 'UTC',
-    notification_settings: {
-      budgetAlerts: true,
-      weeklyReports: true,
-      transactionAlerts: true,
-      aiRecommendations: true
-    },
-    plan: 'Free Plan',
-    created_at: new Date().toISOString()
-  }
-};
-
-// Mock API service using MOCK_DATA
+// API service using the /user/register endpoint
 const apiService = {
-  async fetchTransactions(userId: string, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Return mock transactions for the user
-    return {
-      transactions: MOCK_DATA.transactions.filter(t => t.user_id === userId)
-    };
-  },
+  async fetchTransactions(userId: string) {
+    const response = await fetch('/user/registeractions', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  async fetchBudgets(userId: string, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Return mock budgets for the user
-    return {
-      budgets: MOCK_DATA.budgets.filter(b => b.user_id === userId)
-    };
-  },
-
-  async fetchProfile(userId: string, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Return mock profile
-    return {
-      profile: MOCK_DATA.profile
-    };
-  },
-
-  async addTransaction(transactionData: any, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Create mock transaction
-    const newTransaction = {
-      id: `mock-${Date.now()}`,
-      user_id: session.user.id,
-      ...transactionData,
-      created_at: new Date().toISOString()
-    };
-    
-    // Add to mock data
-    MOCK_DATA.transactions.push(newTransaction);
-    
-    return {
-      transaction: newTransaction
-    };
-  },
-
-  async updateTransaction(transactionId: string, transactionData: any, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Update mock transaction
-    const transactionIndex = MOCK_DATA.transactions.findIndex(t => t.id === transactionId);
-    if (transactionIndex !== -1) {
-      MOCK_DATA.transactions[transactionIndex] = {
-        ...MOCK_DATA.transactions[transactionIndex],
-        ...transactionData
-      };
-      
-      return {
-        transaction: MOCK_DATA.transactions[transactionIndex]
-      };
+    if (!response.ok) {
+      throw new Error('Failed to fetch transactions');
     }
-    
-    throw new Error('Transaction not found');
+
+    const data = await response.json();
+    return { transactions: data.transactions || [] };
   },
 
-  async deleteTransaction(transactionId: string, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Remove from mock data
-    const transactionIndex = MOCK_DATA.transactions.findIndex(t => t.id === transactionId);
-    if (transactionIndex !== -1) {
-      MOCK_DATA.transactions.splice(transactionIndex, 1);
-      return { success: true };
+  async fetchBudgets(userId: string) {
+    const response = await fetch('/user/register?action=budgets', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch budgets');
     }
-    
-    throw new Error('Transaction not found');
+
+    const data = await response.json();
+    return { budgets: data.budgets || [] };
   },
 
-  async addBudget(budgetData: any, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Create mock budget
-    const newBudget = {
-      id: `mock-budget-${Date.now()}`,
-      user_id: session.user.id,
-      ...budgetData,
-      spent: 0,
-      percentage: 0,
-      created_at: new Date().toISOString()
-    };
-    
-    // Add to mock data
-    MOCK_DATA.budgets.push(newBudget);
-    
-    return {
-      budget: newBudget
-    };
-  },
+  async fetchProfile(userId: string) {
+    const response = await fetch('/user/register', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  async updateBudget(budgetId: string, budgetData: any, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Update mock budget
-    const budgetIndex = MOCK_DATA.budgets.findIndex(b => b.id === budgetId);
-    if (budgetIndex !== -1) {
-      MOCK_DATA.budgets[budgetIndex] = {
-        ...MOCK_DATA.budgets[budgetIndex],
-        ...budgetData
-      };
-      
-      return {
-        budget: MOCK_DATA.budgets[budgetIndex]
-      };
+    if (!response.ok) {
+      throw new Error('Failed to fetch profile');
     }
-    
-    throw new Error('Budget not found');
+
+    const data = await response.json();
+    return { profile: data.user || {} };
   },
 
-  async deleteBudget(budgetId: string, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Remove from mock data
-    const budgetIndex = MOCK_DATA.budgets.findIndex(b => b.id === budgetId);
-    if (budgetIndex !== -1) {
-      MOCK_DATA.budgets.splice(budgetIndex, 1);
-      return { success: true };
+  async addTransaction(transactionData: any) {
+    const response = await fetch('/user/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'addTransaction',
+        transactionData: transactionData
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to add transaction');
     }
-    
-    throw new Error('Budget not found');
+
+    const data = await response.json();
+    return { transaction: data.transaction };
   },
 
-  async saveSettings(settings: any, session: Session) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Update mock profile
-    MOCK_DATA.profile = {
-      ...MOCK_DATA.profile,
-      ...settings
-    };
-    
+  async updateTransaction(transactionId: string, transactionData: any) {
+    const response = await fetch('/user/register', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'updateTransaction',
+        transactionId: transactionId,
+        transactionData: transactionData
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update transaction');
+    }
+
+    const data = await response.json();
+    return { transaction: data.transaction };
+  },
+
+  async deleteTransaction(transactionId: string) {
+    const response = await fetch('/user/register', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'deleteTransaction',
+        transactionId: transactionId
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete transaction');
+    }
+
+    return { success: true };
+  },
+
+  async addBudget(budgetData: any) {
+    const response = await fetch('/user/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'addBudget',
+        budgetData: budgetData
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to add budget');
+    }
+
+    const data = await response.json();
+    return { budget: data.budget };
+  },
+
+  async updateBudget(budgetId: string, budgetData: any) {
+    const response = await fetch('/user/register', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'updateBudget',
+        budgetId: budgetId,
+        budgetData: budgetData
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update budget');
+    }
+
+    const data = await response.json();
+    return { budget: data.budget };
+  },
+
+  async deleteBudget(budgetId: string) {
+    const response = await fetch('/user/register', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'deleteBudget',
+        budgetId: budgetId
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete budget');
+    }
+
+    return { success: true };
+  },
+
+  async saveSettings(userId: string, settings: any) {
+    const response = await fetch('/user/register', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'updateProfile',
+        profileData: settings
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to save settings');
+    }
+
     return { success: true };
   }
 };
@@ -688,15 +533,9 @@ export default function Dashboard() {
   // Enhanced AI response generator with fintech context
   const generateAIResponseWithContext = async (
     userQuestion: string, 
-    relevantKnowledge: any[],
     financialData: FinancialData
   ): Promise<string> => {
     
-    // Build context from relevant fintech knowledge
-    const knowledgeContext = relevantKnowledge.length > 0 
-      ? `Relevant Financial Knowledge:\n${relevantKnowledge.map(k => `- ${k.content}`).join('\n')}`
-      : 'No specific financial knowledge found for this query.';
-
     // Build user data context
     const userDataContext = financialData.transactions.length > 0
       ? `User Financial Snapshot:\n- Income: ${formatCurrency(financialData.income)}\n- Expenses: ${formatCurrency(financialData.expenses)}\n- Profit: ${formatCurrency(financialData.profit)}\n- Total Transactions: ${financialData.transactions.length}`
@@ -705,8 +544,6 @@ export default function Dashboard() {
     const prompt = `
 You are a specialized AI financial advisor focused on cash flow management and fintech. 
 Your expertise includes budgeting, expense tracking, cash flow analysis, and financial optimization.
-
-${knowledgeContext}
 
 ${userDataContext}
 
@@ -733,7 +570,7 @@ Response:
     );
   };
 
-  // Enhanced AI Chat Function with Supabase Integration
+  // Enhanced AI Chat Function
   const sendMessage = async () => {
     if (!newMessage.trim() || !session) return;
 
@@ -754,13 +591,9 @@ Response:
     setChatMessages(prev => [...prev, typingMessage]);
 
     try {
-      // Search for relevant fintech knowledge from Supabase
-      const relevantKnowledge = await FintechChatbotService.searchFintechKnowledge(newMessage);
-      
       // Get AI response with fintech context
       const aiResponse = await generateAIResponseWithContext(
         newMessage, 
-        relevantKnowledge,
         financialData
       );
 
@@ -772,25 +605,6 @@ Response:
           sender: 'ai'
         })
       );
-
-      // Save to conversation history in Supabase
-      try {
-        if (chatMessages.length === 0) {
-          // First message in conversation
-          const conversation = await FintechChatbotService.saveConversation(
-            session.user.id, 
-            newMessage.substring(0, 50) + '...'
-          );
-          await FintechChatbotService.saveMessage(conversation.id, 'user', newMessage);
-          await FintechChatbotService.saveMessage(conversation.id, 'assistant', aiResponse);
-        } else {
-          // For existing conversations, you might want to implement conversation tracking
-          // This is a simplified version
-        }
-      } catch (saveError) {
-        console.error('Error saving chat history:', saveError);
-        // Don't show error to user for save failures
-      }
 
     } catch (error) {
       console.error('AI response error:', error);
@@ -883,7 +697,7 @@ Response:
     };
   }, [session, networkStatus]);
 
-  // Settings Functions with Mock API
+  // Settings Functions with API
   const handleSaveSettings = async () => {
     if (!session) {
       showToast('Please log in to save settings');
@@ -891,7 +705,7 @@ Response:
     }
 
     try {
-      await apiService.saveSettings(userSettings, session);
+      await apiService.saveSettings(session.user.id, userSettings);
 
       // Update user state
       setUser({
@@ -952,10 +766,24 @@ Response:
     }
 
     try {
-      // Simulate export with mock data
+      // Export data using the API
+      const response = await fetch('/user/register?action=export', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+
+      const data = await response.json();
+      
+      // Create and download CSV
       const csvContent = "data:text/csv;charset=utf-8," 
         + "Type,Amount,Category,Description,Date\n"
-        + financialData.transactions.map(t => 
+        + data.transactions.map((t: any) => 
             `${t.type},${t.amount},${t.category},${t.description || ''},${t.date}`
           ).join("\n");
       
@@ -981,8 +809,20 @@ Response:
     }
   
     try {
-      // Simulate backup creation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('/user/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'createBackup'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create backup');
+      }
+
       showToast('Backup created successfully!');
     } catch (error: any) {
       console.error('Error creating backup:', error);
@@ -997,11 +837,25 @@ Response:
     }
   
     try {
-      // Simulate backup restoration
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const response = await fetch('/user/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'restoreBackup',
+          backupId: backupId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to restore backup');
+      }
+
       // Refresh the dashboard data
-      await fetchData(session);
+      if (session) {
+        await fetchData(session);
+      }
 
       showToast('Backup restored successfully!');
       setShowRestoreDialog(false);
@@ -1018,12 +872,24 @@ Response:
     }
 
     try {
-      // Clear mock data for this user
-      MOCK_DATA.transactions = MOCK_DATA.transactions.filter(t => t.user_id !== session.user.id);
-      MOCK_DATA.budgets = MOCK_DATA.budgets.filter(b => b.user_id !== session.user.id);
+      const response = await fetch('/user/register', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'clearData'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear data');
+      }
 
       // Refresh data
-      await fetchData(session);
+      if (session) {
+        await fetchData(session);
+      }
 
       setShowClearDataDialog(false);
       showToast('All data cleared successfully!');
@@ -1040,9 +906,19 @@ Response:
     }
 
     try {
-      // Clear user data from mock data
-      MOCK_DATA.transactions = MOCK_DATA.transactions.filter(t => t.user_id !== session.user.id);
-      MOCK_DATA.budgets = MOCK_DATA.budgets.filter(b => b.user_id !== session.user.id);
+      const response = await fetch('/user/register', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'deleteAccount'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete account');
+      }
 
       showToast('Account deleted successfully!');
       await supabase.auth.signOut();
@@ -1061,7 +937,7 @@ Response:
     setIsCancelSubscriptionOpen(false);
   };
 
-  // Enhanced fetchData function with mock API
+  // Enhanced fetchData function with API
   async function fetchData(session: Session) {
     if (!session) {
       showToast('No active session. Please log in.');
@@ -1071,24 +947,26 @@ Response:
     }
 
     setLoading(true);
-    const userId = session.user.id;
 
     try {
-      // Use mock API service to get data
+      // Use API service to get data
       const [transactionsData, budgetsData, profileData] = await Promise.all([
-        apiService.fetchTransactions(userId, session),
-        apiService.fetchBudgets(userId, session),
-        apiService.fetchProfile(userId, session)
+        apiService.fetchTransactions(session.user.id),
+        apiService.fetchBudgets(session.user.id),
+        apiService.fetchProfile(session.user.id)
       ]);
 
-      // Calculate financial data
-      const income = (transactionsData.transactions?.filter((t: Transaction) => t.type === 'income').reduce((sum: number, t: Transaction) => sum + t.amount, 0) || 0);
-      const expenses = (transactionsData.transactions?.filter((t: Transaction) => t.type === 'expense').reduce((sum: number, t: Transaction) => sum + t.amount, 0) || 0);
+      // Calculate financial data with proper typing
+      const incomeTransactions = transactionsData.transactions?.filter((t: any) => t.type === 'income') || [];
+      const expenseTransactions = transactionsData.transactions?.filter((t: any) => t.type === 'expense') || [];
+      
+      const income = incomeTransactions.reduce((sum: number, t: any) => sum + t.amount, 0);
+      const expenses = expenseTransactions.reduce((sum: number, t: any) => sum + t.amount, 0);
       const profit = income - expenses;
 
       // Generate AI recommendations based on actual data
       const aiRecommendations = transactionsData.transactions && transactionsData.transactions.length > 0 
-        ? RuleBasedFinancialAdvisor.analyzeSpendingPatterns(transactionsData.transactions, budgetsData.budgets || [], formatCurrency).slice(0, 4)
+        ? RuleBasedFinancialAdvisor.analyzeSpendingPatterns(transactionsData.transactions as Transaction[], budgetsData.budgets || [], formatCurrency).slice(0, 4)
         : [
             'Add your transactions to get personalized financial insights',
             'Create budgets to track your spending limits',
@@ -1100,8 +978,8 @@ Response:
         income,
         expenses,
         profit,
-        transactions: transactionsData.transactions || [],
-        budgets: budgetsData.budgets || [],
+        transactions: transactionsData.transactions as Transaction[] || [],
+        budgets: budgetsData.budgets as Budget[] || [],
         alerts: realTimeAlerts,
         aiRecommendations
       }));
@@ -1111,7 +989,7 @@ Response:
         name: profileData?.profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
         email: session.user.email || 'No email',
         businessName: profileData?.profile?.business_name || session.user.user_metadata?.business_name || 'My Business',
-        avatar: profileData?.profile?.avatar || session.user.user_metadata?.avatar_url || '/api/placeholder/40/40',
+        avatar: profileData?.profile?.avatar_url || session.user.user_metadata?.avatar_url || '/api/placeholder/40/40',
         plan: profileData?.profile?.plan || 'Free Plan',
         joinedDate: new Date(profileData?.profile?.created_at || session.user.created_at).toISOString().split('T')[0]
       };
@@ -1160,7 +1038,7 @@ Response:
     }
   }
 
-  // Transaction Management Functions with Mock API
+  // Transaction Management Functions with API
   const handleAddTransaction = async (type: 'income' | 'expense') => {
     if (!formData.amount || !formData.category || !session) {
       showToast('Please fill all required fields or log in');
@@ -1168,18 +1046,21 @@ Response:
     }
 
     try {
-      const data = await apiService.addTransaction({
+      const transactionData = {
         type,
         amount: parseFloat(formData.amount),
         category: formData.category,
         description: formData.description || '',
         date: formData.date,
-      }, session);
+        user_id: session.user.id
+      };
+
+      const data = await apiService.addTransaction(transactionData);
 
       // Update local state immediately
       setFinancialData(prev => ({
         ...prev,
-        transactions: [data.transaction, ...prev.transactions],
+        transactions: [data.transaction as Transaction, ...prev.transactions],
         income: type === 'income' ? prev.income + data.transaction.amount : prev.income,
         expenses: type === 'expense' ? prev.expenses + data.transaction.amount : prev.expenses,
         profit: type === 'income' ? prev.profit + data.transaction.amount : prev.profit - data.transaction.amount
@@ -1205,12 +1086,14 @@ Response:
     }
 
     try {
-      const data = await apiService.updateTransaction(editingTransaction.id, {
+      const transactionData = {
         amount: parseFloat(formData.amount),
         category: formData.category,
         description: formData.description || '',
         date: formData.date
-      }, session);
+      };
+
+      const data = await apiService.updateTransaction(editingTransaction.id, transactionData);
 
       // Calculate differences for financial totals
       const amountDiff = data.transaction.amount - editingTransaction.amount;
@@ -1219,7 +1102,7 @@ Response:
       // Update local state
       setFinancialData(prev => {
         const updatedTransactions = prev.transactions.map(t => 
-          t.id === editingTransaction.id ? data.transaction : t
+          t.id === editingTransaction.id ? data.transaction as Transaction : t
         );
         
         let newIncome = prev.income;
@@ -1264,7 +1147,7 @@ Response:
 
   const handleDeleteTransaction = async (transactionId: string) => {
     try {
-      await apiService.deleteTransaction(transactionId, session);
+      await apiService.deleteTransaction(transactionId);
 
       // Find the transaction to update financial totals
       const transactionToDelete = financialData.transactions.find(t => t.id === transactionId);
@@ -1287,7 +1170,7 @@ Response:
     }
   };
 
-  // Budget Management Functions with Mock API
+  // Budget Management Functions with API
   const handleAddBudget = async () => {
     if (!budgetFormData.category || !budgetFormData.budget_limit || !session) {
       showToast('Please fill all required fields or log in');
@@ -1295,16 +1178,21 @@ Response:
     }
 
     try {
-      const data = await apiService.addBudget({
+      const budgetData = {
         category: budgetFormData.category,
         budget_limit: parseFloat(budgetFormData.budget_limit),
-        period: budgetFormData.period,
-      }, session);
+        period: budgetFormData.period.toLowerCase() as 'monthly' | 'quarterly' | 'yearly',
+        user_id: session.user.id,
+        spent: 0,
+        percentage: 0
+      };
+
+      const data = await apiService.addBudget(budgetData);
 
       // Update local state immediately
       setFinancialData(prev => ({
         ...prev,
-        budgets: [...prev.budgets, data.budget]
+        budgets: [...prev.budgets, data.budget as Budget]
       }));
 
       showToast('Budget added successfully!');
@@ -1324,17 +1212,19 @@ Response:
     }
 
     try {
-      const data = await apiService.updateBudget(editingBudget.id, {
+      const budgetData = {
         category: budgetFormData.category,
         budget_limit: parseFloat(budgetFormData.budget_limit),
-        period: budgetFormData.period
-      }, session);
+        period: budgetFormData.period.toLowerCase() as 'monthly' | 'quarterly' | 'yearly'
+      };
+
+      const data = await apiService.updateBudget(editingBudget.id, budgetData);
 
       // Update local state
       setFinancialData(prev => ({
         ...prev,
         budgets: prev.budgets.map(b => 
-          b.id === editingBudget.id ? data.budget : b
+          b.id === editingBudget.id ? data.budget as Budget : b
         )
       }));
 
@@ -1350,7 +1240,7 @@ Response:
 
   const handleDeleteBudget = async (budgetId: string) => {
     try {
-      await apiService.deleteBudget(budgetId, session);
+      await apiService.deleteBudget(budgetId);
 
       setFinancialData(prev => ({
         ...prev,
@@ -1411,12 +1301,19 @@ Response:
     if (!session) return;
     
     try {
-      // Simulate loading backups
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setAvailableBackups([
-        { id: 'backup-1', name: 'Backup 1', date: new Date().toISOString() },
-        { id: 'backup-2', name: 'Backup 2', date: new Date(Date.now() - 86400000).toISOString() }
-      ]);
+      const response = await fetch('/user/register?action=backups', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load backups');
+      }
+
+      const data = await response.json();
+      setAvailableBackups(data.backups || []);
     } catch (error) {
       console.error('Error loading backups:', error);
     }
@@ -1599,32 +1496,39 @@ Response:
   }, [financialData.transactions]);
 
   // Real-time budget tracking calculation with proper typing
-  const budgetsWithRealTimeTracking = useMemo((): EnhancedBudget[] => {
-    return financialData.budgets.map(budget => {
-      // Calculate spent amount from transactions for this budget category
-      const spent = financialData.transactions
-        .filter(transaction => 
-          transaction.type === 'expense' && 
-          transaction.category === budget.category
-        )
-        .reduce((sum, transaction) => sum + transaction.amount, 0);
-      
-      const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
-      
-      // Convert to EnhancedBudget type with proper period conversion
-      const enhancedBudget: EnhancedBudget = {
-        id: budget.id,
-        category: budget.category,
-        budget_limit: budget.budget_limit,
-        spent,
-        percentage,
-        period: budget.period as 'daily' | 'weekly' | 'monthly' | 'yearly',
-        created_at: budget.created_at
-      };
-      
-      return enhancedBudget;
-    });
-  }, [financialData.budgets, financialData.transactions]);
+// Real-time budget tracking calculation with proper typing
+const budgetsWithRealTimeTracking = useMemo((): EnhancedBudget[] => {
+  return financialData.budgets.map(budget => {
+    // Calculate spent amount from transactions for this budget category
+    const spent = financialData.transactions
+      .filter(transaction => 
+        transaction.type === 'expense' && 
+        transaction.category === budget.category
+      )
+      .reduce((sum, transaction) => sum + transaction.amount, 0);
+    
+    const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
+    
+    // Convert to EnhancedBudget type with proper period conversion
+    const periodMap = {
+      'monthly': 'monthly' as 'monthly',
+      'quarterly': 'monthly' as 'monthly', // Map to monthly for display
+      'yearly': 'yearly' as 'yearly'
+    };
+    
+    const enhancedBudget: EnhancedBudget = {
+      id: budget.id,
+      category: budget.category,
+      budget_limit: budget.budget_limit,
+      spent,
+      percentage,
+      period: periodMap[budget.period] || 'monthly',
+      created_at: budget.created_at || new Date().toISOString() // Provide default value
+    };
+    
+    return enhancedBudget;
+  });
+}, [financialData.budgets, financialData.transactions]);
 
   // Real-time alerts based on actual spending
   const realTimeAlerts = useMemo(() => {
@@ -1713,6 +1617,13 @@ Response:
   // Start editing a budget - properly typed for EnhancedBudget
   const startEditBudget = (budget: EnhancedBudget) => {
     // Convert EnhancedBudget back to Budget for editing
+    const periodMap = {
+      'daily': 'monthly' as 'monthly',
+      'weekly': 'monthly' as 'monthly', 
+      'monthly': 'monthly' as 'monthly',
+      'yearly': 'yearly' as 'yearly'
+    };
+    
     const budgetToEdit: Budget = {
       id: budget.id,
       user_id: '', // This will be set from session when saving
@@ -1720,15 +1631,15 @@ Response:
       budget_limit: budget.budget_limit,
       spent: budget.spent,
       percentage: budget.percentage,
-      period: budget.period,
-      created_at: new Date().toISOString()
+      period: periodMap[budget.period] || 'monthly',
+      created_at: budget.created_at
     };
     
     setEditingBudget(budgetToEdit);
     setBudgetFormData({
       category: budget.category,
       budget_limit: budget.budget_limit.toString(),
-      period: budget.period as 'Monthly' | 'Quarterly' | 'Yearly'
+      period: (budget.period === 'yearly' ? 'Yearly' : 'Monthly') as 'Monthly' | 'Quarterly' | 'Yearly'
     });
   };
 
@@ -2317,7 +2228,11 @@ Response:
 <DeleteConfirmationModal
   isOpen={!!deleteTransactionId}
   onClose={() => setDeleteTransactionId(null)}
-  onConfirm={() => deleteTransactionId && handleDeleteTransaction(deleteTransactionId)}
+onConfirm={() => {
+  if (deleteTransactionId) {
+    handleDeleteTransaction(deleteTransactionId);
+  }
+}}
   title="Delete Transaction"
   description="Are you sure you want to delete this transaction? This action cannot be undone."
   confirmText="Delete Transaction"
@@ -2329,7 +2244,11 @@ Response:
 <DeleteConfirmationModal
   isOpen={!!deleteBudgetId}
   onClose={() => setDeleteBudgetId(null)}
-  onConfirm={() => deleteBudgetId && handleDeleteBudget(deleteBudgetId)}
+onConfirm={() => {
+  if (deleteTransactionId) {
+    handleDeleteTransaction(deleteTransactionId);
+  }
+}}
   title="Delete Budget"
   description="Are you sure you want to delete this budget? This action cannot be undone."
   confirmText="Delete Budget"
