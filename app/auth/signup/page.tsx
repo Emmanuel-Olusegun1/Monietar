@@ -46,6 +46,7 @@ export default function Signup() {
       return;
     }
 
+    
     // Validate required fields based on signup method
     if (signupMethod === 'email' && !formData.email) {
       toast.error(t.emailRequired || 'Email is required');
