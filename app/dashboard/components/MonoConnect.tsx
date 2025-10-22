@@ -8,8 +8,35 @@ interface MonoConnectProps {
   onEvent?: (event: any) => void;
 }
 
+// Define types for Mono Connect
+interface MonoConnectOptions {
+  key: string;
+  onSuccess: (data: { code: string }) => void;
+  onClose: () => void;
+  onLoad?: () => void;
+  onEvent?: (event: string, data: any) => void;
+}
+
+interface MonoConnectInstance {
+  setup: () => void;
+  open: () => void;
+  close: () => void;
+}
+
+// Type for the module
+interface MonoModule {
+  default?: new (options: MonoConnectOptions) => MonoConnectInstance;
+  MonoConnect?: new (options: MonoConnectOptions) => MonoConnectInstance;
+}
+
+declare global {
+  interface Window {
+    MonoConnect?: new (options: MonoConnectOptions) => MonoConnectInstance;
+  }
+}
+
 export default function MonoConnect({ onSuccess, onClose, onEvent }: MonoConnectProps) {
-  const monoConnectRef = useRef<any>(null);
+  const monoConnectRef = useRef<MonoConnectInstance | null>(null);
 
   useEffect(() => {
     const initializeMono = async () => {
@@ -18,16 +45,44 @@ export default function MonoConnect({ onSuccess, onClose, onEvent }: MonoConnect
         
         console.log('Importing Mono package...');
         
-        // Import the Mono Connect package - try different import methods
-        const monoModule = await import('@mono.co/connect.js');
-        console.log('Mono module:', monoModule);
-        
-        // The package might export differently - let's check what's available
-        const MonoConnect = monoModule.default || monoModule.MonoConnect || monoModule;
-        console.log('MonoConnect constructor:', MonoConnect);
-        
-        if (typeof MonoConnect !== 'function') {
-          throw new Error('MonoConnect is not a constructor. Available exports: ' + Object.keys(monoModule).join(', '));
+        let MonoConnectConstructor: new (options: MonoConnectOptions) => MonoConnectInstance;
+
+        // Try dynamic import first
+        try {
+          const monoModule = await import('@mono.co/connect.js') as MonoModule;
+          console.log('Mono module loaded via import:', monoModule);
+          
+          // Handle different export formats
+          MonoConnectConstructor = monoModule.default || monoModule.MonoConnect!;
+          
+          if (typeof MonoConnectConstructor !== 'function') {
+            throw new Error('MonoConnect constructor not found in module');
+          }
+        } catch (importError) {
+          console.log('Dynamic import failed, trying script tag method:', importError);
+          
+          // Load via script tag
+          await new Promise<void>((resolve, reject) => {
+            if (window.MonoConnect) {
+              resolve();
+              return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://connect.withmono.com/connect.js';
+            script.async = true;
+            script.onload = () => {
+              if (window.MonoConnect) {
+                resolve();
+              } else {
+                reject(new Error('MonoConnect not available after script load'));
+              }
+            };
+            script.onerror = () => reject(new Error('Failed to load Mono Connect script'));
+            document.head.appendChild(script);
+          });
+
+          MonoConnectConstructor = window.MonoConnect!;
         }
 
         const publicKey = process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY;
@@ -39,7 +94,7 @@ export default function MonoConnect({ onSuccess, onClose, onEvent }: MonoConnect
         console.log('Initializing Mono Connect with key:', publicKey.substring(0, 10) + '...');
 
         // Initialize Mono Connect
-        monoConnectRef.current = new MonoConnect({
+        monoConnectRef.current = new MonoConnectConstructor({
           key: publicKey,
           onSuccess: (data: { code: string }) => {
             console.log('Mono connection successful:', data);
@@ -70,6 +125,12 @@ export default function MonoConnect({ onSuccess, onClose, onEvent }: MonoConnect
       } catch (error) {
         console.error('Error initializing Mono Connect:', error);
         onEvent?.({ type: 'ERROR', error });
+        
+        // Show user-friendly error message
+        setTimeout(() => {
+          alert('Failed to load bank connection. Please try again or contact support.');
+          onClose();
+        }, 1000);
       }
     };
 
@@ -97,6 +158,7 @@ export default function MonoConnect({ onSuccess, onClose, onEvent }: MonoConnect
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            aria-label="Close"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

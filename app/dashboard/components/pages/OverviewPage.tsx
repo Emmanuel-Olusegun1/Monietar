@@ -38,12 +38,27 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend, Area, AreaChart } from 'recharts';
 
 interface OverviewPageProps {
-  darkMode: boolean;
-  themeClasses: any;
+  financialData: FinancialData; 
+  formatCurrency: (amount: number) => string;
+  timeFilter: string;
+  setTimeFilter: (filter: string) => void;
+  timeFilters: any[];
+  hasTransactionData: boolean;
+  currentTrendData: any[];
+  categoryBreakdown: any;
+  budgetsWithRealTimeTracking: any[];
+  realTimeAlerts: any[];
   setShowIncomeForm: (show: boolean) => void;
   setShowExpenseForm: (show: boolean) => void;
   setShowBudgetForm: (show: boolean) => void;
+  startEditBudget: (budget: any) => void;
+  setDeleteBudgetId: (id: string | null) => void;
   setActiveTab: (tab: string) => void;
+  darkMode: boolean;
+  themeClasses: any;
+  getDataKey: () => string;
+  CustomTooltip: any;
+  EmptyState: any;
 }
 
 interface FinancialData {
@@ -91,7 +106,7 @@ const categoryColors: { [key: string]: string } = {
   'default': '#6b7280'
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
   darkMode,
@@ -128,51 +143,110 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     { value: 'yearly', label: 'Yearly' }
   ];
 
-  // API Calls
-  const fetchFinancialData = async () => {
+  // Fetch user registration data and financial overview
+  const fetchUserFinancialData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch all data in parallel
-      const [
-        financialResponse,
-        budgetsResponse,
-        alertsResponse,
-        categoriesResponse,
-        trendsResponse
-      ] = await Promise.all([
-        fetch(`${API_BASE_URL}/financial/overview?timeFilter=${timeFilter}`),
-        fetch(`${API_BASE_URL}/budgets?timeFilter=${timeFilter}`),
-        fetch(`${API_BASE_URL}/alerts`),
-        fetch(`${API_BASE_URL}/categories/breakdown?type=income&timeFilter=${timeFilter}`),
-        fetch(`${API_BASE_URL}/trends?timeFilter=${timeFilter}`)
-      ]);
+      // First, check if user is registered by fetching user data
+      const userResponse = await fetch('/user/register', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (!financialResponse.ok || !budgetsResponse.ok || !alertsResponse.ok || 
-          !categoriesResponse.ok || !trendsResponse.ok) {
-        throw new Error('Failed to fetch financial data');
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch user data');
       }
 
-      const [
-        financialData,
-        budgetsData,
-        alertsData,
-        categoriesData,
-        trendsData
-      ] = await Promise.all([
-        financialResponse.json(),
-        budgetsResponse.json(),
-        alertsResponse.json(),
-        categoriesResponse.json(),
-        trendsResponse.json()
-      ]);
+      const userData = await userResponse.json();
+      
+      // If user exists, fetch their financial data
+      if (userData.user) {
+        // Fetch financial overview data
+        const financialResponse = await fetch(`/user/register?action=overview&timeFilter=${timeFilter}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-      setFinancialData(financialData);
-      setBudgetsWithRealTimeTracking(budgetsData.budgets || []);
-      setRealTimeAlerts(alertsData.alerts || []);
-      setCategoryBreakdown(categoriesData);
-      setCurrentTrendData(trendsData.trends || []);
+        if (!financialResponse.ok) {
+          throw new Error('Failed to fetch financial overview');
+        }
+
+        const financialOverview = await financialResponse.json();
+
+        // Set the financial data from the API response
+        setFinancialData({
+          income: financialOverview.income || 0,
+          expenses: financialOverview.expenses || 0,
+          profit: financialOverview.profit || 0,
+          aiRecommendations: financialOverview.aiRecommendations || []
+        });
+
+        // Fetch budgets data
+        const budgetsResponse = await fetch(`/user/register?action=budgets&timeFilter=${timeFilter}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (budgetsResponse.ok) {
+          const budgetsData = await budgetsResponse.json();
+          setBudgetsWithRealTimeTracking(budgetsData.budgets || []);
+        }
+
+        // Fetch alerts data
+        const alertsResponse = await fetch('/user/register?action=alerts', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (alertsResponse.ok) {
+          const alertsData = await alertsResponse.json();
+          setRealTimeAlerts(alertsData.alerts || []);
+        }
+
+        // Fetch category breakdown
+        const categoriesResponse = await fetch(`/user/register?action=categories&type=income&timeFilter=${timeFilter}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json();
+          setCategoryBreakdown(categoriesData);
+        }
+
+        // Fetch trend data
+        const trendsResponse = await fetch(`/user/register?action=trends&timeFilter=${timeFilter}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (trendsResponse.ok) {
+          const trendsData = await trendsResponse.json();
+          setCurrentTrendData(trendsData.trends || []);
+        }
+      } else {
+        // No user data found, set empty state
+        setFinancialData({
+          income: 0,
+          expenses: 0,
+          profit: 0,
+          aiRecommendations: []
+        });
+      }
 
     } catch (err) {
       console.error('Error fetching financial data:', err);
@@ -182,14 +256,18 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
   };
 
+  // Add transaction using the user registration endpoint
   const addTransaction = async (transactionData: any) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/transactions`, {
+      const response = await fetch('/user/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(transactionData),
+        body: JSON.stringify({
+          action: 'addTransaction',
+          transactionData: transactionData
+        }),
       });
 
       if (!response.ok) {
@@ -197,7 +275,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       }
 
       // Refresh data after adding transaction
-      await fetchFinancialData();
+      await fetchUserFinancialData();
       return await response.json();
     } catch (err) {
       console.error('Error adding transaction:', err);
@@ -205,10 +283,18 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
   };
 
+  // Delete budget using the user registration endpoint
   const deleteBudget = async (budgetId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/budgets/${budgetId}`, {
+      const response = await fetch('/user/register', {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'deleteBudget',
+          budgetId: budgetId
+        }),
       });
 
       if (!response.ok) {
@@ -216,16 +302,41 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       }
 
       // Refresh data after deleting budget
-      await fetchFinancialData();
+      await fetchUserFinancialData();
     } catch (err) {
       console.error('Error deleting budget:', err);
       throw err;
     }
   };
 
+  // Register new user (if needed)
+  const registerUser = async (userData: any) => {
+    try {
+      const response = await fetch('/user/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'register',
+          userData: userData
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to register user');
+      }
+
+      return await response.json();
+    } catch (err) {
+      console.error('Error registering user:', err);
+      throw err;
+    }
+  };
+
   // Effects
   useEffect(() => {
-    fetchFinancialData();
+    fetchUserFinancialData();
   }, [timeFilter]);
 
   // Utility functions
@@ -395,7 +506,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <h3 className={`text-xl font-bold mb-2 ${themeClasses.text.primary}`}>Error Loading Data</h3>
           <p className={`mb-4 ${themeClasses.text.secondary}`}>{error}</p>
           <button
-            onClick={fetchFinancialData}
+            onClick={fetchUserFinancialData}
             className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             Retry
