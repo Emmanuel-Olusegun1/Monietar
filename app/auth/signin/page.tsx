@@ -2,130 +2,108 @@
 
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { useState, FormEvent, ChangeEvent, useEffect, Suspense } from 'react';
+import { useState, FormEvent, ChangeEvent, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { translations, languages } from './signintranslations';
 import { Toaster, toast } from 'react-hot-toast';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Phone } from 'lucide-react';
+import axios from 'axios';
 
 // Create Supabase client
 const supabase = createClientComponentClient();
 
-const MOCK_DATA = {
-  email: {
-    'user@monitar.com': {
-      Password: 'password123',
-      name: 'Monietar User1',
-      id: 'user-001'
-    },
-    'my@monietar.com': {
-      password: 'password456',
-      name: 'MOnietar User2',
-      id: 'user-002'
-    }
-  },
-  Phone: {
-    '+234 9034010384': {
-      name: 'Phone User1',
-      id: 'phone-user-001'
-    },
-    '+234 9071565791': {
-      name: 'Phone User2',
-      id: 'phone-user-002'
-    }
-  }
-};
+// Configure Axios defaults
+axios.defaults.timeout = 10000;
+axios.defaults.headers.common['Content-Type'] = 'application/json';
 
-// Mock API service using MOCK_DATA
+// API service using Axios
 const authAPI = {
   async signInWithEmail(email: string, password: string) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const user = MOCK_DATA.email[email as keyof typeof MOCK_DATA.email];
-    
-    if (!user) {
-      throw new Error('No user found with this email');
+    const response = await axios.post('/api/auth/signin', {
+      email,
+      password
+    }, {
+      timeout: 8000,
+      validateStatus: (status) => status < 500
+    });
+
+    if (response.status === 200) {
+      return response.data;
+    } else {
+      throw new Error(response.data?.message || 'Authentication failed');
     }
-    
-    // Note: In your MOCK_DATA, one has 'Password' and one has 'password' - fixing this inconsistency
-    const userPassword = (user as any).Password || (user as any).password;
-    
-    if (userPassword !== password) {
-      throw new Error('Invalid password');
-    }
-    
-    return {
-      user: {
-        id: user.id,
-        email: email,
-        name: user.name
-      },
-      session: {
-        access_token: 'mock-access-token',
-        refresh_token: 'mock-refresh-token'
-      }
-    };
   },
 
   async signInWithPhone(phone: string) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const cleanedPhone = phone.replace(/\s/g, '');
-    const phoneKey = Object.keys(MOCK_DATA.Phone).find(key => key.replace(/\s/g, '') === cleanedPhone);
-    
-    if (!phoneKey) {
-      throw new Error('No user found with this phone number');
+    const response = await axios.post('/api/auth/phone/signin', {
+      phone: phone.replace(/\s/g, '')
+    }, {
+      timeout: 8000,
+      validateStatus: (status) => status < 500
+    });
+
+    if (response.status === 200) {
+      return response.data;
+    } else {
+      throw new Error(response.data?.message || 'Failed to send verification code');
     }
-    
-    const user = MOCK_DATA.Phone[phoneKey as keyof typeof MOCK_DATA.Phone];
-    
-    return {
-      success: true,
-      message: 'Verification code sent',
-      user: {
-        id: user.id,
-        phone: phoneKey,
-        name: user.name
-      }
-    };
   },
 
   async signInWithGoogle() {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock Google OAuth URL
-    return '/auth/google/callback';
+    const response = await axios.get('/api/auth/oauth/google', {
+      timeout: 5000
+    });
+
+    if (response.status === 200) {
+      return response.data.url;
+    } else {
+      throw new Error('Failed to get Google OAuth URL');
+    }
   },
 
   async resetPassword(email: string) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const user = MOCK_DATA.email[email as keyof typeof MOCK_DATA.email];
-    
-    if (!user) {
-      throw new Error('No user found with this email');
+    const response = await axios.post('/api/auth/reset-password', {
+      email
+    }, {
+      timeout: 8000,
+      validateStatus: (status) => status < 500
+    });
+
+    if (response.status === 200) {
+      return response.data;
+    } else {
+      throw new Error(response.data?.message || 'Failed to reset password');
     }
-    
-    return { message: 'Password reset instructions sent to your email' };
   },
 
   async checkAuth(): Promise<{ user?: any }> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Always return not authenticated in mock
-    throw new Error('Not authenticated');
+    const response = await axios.get('/api/auth/check', {
+      timeout: 5000,
+      validateStatus: (status) => status < 500
+    });
+
+    if (response.status === 200) {
+      return response.data;
+    } else {
+      throw new Error('Not authenticated');
+    }
+  },
+
+  async verifyToken(token: string) {
+    const response = await axios.post('/api/auth/verify', {
+      token
+    }, {
+      timeout: 5000,
+      validateStatus: (status) => status < 500
+    });
+
+    return response.data;
   }
 };
 
-// Create a wrapper component that uses useSearchParams
-function SigninContent() {
+export default function Signin() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('English');
@@ -138,11 +116,10 @@ function SigninContent() {
     password: '',
   });
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const t = translations[currentLanguage.toLowerCase().substring(0, 2) as keyof typeof translations] || translations.en;
 
-  // Check authentication status and handle OAuth callback
+  // Check authentication status
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -157,7 +134,7 @@ function SigninContent() {
           return;
         }
         
-        // Fallback to API check
+        // Fallback to API check with Axios
         try {
           const response = await authAPI.checkAuth();
           if (response.user) {
@@ -168,19 +145,6 @@ function SigninContent() {
           console.log('API auth check failed, continuing with signin form');
         }
         
-        // Handle OAuth callback errors
-        const error = searchParams.get('error');
-        const errorDescription = searchParams.get('error_description');
-        
-        if (error) {
-          toast.error(errorDescription || 'Authentication failed');
-          // Clear URL parameters
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.delete('error');
-          newUrl.searchParams.delete('error_description');
-          window.history.replaceState({}, '', newUrl.toString());
-        }
-        
       } catch (error) {
         console.log('User not authenticated, showing signin form');
       } finally {
@@ -189,7 +153,7 @@ function SigninContent() {
     };
 
     checkAuth();
-  }, [searchParams, router]);
+  }, [router]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -227,9 +191,15 @@ function SigninContent() {
           }, 1000);
           
         } catch (directError: any) {
-          // Fallback to API if direct auth fails
+          // Fallback to API with Axios if direct auth fails
           console.log('Direct auth failed, trying API:', directError);
-          await authAPI.signInWithEmail(email, password);
+          const result = await authAPI.signInWithEmail(email, password);
+          
+          // Store session data if needed
+          if (result.session) {
+            localStorage.setItem('auth_token', result.session.access_token);
+          }
+          
           toast.success(t.thankYou || 'Welcome back!');
           setTimeout(() => {
             router.push('/dashboard');
@@ -261,9 +231,10 @@ function SigninContent() {
           }, 1500);
           
         } catch (directError: any) {
-          // Fallback to API
+          // Fallback to API with Axios
           console.log('Direct phone auth failed, trying API:', directError);
-          await authAPI.signInWithPhone(phoneNumber);
+          const result = await authAPI.signInWithPhone(phoneNumber);
+          
           toast.success('Verification code sent to your phone!');
           setTimeout(() => {
             router.push(`/auth/verify-phone?phone=${encodeURIComponent(phoneNumber)}`);
@@ -280,8 +251,10 @@ function SigninContent() {
         toast.error('Please verify your email address before signing in');
       } else if (error.message.includes('Phone')) {
         toast.error('Invalid phone number or user not found');
-      } else if (error.message.includes('Authentication service unavailable')) {
-        toast.error('Authentication service is currently unavailable. Please try again later.');
+      } else if (error.message.includes('Network Error') || error.message.includes('timeout')) {
+        toast.error('Network connection failed. Please check your internet connection.');
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
       } else {
         toast.error(error.message || 'Failed to sign in');
       }
@@ -301,11 +274,15 @@ function SigninContent() {
       
     } catch (error: any) {
       console.error('Google signin error:', error);
-      toast.error(error.message || 'Failed to sign in with Google');
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error(error.message || 'Failed to sign in with Google');
+      }
     }
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     if (signinMethod === 'email' && !formData.email) {
       toast.error('Please enter your email address first');
       return;
@@ -316,8 +293,25 @@ function SigninContent() {
       return;
     }
 
-    // Redirect to forgot password page with the email pre-filled
-    router.push(`/auth/forgot-password?email=${encodeURIComponent(formData.email)}`);
+    try {
+      const loadingToast = toast.loading('Sending reset instructions...');
+      await authAPI.resetPassword(formData.email);
+      toast.dismiss(loadingToast);
+      toast.success('Password reset instructions sent to your email!');
+      
+      // Redirect to forgot password page with the email pre-filled
+      setTimeout(() => {
+        router.push(`/auth/forgot-password?email=${encodeURIComponent(formData.email)}`);
+      }, 1500);
+      
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error(error.message || 'Failed to send reset instructions');
+      }
+    }
   };
 
   const selectLanguage = (languageCode: string, languageName: string) => {
@@ -636,19 +630,5 @@ function SigninContent() {
         }
       `}</style>
     </div>
-  );
-}
-
-// Main component with Suspense boundary
-export default function Signin() {
-  return (
-    <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mb-4"></div>
-        <p className="text-gray-400">Loading...</p>
-      </div>
-    }>
-      <SigninContent />
-    </Suspense>
   );
 }

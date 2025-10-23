@@ -508,7 +508,7 @@ export default function WaitlistHero() {
                         animate="animate"
                     >
                         {/* Early Access Badge */}
-                        <motion.div 
+                       < motion.div 
                             className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 rounded-full px-4 py-2 mb-2"
                             variants={fadeInUp}
                         >

@@ -15,7 +15,7 @@ import {
   Calendar, DollarSign, Euro, Currency, Filter, Download, MoreHorizontal,
   Languages, Edit, Trash2, Save, Key, ChevronRight, Eye, EyeOff,
   Sun, Moon, Sparkles, Zap, Target, Shield, Database, Cloud,
-  ArrowUpRight, ArrowDownRight, RefreshCw
+  ArrowUpRight, ArrowDownRight, RefreshCw, Crown
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Legend } from 'recharts';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -32,6 +32,7 @@ import { ClearDataModal } from './components/modals/ClearDataModal';
 import { DeleteAccountModal } from './components/modals/DeleteAccountModal';
 import { RestoreBackupModal } from './components/modals/RestoreBackupModal';
 import { AIChatModal } from './components/modals/AIChatModal';
+import { TokenModal } from './components/modals/TokenModal';
 
 // Import pages
 import { OverviewPage } from './components/pages/OverviewPage';
@@ -43,6 +44,7 @@ import AccountsPage from './components/pages/AccountsPage';
 
 // Import components
 import { Sidebar } from './Sidebar';
+import { TokenStatus } from './components/TokenStatus';
 
 // Import types
 import { 
@@ -62,11 +64,11 @@ import {
   SidebarProps,
 } from './types';
 
-
-
 // Import your classes
 import { RuleBasedFinancialAdvisor } from './utils/FinancialAdvisor';
 import { AdvancedFinancialNLP } from './utils/FinancialNLP';
+import { AWSAIService, awsAIService } from './utils/AWSAIService';
+import { TokenManager } from './utils/TokenManager';
 
 // Import helper functions
 import { getWeekOfMonth, getWeekRange } from './utils/dateHelpers';
@@ -344,6 +346,27 @@ export default function Dashboard() {
   const [showBalance, setShowBalance] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
 
+  // AI Token Management State
+  const [usePremiumAI, setUsePremiumAI] = useState(false);
+  const [aiServiceStatus, setAIServiceStatus] = useState<'aws' | 'standard' | 'checking'>('checking');
+  const [aiFeatures, setAIFeatures] = useState({
+    cashFlowPrediction: false,
+    riskAssessment: false,
+    budgetOptimization: false
+  });
+  const [tokenStatus, setTokenStatus] = useState<{
+    tokensRemaining: number;
+    totalTokens: number;
+    resetTime: Date;
+    percentage: number;
+  }>({
+    tokensRemaining: 5,
+    totalTokens: 5,
+    resetTime: new Date(),
+    percentage: 100
+  });
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [lastTokenUpdate, setLastTokenUpdate] = useState<Date>(new Date());
   
   // Transaction management states
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -530,47 +553,46 @@ export default function Dashboard() {
     setToastOpen(true);
   };
 
-  // Enhanced AI response generator with fintech context
+  // Enhanced AI response generator with token management
   const generateAIResponseWithContext = async (
     userQuestion: string, 
-    financialData: FinancialData
-  ): Promise<string> => {
+    financialData: FinancialData,
+    usePremium: boolean = false
+  ): Promise<{ response: string; tokensUsed: boolean; tokensRemaining: number }> => {
     
-    // Build user data context
-    const userDataContext = financialData.transactions.length > 0
-      ? `User Financial Snapshot:\n- Income: ${formatCurrency(financialData.income)}\n- Expenses: ${formatCurrency(financialData.expenses)}\n- Profit: ${formatCurrency(financialData.profit)}\n- Total Transactions: ${financialData.transactions.length}`
-      : 'No transaction data available yet.';
+    try {
+      const result = await awsAIService.analyzeFinancialData(
+        userQuestion,
+        financialData,
+        session,
+        usePremium
+      );
 
-    const prompt = `
-You are a specialized AI financial advisor focused on cash flow management and fintech. 
-Your expertise includes budgeting, expense tracking, cash flow analysis, and financial optimization.
-
-${userDataContext}
-
-User Question: "${userQuestion}"
-
-Guidelines for your response:
-1. Focus on practical, actionable advice for cash flow management
-2. Use financial terminology appropriately but explain complex concepts
-3. Provide specific examples when helpful
-4. Reference the user's financial data if relevant
-5. Keep responses concise but comprehensive
-6. If the question is outside cash flow management, politely redirect to financial topics
-7. Suggest related financial concepts they might find helpful
-
-Response:
-`;
-
-    // Use your existing AI processor with the enhanced prompt
-    return AdvancedFinancialNLP.processQuery(
-      prompt,
-      financialData.transactions,
-      financialData.budgets,
-      (amount: number) => formatCurrency(amount)
-    );
+      setLastTokenUpdate(new Date());
+      setAIServiceStatus('aws');
+      
+      return result;
+      
+    } catch (error) {
+      console.error('AI processing error:', error);
+      setAIServiceStatus('standard');
+      
+      const standardResponse = await AdvancedFinancialNLP.processQuery(
+        userQuestion,
+        financialData.transactions,
+        financialData.budgets,
+        (amount: number) => formatCurrency(amount)
+      );
+      
+      return {
+        response: standardResponse,
+        tokensUsed: false,
+        tokensRemaining: tokenStatus.tokensRemaining
+      };
+    }
   };
 
-  // Enhanced AI Chat Function
+  // Enhanced AI Chat Function with Token Management
   const sendMessage = async () => {
     if (!newMessage.trim() || !session) return;
 
@@ -591,20 +613,26 @@ Response:
     setChatMessages(prev => [...prev, typingMessage]);
 
     try {
-      // Get AI response with fintech context
-      const aiResponse = await generateAIResponseWithContext(
+      // Get AI response with token management
+      const result = await generateAIResponseWithContext(
         newMessage, 
-        financialData
+        financialData,
+        usePremiumAI
       );
 
       // Remove typing indicator and add actual response
       setChatMessages(prev => 
         prev.filter(msg => msg.id !== typingMessage.id).concat({
           id: Date.now() + 1,
-          text: aiResponse,
+          text: result.response + (result.tokensUsed ? '' : '\n\n*Using standard analysis (daily AI tokens exhausted)*'),
           sender: 'ai'
         })
       );
+
+      // Show token modal if no tokens used (meaning they're out)
+      if (!result.tokensUsed && tokenStatus.tokensRemaining === 0) {
+        setShowTokenModal(true);
+      }
 
     } catch (error) {
       console.error('AI response error:', error);
@@ -617,6 +645,98 @@ Response:
       );
     }
   };
+
+  // Enhanced AI Features - Updated for AWS
+  const enhanceCashFlowPrediction = async () => {
+    if (!session || financialData.transactions.length === 0) return;
+
+    try {
+      // For now, we'll skip cash flow prediction until AWS version is implemented
+      console.log('Cash flow prediction feature coming soon with AWS');
+      
+      // You can implement AWS SageMaker prediction here later
+      // setAIFeatures(prev => ({ ...prev, cashFlowPrediction: true }));
+    } catch (error) {
+      console.error('Enhanced cash flow prediction failed:', error);
+      setAIFeatures(prev => ({ ...prev, cashFlowPrediction: false }));
+    }
+  };
+
+  const optimizeBudgetsWithAI = async () => {
+    if (!session || financialData.budgets.length === 0) return;
+
+    try {
+      // For now, use the existing rule-based recommendations
+      const recommendations = RuleBasedFinancialAdvisor.analyzeSpendingPatterns(
+        financialData.transactions,
+        financialData.budgets,
+        formatCurrency
+      ).slice(0, 2);
+
+      if (recommendations.length > 0) {
+        setFinancialData(prev => ({
+          ...prev,
+          aiRecommendations: [
+            ...recommendations,
+            ...prev.aiRecommendations.slice(0, 2)
+          ]
+        }));
+        
+        setAIFeatures(prev => ({ ...prev, budgetOptimization: true }));
+        showToast('Budget optimization completed!');
+      }
+    } catch (error) {
+      console.error('Budget optimization failed:', error);
+      setAIFeatures(prev => ({ ...prev, budgetOptimization: false }));
+    }
+  };
+
+  const performRiskAssessment = async () => {
+    if (!session) return;
+
+    try {
+      // For now, use simple rule-based risk assessment
+      const profitMargin = financialData.income > 0 ? (financialData.profit / financialData.income) * 100 : 0;
+      let riskLevel = 'low';
+      let recommendation = 'Your financial health looks good!';
+
+      if (profitMargin < 10) {
+        riskLevel = 'high';
+        recommendation = 'Consider reducing expenses to improve profit margin';
+      } else if (profitMargin < 20) {
+        riskLevel = 'medium';
+        recommendation = 'Monitor your expenses closely to maintain profitability';
+      }
+
+      setFinancialData(prev => ({
+        ...prev,
+        aiRecommendations: [
+          `Risk Level: ${riskLevel.toUpperCase()} - ${recommendation}`,
+          ...prev.aiRecommendations.slice(0, 3)
+        ]
+      }));
+      
+      setAIFeatures(prev => ({ ...prev, riskAssessment: true }));
+    } catch (error) {
+      console.error('Risk assessment failed:', error);
+      setAIFeatures(prev => ({ ...prev, riskAssessment: false }));
+    }
+  };
+
+  // Token status monitoring
+  useEffect(() => {
+    const updateTokenStatus = async () => {
+      if (session) {
+        const status = await TokenManager.getTokenStatus(session);
+        setTokenStatus(status);
+      }
+    };
+
+    updateTokenStatus();
+    
+    const interval = setInterval(updateTokenStatus, 60000);
+    return () => clearInterval(interval);
+  }, [session, lastTokenUpdate]);
 
   // Enhanced session monitoring with connection persistence check
   useEffect(() => {
@@ -696,6 +816,16 @@ Response:
       }
     };
   }, [session, networkStatus]);
+
+  // Call enhanced AI features when data changes
+  useEffect(() => {
+    if (financialData.transactions.length > 10) {
+      optimizeBudgetsWithAI();
+      performRiskAssessment();
+      // Skip cash flow prediction for now since it's not implemented in AWS yet
+      // enhanceCashFlowPrediction();
+    }
+  }, [financialData.transactions, financialData.budgets, session]);
 
   // Settings Functions with API
   const handleSaveSettings = async () => {
@@ -1496,39 +1626,38 @@ Response:
   }, [financialData.transactions]);
 
   // Real-time budget tracking calculation with proper typing
-// Real-time budget tracking calculation with proper typing
-const budgetsWithRealTimeTracking = useMemo((): EnhancedBudget[] => {
-  return financialData.budgets.map(budget => {
-    // Calculate spent amount from transactions for this budget category
-    const spent = financialData.transactions
-      .filter(transaction => 
-        transaction.type === 'expense' && 
-        transaction.category === budget.category
-      )
-      .reduce((sum, transaction) => sum + transaction.amount, 0);
-    
-    const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
-    
-    // Convert to EnhancedBudget type with proper period conversion
-    const periodMap = {
-      'monthly': 'monthly' as 'monthly',
-      'quarterly': 'monthly' as 'monthly', // Map to monthly for display
-      'yearly': 'yearly' as 'yearly'
-    };
-    
-    const enhancedBudget: EnhancedBudget = {
-      id: budget.id,
-      category: budget.category,
-      budget_limit: budget.budget_limit,
-      spent,
-      percentage,
-      period: periodMap[budget.period] || 'monthly',
-      created_at: budget.created_at || new Date().toISOString() // Provide default value
-    };
-    
-    return enhancedBudget;
-  });
-}, [financialData.budgets, financialData.transactions]);
+  const budgetsWithRealTimeTracking = useMemo((): EnhancedBudget[] => {
+    return financialData.budgets.map(budget => {
+      // Calculate spent amount from transactions for this budget category
+      const spent = financialData.transactions
+        .filter(transaction => 
+          transaction.type === 'expense' && 
+          transaction.category === budget.category
+        )
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
+      
+      const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
+      
+      // Convert to EnhancedBudget type with proper period conversion
+      const periodMap = {
+        'monthly': 'monthly' as 'monthly',
+        'quarterly': 'monthly' as 'monthly', // Map to monthly for display
+        'yearly': 'yearly' as 'yearly'
+      };
+      
+      const enhancedBudget: EnhancedBudget = {
+        id: budget.id,
+        category: budget.category,
+        budget_limit: budget.budget_limit,
+        spent,
+        percentage,
+        period: periodMap[budget.period] || 'monthly',
+        created_at: budget.created_at || new Date().toISOString() // Provide default value
+      };
+      
+      return enhancedBudget;
+    });
+  }, [financialData.budgets, financialData.transactions]);
 
   // Real-time alerts based on actual spending
   const realTimeAlerts = useMemo(() => {
@@ -1882,12 +2011,11 @@ const budgetsWithRealTimeTracking = useMemo((): EnhancedBudget[] => {
             <Image
                   src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png"
                   alt="Monietar Logo"
-                  width={160}
+                  width={200}
                   height={40}
-                  className="object-contain animate-pulse"
+                  className="object-contain animate-ping"
                 />
         </div>
-        <p className={`mt-4 ${themeClasses.text.secondary}`}>Loading your dashboard...</p>
       </div>
     );
   }
@@ -1949,8 +2077,15 @@ const budgetsWithRealTimeTracking = useMemo((): EnhancedBudget[] => {
                 </button>
               </div>
 
-              <div className="flex-1 flex justify-center lg:justify-end">
+              <div className="flex-1 flex items-center justify-center lg:justify-end">
                 <div className="flex items-center space-x-2 sm:space-x-3">
+                  {/* Token Status */}
+                  <TokenStatus
+                    tokenStatus={tokenStatus}
+                    darkMode={darkMode}
+                    onUpgradeClick={() => setShowTokenModal(true)}
+                  />
+
                   {/* Enhanced Connection Status */}
                   <ConnectionStatus />
 
@@ -2245,8 +2380,8 @@ onConfirm={() => {
   isOpen={!!deleteBudgetId}
   onClose={() => setDeleteBudgetId(null)}
 onConfirm={() => {
-  if (deleteTransactionId) {
-    handleDeleteTransaction(deleteTransactionId);
+  if (deleteBudgetId) {
+    handleDeleteBudget(deleteBudgetId);
   }
 }}
   title="Delete Budget"
@@ -2290,14 +2425,6 @@ onConfirm={() => {
             darkMode={darkMode}
           />
 
-          {/* Clear Data Modal */}
-          <ClearDataModal
-            isOpen={showClearDataDialog}
-            onClose={() => setShowClearDataDialog(false)}
-            onConfirm={handleClearData}
-            darkMode={darkMode}
-          />
-
           {/* Delete Account Modal */}
           <DeleteAccountModal
             isOpen={showDeleteAccountDialog}
@@ -2327,6 +2454,18 @@ onConfirm={() => {
             onSendMessage={sendMessage}
             darkMode={darkMode}
             suggestedQuestions={fintechSuggestedQuestions}
+            aiStatus={aiServiceStatus}
+            usePremium={usePremiumAI}
+            onTogglePremium={() => setUsePremiumAI(!usePremiumAI)}
+            tokensRemaining={tokenStatus.tokensRemaining}
+          />
+
+          {/* Token Management Modal */}
+          <TokenModal
+            isOpen={showTokenModal}
+            onClose={() => setShowTokenModal(false)}
+            tokenStatus={tokenStatus}
+            darkMode={darkMode}
           />
 
           {/* Session Expired Modal */}
