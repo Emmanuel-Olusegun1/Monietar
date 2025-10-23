@@ -8,6 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.914.0",
+    "@aws-sdk/client-dynamodb": "^3.914.0",
+    "@aws-sdk/client-sts": "^3.914.0",
+    "@aws-sdk/lib-dynamodb": "^3.914.0",
     "@mono.co/connect.js": "^2.1.0",
     "@prisma/client": "^6.16.1",
     "@prisma/extension-accelerate": "^2.0.2",
