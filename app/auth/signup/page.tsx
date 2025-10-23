@@ -2,242 +2,87 @@
 
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { useState, FormEvent, ChangeEvent, Suspense } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { translations, languages } from './signuptranslations';
 import { supabase } from '@/lib/supabase/client';
 import { Toaster, toast } from 'react-hot-toast';
+import axios from 'axios';
 
-// Mock data for testing
-const MOCK_DATA = {
-  business_names: {
-    'Tech Corp': { available: false, message: 'Business name already taken' },
-    'Startup Inc': { available: false, message: 'Business name already taken' },
-    'Monietar Solutions': { available: true }
-  },
-  users: {
-    'existing@monietar.com': { exists: true, message: 'User already registered' },
-    'test@monietar.com': { exists: false }
-  },
-  phones: {
-    '+2349012345678': { exists: true, message: 'Phone number already registered' },
-    '+2349076543210': { exists: false }
-  }
-};
+// Configure Axios defaults
+axios.defaults.timeout = 10000;
+axios.defaults.headers.common['Content-Type'] = 'application/json';
 
-// Type definitions for mock data
-type BusinessData = { available: boolean; message?: string };
-type UserData = { exists: boolean; message?: string };
-type PhoneData = { exists: boolean; message?: string };
-
-// API service for signup
+// API service for signup using Axios
 const signupAPI = {
   async signUpWithEmail(email: string, password: string, userData: any) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock validation - check if user exists
-    const existingUser = MOCK_DATA.users[email as keyof typeof MOCK_DATA.users] as UserData | undefined;
-    if (existingUser?.exists) {
-      throw new Error(existingUser.message || 'User already registered');
-    }
-    
-    // Mock successful signup
-    return {
-      user: {
-        id: 'mock-user-' + Date.now(),
-        email: email,
-        user_metadata: {
-          business_name: userData.business_name,
-          name: userData.name
-        }
-      },
-      session: {
-        access_token: 'mock-access-token',
-        refresh_token: 'mock-refresh-token'
-      }
-    };
-    
-    // REAL API CALL - COMMENTED OUT
-    /*
-    const response = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        business_name: userData.business_name,
-        name: userData.name,
-        signup_method: 'email'
-      }),
+    const response = await axios.post('/api/auth/signup', {
+      email,
+      password,
+      business_name: userData.business_name,
+      name: userData.name,
+      signup_method: 'email'
+    }, {
+      timeout: 8000,
+      validateStatus: (status) => status < 500
     });
 
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      let errorMessage = 'Signup failed';
-      try {
-        const errorData = JSON.parse(responseText);
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch {
-        errorMessage = responseText || errorMessage;
-      }
-      throw new Error(errorMessage);
+    if (response.status === 200 || response.status === 201) {
+      return response.data;
+    } else {
+      throw new Error(response.data?.error || response.data?.message || 'Signup failed');
     }
-
-    try {
-      return JSON.parse(responseText);
-    } catch {
-      throw new Error('Invalid response from server');
-    }
-    */
   },
 
   async signUpWithPhone(phone: string, password: string, userData: any) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock validation - check if phone exists
-    const existingPhone = MOCK_DATA.phones[phone as keyof typeof MOCK_DATA.phones] as PhoneData | undefined;
-    if (existingPhone?.exists) {
-      throw new Error(existingPhone.message || 'Phone number already registered');
-    }
-    
-    // Mock successful phone signup
-    return {
-      user: {
-        id: 'mock-phone-user-' + Date.now(),
-        phone: phone,
-        user_metadata: {
-          business_name: userData.business_name,
-          name: userData.name
-        }
-      },
-      session: {
-        access_token: 'mock-access-token',
-        refresh_token: 'mock-refresh-token'
-      }
-    };
-    
-    // REAL API CALL - COMMENTED OUT
-    /*
-    const response = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        phone: phone.replace(/\s/g, ''),
-        password,
-        business_name: userData.business_name,
-        name: userData.name,
-        signup_method: 'phone'
-      }),
+    const response = await axios.post('/api/auth/signup', {
+      phone: phone.replace(/\s/g, ''),
+      password,
+      business_name: userData.business_name,
+      name: userData.name,
+      signup_method: 'phone'
+    }, {
+      timeout: 8000,
+      validateStatus: (status) => status < 500
     });
 
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      let errorMessage = 'Phone signup failed';
-      try {
-        const errorData = JSON.parse(responseText);
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch {
-        errorMessage = responseText || errorMessage;
-      }
-      throw new Error(errorMessage);
+    if (response.status === 200 || response.status === 201) {
+      return response.data;
+    } else {
+      throw new Error(response.data?.error || response.data?.message || 'Phone signup failed');
     }
-
-    try {
-      return JSON.parse(responseText);
-    } catch {
-      throw new Error('Invalid response from server');
-    }
-    */
   },
 
   async signUpWithGoogle() {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock Google OAuth URL
-    return '/auth/google/callback';
-    
-    // REAL API CALL - COMMENTED OUT
-    /*
-    const response = await fetch('/api/auth/oauth/google', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const response = await axios.get('/api/auth/oauth/google', {
+      timeout: 5000
     });
 
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      let errorMessage = 'Google signup failed';
-      try {
-        const errorData = JSON.parse(responseText);
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch {
-        errorMessage = responseText || errorMessage;
-      }
-      throw new Error(errorMessage);
+    if (response.status === 200) {
+      return response.data.url || response.data.redirectUrl;
+    } else {
+      throw new Error('Failed to get Google OAuth URL');
     }
-
-    try {
-      const data = JSON.parse(responseText);
-      return data.redirectUrl;
-    } catch {
-      throw new Error('Invalid response from server');
-    }
-    */
   },
 
   async validateBusinessName(businessName: string): Promise<{ available: boolean; message?: string }> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Mock business name validation
-    const normalizedBusinessName = businessName.trim().toLowerCase();
-    const existingBusiness = Object.keys(MOCK_DATA.business_names).find(
-      name => name.toLowerCase() === normalizedBusinessName
-    );
-    
-    if (existingBusiness) {
-      const businessData = MOCK_DATA.business_names[existingBusiness as keyof typeof MOCK_DATA.business_names] as BusinessData;
-      return {
-        available: false,
-        message: businessData.message || 'Business name is not available'
-      };
-    }
-    
-    // Mock available business name
-    return { available: true };
-    
-    // REAL API CALL - COMMENTED OUT
-    /*
-    const response = await fetch('/api/auth/validate-business', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ business_name: businessName }),
+    const response = await axios.post('/api/auth/validate-business', {
+      business_name: businessName
+    }, {
+      timeout: 5000,
+      validateStatus: (status) => status < 500
     });
 
-    if (!response.ok) {
-      throw new Error('Validation service unavailable');
+    if (response.status === 200) {
+      return response.data;
+    } else {
+      throw new Error(response.data?.message || 'Validation service unavailable');
     }
-
-    return await response.json();
-    */
   }
 };
 
-function SignupContent() {
+export default function Signup() {
   const [isSigningup, setIsSigningup] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('English');
@@ -347,7 +192,7 @@ function SignupContent() {
           business_name: result.message || 'Business name is not available'
         }));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Business name validation error:', error);
       // Don't show error to user for validation service failure
     } finally {
@@ -447,7 +292,6 @@ function SignupContent() {
           
           setTimeout(() => {
             toast.loading('Redirecting to verification...');
-            return
           }, 1000);
           
           setTimeout(() => {
@@ -459,7 +303,7 @@ function SignupContent() {
       console.error('Signup error:', error);
       
       // User-friendly error messages
-      if (error.message.includes('User already registered')) {
+      if (error.message.includes('User already registered') || error.message.includes('already exists')) {
         toast.error('An account with this email/phone already exists');
       } else if (error.message.includes('Invalid email')) {
         toast.error('Please enter a valid email address');
@@ -469,6 +313,10 @@ function SignupContent() {
         toast.error('Please enter a valid phone number');
       } else if (error.message.includes('rate limit')) {
         toast.error('Too many attempts. Please try again later.');
+      } else if (error.message.includes('Network Error') || error.message.includes('timeout')) {
+        toast.error('Network connection failed. Please check your internet connection.');
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
       } else {
         toast.error(error.message || 'An error occurred during signup. Please try again.');
       }
@@ -507,7 +355,11 @@ function SignupContent() {
       
     } catch (error: any) {
       console.error('Google signup error:', error);
-      toast.error(error.message || 'An error occurred during Google signup');
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error(error.message || 'An error occurred during Google signup');
+      }
       setIsSigningup(false);
     }
   };
@@ -921,19 +773,5 @@ function SignupContent() {
         }
       `}</style>
     </div>
-  );
-}
-
-// Main component with Suspense boundary
-export default function Signup() {
-  return (
-    <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mb-4"></div>
-        <p className="text-gray-400">Loading...</p>
-      </div>
-    }>
-      <SignupContent />
-    </Suspense>
   );
 }
