@@ -398,7 +398,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <div className="space-y-4">
                 <button 
                   onClick={() => setShowChangePasswordDialog(true)}
-                  className={`w-full flex items-center justify-between p-6 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
+                  className={`w-full flex hover:cursor-pointer items-center justify-between p-6 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
                     darkMode ? 'bg-gray-800/50 border-gray-700 hover:bg-gray-700/50' : 'bg-white border-gray-200 hover:bg-gray-50'
                   }`}
                 >
@@ -420,7 +420,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                 <button 
                   onClick={() => {/* Implement 2FA dialog */}}
-                  className={`w-full flex items-center justify-between p-6 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
+                  className={`w-full hover:cursor-pointer flex items-center justify-between p-6 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
                     darkMode ? 'bg-gray-800/50 border-gray-700 hover:bg-gray-700/50' : 'bg-white border-gray-200 hover:bg-gray-50'
                   }`}
                 >
@@ -445,7 +445,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                 <button 
                   onClick={() => setShowDeleteAccountDialog(true)}
-                  className={`w-full flex items-center justify-between p-6 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
+                  className={`w-full hover:cursor-pointer flex items-center justify-between p-6 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
                     darkMode ? 'bg-red-900/20 border-red-800 hover:bg-red-900/30' : 'bg-red-50 border-red-200 hover:bg-red-100'
                   }`}
                 >
@@ -491,7 +491,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Download your financial data as CSV or Excel</p>
                   <button 
                     onClick={handleExportData}
-                    className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+                    className="w-full hover:cursor-pointer px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
                   >
                     Export Data
                   </button>
@@ -511,7 +511,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Save your current data as a secure backup</p>
                   <button 
                     onClick={handleBackupData}
-                    className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+                    className="w-full hover:cursor-pointer px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
                   >
                     Create Backup
                   </button>
@@ -531,7 +531,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Restore from a previous backup file</p>
                   <button 
                     onClick={() => setShowRestoreDialog(true)}
-                    className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                    className="w-full hover:cursor-pointer px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
                   >
                     Restore Data
                   </button>
@@ -551,7 +551,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <p className={`text-sm mb-4 ${darkMode ? 'text-red-400' : 'text-red-600'}`}>Permanently delete all your financial data</p>
                   <button 
                     onClick={() => setShowClearDataDialog(true)}
-                    className="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                    className="w-full hover:cursor-pointer px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
                   >
                     Clear Data
                   </button>
@@ -626,7 +626,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </div>
                   <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Documentation</h4>
                   <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Browse our help center and guides</p>
-                  <button className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">
+                  <button className="w-full hover:cursor-pointer px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">
                     View Docs
                   </button>
                 </div>
@@ -643,7 +643,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </div>
                   <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Contact Support</h4>
                   <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Get help from our support team</p>
-                  <button className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">
+                  <button className="w-full hover:cursor-pointer px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">
                     Contact Us
                   </button>
                 </div>
@@ -688,7 +688,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     whileTap={{ scale: 0.98 }}
                     onClick={handleSendFeedback}
                     disabled={!feedback.trim()}
-                    className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                    className={`flex items-center hover:cursor-pointer space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
                       feedback.trim() 
                         ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg' 
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -732,7 +732,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             whileTap={{ scale: 0.98 }}
             onClick={handleSave}
             disabled={saving}
-            className={`flex items-center space-x-3 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+            className={`flex hover:cursor-pointer items-center space-x-3 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
               saving
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-emerald-600 hover:bg-emerald-700 shadow-lg'
@@ -759,7 +759,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       key={section.id}
                       onClick={() => setActiveSection(section.id)}
                       whileHover={{ x: 4 }}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 text-left ${
+                      className={`w-full hover:cursor-pointer flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 text-left ${
                         isActive
                           ? 'bg-emerald-500 text-white shadow-lg'
                           : `hover:bg-gray-100 dark:hover:bg-gray-700 ${themeClasses.text.primary}`
