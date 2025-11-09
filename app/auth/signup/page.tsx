@@ -11,32 +11,30 @@ import { Toaster, toast } from 'react-hot-toast';
 import axios from 'axios';
 
 // Configure Axios defaults
-axios.defaults.timeout = 10000;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
-
+//axios.defaults.baseURL = process.env.API_BASE_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 // API service for signup using Axios
 const signupAPI = {
   async signUpWithEmail(email: string, password: string, userData: any) {
-    const response = await axios.post('/api/auth/signup', {
+    const response = await axios.post(`${API_BASE_URL}/api/auth/register`, {
       email,
       password,
       business_name: userData.business_name,
       name: userData.name,
       signup_method: 'email'
-    }, {
-      timeout: 8000,
-      validateStatus: (status) => status < 500
     });
 
-    if (response.status === 200 || response.status === 201) {
-      return response.data;
-    } else {
+    if (response.status == 200 || response.status == 201) {
+      const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, {email});
+      return { success: true, status: 200};
+     } else {
       throw new Error(response.data?.error || response.data?.message || 'Signup failed');
     }
   },
 
   async signUpWithPhone(phone: string, password: string, userData: any) {
-    const response = await axios.post('/api/auth/signup', {
+    const response = await axios.post(`${API_BASE_URL}/api/auth/signup`, {
       phone: phone.replace(/\s/g, ''),
       password,
       business_name: userData.business_name,
@@ -55,7 +53,7 @@ const signupAPI = {
   },
 
   async signUpWithGoogle() {
-    const response = await axios.get('/api/auth/oauth/google', {
+    const response = await axios.get(`${API_BASE_URL}/api/auth/oauth/google`, {
       timeout: 5000
     });
 
@@ -67,13 +65,13 @@ const signupAPI = {
   },
 
   async validateBusinessName(businessName: string): Promise<{ available: boolean; message?: string }> {
-    const response = await axios.post('/api/auth/validate-business', {
+    const response = await axios.post(`${API_BASE_URL}/api/auth/validate-business`, {
       business_name: businessName
     }, {
-      timeout: 5000,
+      timeout: 8000,
       validateStatus: (status) => status < 500
     });
-
+    console.log(response)
     if (response.status === 200) {
       return response.data;
     } else {
@@ -222,37 +220,26 @@ export default function Signup() {
             formData.password, 
             { business_name: formData.business_name, name: formData.name }
           );
+          console.log(result);
         } catch (apiError: any) {
           console.log('API signup failed, trying direct Supabase:', apiError);
-          // Fallback to direct Supabase auth
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: formData.email,
-            password: formData.password,
-            options: {
-              data: {
-                business_name: formData.business_name,
-                name: formData.name,
-                user_metadata: {
-                  business_name: formData.business_name,
-                  name: formData.name,
-                }
-              }
-            }
-          });
-
-          if (authError) throw authError;
-          result = authData;
+          if(apiError.status == 401){
+            toast.error("User already registered");
+            return apiError;
+          }
+          toast.error("Failed to SignUp")
+          return apiError;
         }
 
-        if (result?.user) {
+        if (result?.success) {
           toast.success(getTranslation('thankYou', 'Account created successfully! Check your email for verification.'));
           
           setTimeout(() => {
-            toast.loading('Redirecting to dashboard...');
-          }, 2000);
+            toast.loading('Redirecting to signin...');
+          }, 1000);
           
           setTimeout(() => {
-            router.push('/dashboard');
+            router.push('/auth/signin');
           }, 4000);
         }
       } else {

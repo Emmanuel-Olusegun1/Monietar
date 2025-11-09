@@ -15,24 +15,23 @@ import axios from 'axios';
 const supabase = createClientComponentClient();
 
 // Configure Axios defaults
-axios.defaults.timeout = 10000;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // API service using Axios
 const authAPI = {
   async signInWithEmail(email: string, password: string) {
-    const response = await axios.post('/api/auth/signin', {
+    const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
       email,
       password
     }, {
-      timeout: 8000,
-      validateStatus: (status) => status < 500
+      timeout: 8000
     });
 
     if (response.status === 200) {
       return response.data;
     } else {
-      throw new Error(response.data?.message || 'Authentication failed');
+      throw new Error(response.data || 'Authentication failed');
     }
   },
 
@@ -47,7 +46,7 @@ const authAPI = {
     if (response.status === 200) {
       return response.data;
     } else {
-      throw new Error(response.data?.message || 'Failed to send verification code');
+      throw new Error(response.data || 'Failed to send verification code');
     }
   },
 
@@ -125,7 +124,15 @@ export default function Signin() {
       try {
         setIsCheckingAuth(true);
         
-        // Use Supabase directly for session check (more reliable)
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          const response = await authAPI.verifyToken(token);
+          if (response.user) {
+            router.push('/dashboard');
+            return;
+          }
+        }
+       /*  // Use Supabase directly for session check (more reliable)
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
@@ -143,7 +150,7 @@ export default function Signin() {
           }
         } catch (apiError) {
           console.log('API auth check failed, continuing with signin form');
-        }
+        } */
         
       } catch (error) {
         console.log('User not authenticated, showing signin form');
@@ -176,7 +183,7 @@ export default function Signin() {
         
         // First try direct Supabase auth
         try {
-          const { data, error } = await supabase.auth.signInWithPassword({
+          /* const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
@@ -188,23 +195,34 @@ export default function Signin() {
           // Redirect to dashboard after a short delay
           setTimeout(() => {
             router.push('/dashboard');
-          }, 1000);
-          
-        } catch (directError: any) {
-          // Fallback to API with Axios if direct auth fails
-          console.log('Direct auth failed, trying API:', directError);
+          }, 1000);  */
           const result = await authAPI.signInWithEmail(email, password);
-          
-          // Store session data if needed
-          if (result.session) {
-            localStorage.setItem('auth_token', result.session.access_token);
+            
+            if (result.token) {
+              localStorage.setItem('auth_token', result.token);
+            }
+        } catch (apiError: any) {
+          if(apiError.response.status == 401){
+              toast.error("Invalid Credentials");
+              return;
+            }else if(apiError.response.status == 403){
+              toast.error("Email not verrified, verification mail will send shortly");
+              const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, {email});
+              if(success.status == 200){
+                toast.success("Verification Mail sent!, Check your inbox")
+              }
+              return;
+            }else{
+              toast.error("Faild to sign in")
+              console.log(apiError);
+              return;
+            }
           }
           
           toast.success(t.thankYou || 'Welcome back!');
           setTimeout(() => {
             router.push('/dashboard');
           }, 1000);
-        }
       } else {
         // Phone signin - Send OTP
         let phoneNumber = formData.phone.replace(/\s/g, '');
