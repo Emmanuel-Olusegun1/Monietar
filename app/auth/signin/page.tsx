@@ -202,10 +202,10 @@ export default function Signin() {
               localStorage.setItem('auth_token', result.token);
             }
         } catch (apiError: any) {
-          if(apiError.response.status == 401){
+          if(apiError.response?.status == 401){
               toast.error("Invalid Credentials");
               return;
-            }else if(apiError.response.status == 403){
+            }else if(apiError.response?.status == 403){
               toast.error("Email not verrified, verification mail will send shortly");
               const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, {email});
               if(success.status == 200){
