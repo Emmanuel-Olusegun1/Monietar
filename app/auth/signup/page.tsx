@@ -81,57 +81,14 @@ const signupAPI = {
         signup_method: 'email'
       });
 
-      if (response.status === 200 || response.status === 201) {
-        const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, { email });
-        return { success: true, status: 200 };
-      } else {
-        throw new SignupError(
-          ERROR_CODES.SERVER_ERROR,
-          response.data?.error || response.data?.message || 'Signup failed',
-          response.data,
-          response.status
-        );
+    if (response.status == 200 || response.status == 201) {
+      const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, {email});
+      if(!success.data){
+        throw new Error(success.data?.error || success.data?.message || 'Email verification failed');
       }
-    } catch (error: any) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const data = error.response?.data;
-
-        if (status === 409) {
-          throw new SignupError(
-            ERROR_CODES.USER_ALREADY_EXISTS,
-            data?.message || 'User already exists',
-            data,
-            status
-          );
-        } else if (status === 422) {
-          throw new SignupError(
-            ERROR_CODES.VALIDATION_ERROR,
-            data?.message || 'Invalid form data',
-            data,
-            status
-          );
-        } else if (status === 400) {
-          throw new SignupError(
-            ERROR_CODES.INVALID_EMAIL,
-            data?.message || 'Invalid email format',
-            data,
-            status
-          );
-        } else if (error.code === 'ECONNABORTED') {
-          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Request timeout');
-        } else if (!error.response) {
-          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error');
-        } else {
-          throw new SignupError(
-            ERROR_CODES.SERVER_ERROR,
-            data?.message || 'Server error occurred',
-            data,
-            status
-          );
-        }
-      }
-      throw error;
+      return { success: true, status: 200};
+     } else {
+      throw new Error(response.data?.error || response.data?.message || 'Signup failed');
     }
   },
 
