@@ -81,14 +81,41 @@ const signupAPI = {
         signup_method: 'email'
       });
 
-    if (response.status == 200 || response.status == 201) {
-      const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, {email});
-      if(!success.data){
-        throw new Error(success.data?.error || success.data?.message || 'Email verification failed');
+      if (response.status === 200 || response.status === 201) {
+        const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, { email });
+        if (!success.data) {
+          throw new Error(success.data?.error || success.data?.message || 'Email verification failed');
+        }
+        return { success: true, status: 200 };
+      } else {
+        throw new Error(response.data?.error || response.data?.message || 'Signup failed');
       }
-      return { success: true, status: 200};
-     } else {
-      throw new Error(response.data?.error || response.data?.message || 'Signup failed');
+    } catch (error: any) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const data = error.response?.data;
+
+        if (status === 409) {
+          throw new SignupError(
+            ERROR_CODES.USER_ALREADY_EXISTS,
+            data?.message || 'Email already registered',
+            data,
+            status
+          );
+        } else if (status === 422) {
+          throw new SignupError(
+            ERROR_CODES.VALIDATION_ERROR,
+            data?.message || 'Invalid email format',
+            data,
+            status
+          );
+        } else if (error.code === 'ECONNABORTED') {
+          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Request timeout');
+        } else if (!error.response) {
+          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error');
+        }
+      }
+      throw error;
     }
   },
 

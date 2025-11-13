@@ -18,8 +18,6 @@ import {
   ArrowUpRight, ArrowDownRight, RefreshCw, Crown
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Legend } from 'recharts';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Session } from '@supabase/supabase-js';
 
 // Import modals
 import { AddTransactionModal } from './components/modals/AddTransactionModal';
@@ -93,17 +91,29 @@ interface EnhancedBudget {
   created_at: string;
 }
 
-// Create Supabase client
-const supabase = createClientComponentClient();
-const session = localStorage.getItem('auth_token');
+// Custom session type for your auth system
+interface CustomSession {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    businessName?: string;
+    avatar?: string;
+    plan?: string;
+    joinedDate?: string;
+  };
+  accessToken: string;
+}
 
 // API service using the /user/register endpoint
 const apiService = {
   async fetchTransactions(userId: string) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/registeractions', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
     });
 
@@ -116,10 +126,12 @@ const apiService = {
   },
 
   async fetchBudgets(userId: string) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/register?action=budgets', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
     });
 
@@ -132,10 +144,12 @@ const apiService = {
   },
 
   async fetchProfile(userId: string) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/register', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
     });
 
@@ -148,10 +162,12 @@ const apiService = {
   },
 
   async addTransaction(transactionData: any) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         action: 'addTransaction',
@@ -168,10 +184,12 @@ const apiService = {
   },
 
   async updateTransaction(transactionId: string, transactionData: any) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/register', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         action: 'updateTransaction',
@@ -189,10 +207,12 @@ const apiService = {
   },
 
   async deleteTransaction(transactionId: string) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/register', {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         action: 'deleteTransaction',
@@ -208,10 +228,12 @@ const apiService = {
   },
 
   async addBudget(budgetData: any) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         action: 'addBudget',
@@ -228,10 +250,12 @@ const apiService = {
   },
 
   async updateBudget(budgetId: string, budgetData: any) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/register', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         action: 'updateBudget',
@@ -249,10 +273,12 @@ const apiService = {
   },
 
   async deleteBudget(budgetId: string) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/register', {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         action: 'deleteBudget',
@@ -268,10 +294,12 @@ const apiService = {
   },
 
   async saveSettings(userId: string, settings: any) {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch('/user/register', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         action: 'updateProfile',
@@ -284,11 +312,33 @@ const apiService = {
     }
 
     return { success: true };
+  },
+
+  async verifyToken() {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    const response = await fetch('/user/register?action=verify', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Token verification failed');
+    }
+
+    const data = await response.json();
+    return data.user;
   }
 };
 
 export default function Dashboard() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<CustomSession | null>(null);
   const [user, setUser] = useState<UserInfo>({
     name: 'Loading...',
     email: 'Loading...',
@@ -543,7 +593,8 @@ export default function Dashboard() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    // Clear the auth token from localStorage
+    localStorage.removeItem('auth_token');
     setSession(null);
     // Redirect to signin page after logout
     window.location.href = '/auth/signin';
@@ -739,34 +790,43 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [session, lastTokenUpdate]);
 
-  // Enhanced session monitoring with connection persistence check
+  // Enhanced session monitoring with custom auth
   useEffect(() => {
     const getSession = async () => {
       try {
         setLoading(true);
         
-        // Use Supabase directly to check session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Check for auth token in localStorage
+        const token = localStorage.getItem('auth_token');
         
-        if (error) {
-          console.error('Session error:', error);
-          // Redirect to signin if there's an error getting session
+        if (!token) {
+          // No token found, redirect to signin
           window.location.href = '/auth/signin';
           return;
         }
         
-        if (!session) {
-          // No session found, redirect to signin
+        // Verify token with your API
+        const userData = await apiService.verifyToken();
+        
+        if (!userData) {
+          // Token verification failed, redirect to signin
           window.location.href = '/auth/signin';
           return;
         }
         
         // We have a valid session
-        setSession(session);
-        await fetchData(session);
+        const customSession: CustomSession = {
+          user: userData,
+          accessToken: token
+        };
+        
+        setSession(customSession);
+        await fetchData(customSession);
         
       } catch (error) {
         console.error('Authentication error:', error);
+        // Clear invalid token and redirect
+        localStorage.removeItem('auth_token');
         window.location.href = '/auth/signin';
       } finally {
         setLoading(false);
@@ -775,22 +835,19 @@ export default function Dashboard() {
 
     getSession();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          // Redirect to signin on sign out
-          window.location.href = '/auth/signin';
-        } else if (event === 'SIGNED_IN' && session) {
-          setSession(session);
-          await fetchData(session);
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          setSession(session);
-        }
+    // Listen for storage changes (for logout from other tabs)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth_token' && !e.newValue) {
+        // Token was removed, redirect to signin
+        window.location.href = '/auth/signin';
       }
-    );
+    };
 
-    return () => subscription.unsubscribe();
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Enhanced connection monitoring with auto-reconnect
@@ -873,12 +930,22 @@ export default function Dashboard() {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwordData.newPassword
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/user/register', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          action: 'changePassword',
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        }),
       });
 
-      if (error) {
-        throw new Error(error.message || 'Failed to change password');
+      if (!response.ok) {
+        throw new Error('Failed to change password');
       }
 
       showToast('Password updated successfully!');
@@ -898,10 +965,12 @@ export default function Dashboard() {
 
     try {
       // Export data using the API
+      const token = localStorage.getItem('auth_token');
       const response = await fetch('/user/register?action=export', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
       });
 
@@ -940,10 +1009,12 @@ export default function Dashboard() {
     }
   
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch('/user/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'createBackup'
@@ -968,10 +1039,12 @@ export default function Dashboard() {
     }
   
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch('/user/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'restoreBackup',
@@ -1003,10 +1076,12 @@ export default function Dashboard() {
     }
 
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch('/user/register', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'clearData'
@@ -1037,10 +1112,12 @@ export default function Dashboard() {
     }
 
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch('/user/register', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'deleteAccount'
@@ -1052,7 +1129,7 @@ export default function Dashboard() {
       }
 
       showToast('Account deleted successfully!');
-      await supabase.auth.signOut();
+      localStorage.removeItem('auth_token');
       // Redirect to signin page after account deletion
       window.location.href = '/auth/signin';
     } catch (error: any) {
@@ -1069,7 +1146,7 @@ export default function Dashboard() {
   };
 
   // Enhanced fetchData function with API
-  async function fetchData(session: Session) {
+  async function fetchData(session: CustomSession) {
     if (!session) {
       showToast('No active session. Please log in.');
       setLoading(false);
@@ -1117,12 +1194,12 @@ export default function Dashboard() {
 
       // Set user data
       const userData = {
-        name: profileData?.profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+        name: profileData?.profile?.full_name || session.user.name || session.user.email?.split('@')[0] || 'User',
         email: session.user.email || 'No email',
-        businessName: profileData?.profile?.business_name || session.user.user_metadata?.business_name || 'My Business',
-        avatar: profileData?.profile?.avatar_url || session.user.user_metadata?.avatar_url || '/api/placeholder/40/40',
-        plan: profileData?.profile?.plan || 'Free Plan',
-        joinedDate: new Date(profileData?.profile?.created_at || session.user.created_at).toISOString().split('T')[0]
+        businessName: profileData?.profile?.business_name || session.user.businessName || 'My Business',
+        avatar: profileData?.profile?.avatar_url || session.user.avatar || '/api/placeholder/40/40',
+        plan: profileData?.profile?.plan || session.user.plan || 'Free Plan',
+        joinedDate: new Date(profileData?.profile?.created_at || session.user.joinedDate || new Date()).toISOString().split('T')[0]
       };
 
       setUser(userData);
@@ -1153,7 +1230,7 @@ export default function Dashboard() {
         if (error.name === 'AbortError') {
           showToast('Connection timeout. Please check your internet connection.');
           setShowConnectionErrorModal(true);
-        } else if (error.message?.includes('JWT')) {
+        } else if (error.message?.includes('JWT') || error.message?.includes('token')) {
           setShowSessionExpiredModal(true);
           showToast('Session expired. Please log in again.');
         } else {
@@ -1389,6 +1466,7 @@ export default function Dashboard() {
   // Enhanced manual re-login function
   const handleForceReLogin = () => {
     // Clear all local state
+    localStorage.removeItem('auth_token');
     setSession(null);
     setFinancialData({
       income: 0.00,
@@ -1432,10 +1510,12 @@ export default function Dashboard() {
     if (!session) return;
     
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch('/user/register?action=backups', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
       });
 
