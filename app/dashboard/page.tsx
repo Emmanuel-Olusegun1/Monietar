@@ -95,6 +95,7 @@ interface EnhancedBudget {
 
 // Create Supabase client
 const supabase = createClientComponentClient();
+const session = localStorage.getItem('auth_token');
 
 // API service using the /user/register endpoint
 const apiService = {
