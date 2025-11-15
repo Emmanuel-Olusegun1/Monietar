@@ -26,11 +26,7 @@ const signupAPI = {
     });
 
     if (response.status == 200 || response.status == 201) {
-      const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, {email});
-      if(!success.data){
-        throw new Error(success.data?.error || success.data?.message || 'Email verification failed');
-      }
-      return { success: true, status: 200};
+        return { success: true, status: 200};
      } else {
       throw new Error(response.data?.error || response.data?.message || 'Signup failed');
     }
