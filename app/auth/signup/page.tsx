@@ -11,75 +11,293 @@ import { Toaster, toast } from 'react-hot-toast';
 import axios from 'axios';
 
 // Configure Axios defaults
-axios.defaults.timeout = 10000;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+// Error types for better type safety
+type AppError = {
+  code: string;
+  message: string;
+  details?: any;
+  status?: number;
+};
+
+type ValidationError = {
+  field: string;
+  message: string;
+};
+
+// Error codes mapping
+const ERROR_CODES = {
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  TIMEOUT_ERROR: 'TIMEOUT_ERROR',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  BUSINESS_NAME_UNAVAILABLE: 'BUSINESS_NAME_UNAVAILABLE',
+  USER_ALREADY_EXISTS: 'USER_ALREADY_EXISTS',
+  INVALID_EMAIL: 'INVALID_EMAIL',
+  INVALID_PHONE: 'INVALID_PHONE',
+  WEAK_PASSWORD: 'WEAK_PASSWORD',
+  RATE_LIMITED: 'RATE_LIMITED',
+  SERVER_ERROR: 'SERVER_ERROR',
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+} as const;
+
+// Error messages mapping
+const ERROR_MESSAGES = {
+  [ERROR_CODES.NETWORK_ERROR]: 'Network connection failed. Please check your internet connection.',
+  [ERROR_CODES.TIMEOUT_ERROR]: 'Request timed out. Please try again.',
+  [ERROR_CODES.VALIDATION_ERROR]: 'Please check your form data and try again.',
+  [ERROR_CODES.BUSINESS_NAME_UNAVAILABLE]: 'Business name is not available.',
+  [ERROR_CODES.USER_ALREADY_EXISTS]: 'An account with this email/phone already exists.',
+  [ERROR_CODES.INVALID_EMAIL]: 'Please enter a valid email address.',
+  [ERROR_CODES.INVALID_PHONE]: 'Please enter a valid phone number.',
+  [ERROR_CODES.WEAK_PASSWORD]: 'Password does not meet security requirements.',
+  [ERROR_CODES.RATE_LIMITED]: 'Too many attempts. Please try again later.',
+  [ERROR_CODES.SERVER_ERROR]: 'Server error. Please try again later.',
+  [ERROR_CODES.UNKNOWN_ERROR]: 'An unexpected error occurred. Please try again.',
+};
+
+class SignupError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public details?: any,
+    public status?: number
+  ) {
+    super(message);
+    this.name = 'SignupError';
+  }
+}
 
 // API service for signup using Axios
 const signupAPI = {
   async signUpWithEmail(email: string, password: string, userData: any) {
-    const response = await axios.post('/api/auth/signup', {
-      email,
-      password,
-      business_name: userData.business_name,
-      name: userData.name,
-      signup_method: 'email'
-    }, {
-      timeout: 8000,
-      validateStatus: (status) => status < 500
-    });
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/register`, {
+        email,
+        password,
+        business_name: userData.business_name,
+        name: userData.name,
+        signup_method: 'email'
+      });
 
-    if (response.status === 200 || response.status === 201) {
-      return response.data;
-    } else {
-      throw new Error(response.data?.error || response.data?.message || 'Signup failed');
+      if (response.status === 200 || response.status === 201) {
+        const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, { email });
+        if (!success.data) {
+          throw new Error(success.data?.error || success.data?.message || 'Email verification failed');
+        }
+        return { success: true, status: 200 };
+      } else {
+        throw new Error(response.data?.error || response.data?.message || 'Signup failed');
+      }
+    } catch (error: any) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const data = error.response?.data;
+
+        if (status === 409) {
+          throw new SignupError(
+            ERROR_CODES.USER_ALREADY_EXISTS,
+            data?.message || 'Email already registered',
+            data,
+            status
+          );
+        } else if (status === 422) {
+          throw new SignupError(
+            ERROR_CODES.VALIDATION_ERROR,
+            data?.message || 'Invalid email format',
+            data,
+            status
+          );
+        } else if (error.code === 'ECONNABORTED') {
+          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Request timeout');
+        } else if (!error.response) {
+          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error');
+        }
+      }
+      throw error;
     }
   },
 
   async signUpWithPhone(phone: string, password: string, userData: any) {
-    const response = await axios.post('/api/auth/signup', {
-      phone: phone.replace(/\s/g, ''),
-      password,
-      business_name: userData.business_name,
-      name: userData.name,
-      signup_method: 'phone'
-    }, {
-      timeout: 8000,
-      validateStatus: (status) => status < 500
-    });
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/signup`, {
+        phone: phone.replace(/\s/g, ''),
+        password,
+        business_name: userData.business_name,
+        name: userData.name,
+        signup_method: 'phone'
+      }, {
+        timeout: 8000,
+        validateStatus: (status) => status < 500
+      });
 
-    if (response.status === 200 || response.status === 201) {
-      return response.data;
-    } else {
-      throw new Error(response.data?.error || response.data?.message || 'Phone signup failed');
+      if (response.status === 200 || response.status === 201) {
+        return response.data;
+      } else {
+        throw new SignupError(
+          ERROR_CODES.SERVER_ERROR,
+          response.data?.error || response.data?.message || 'Phone signup failed',
+          response.data,
+          response.status
+        );
+      }
+    } catch (error: any) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const data = error.response?.data;
+
+        if (status === 409) {
+          throw new SignupError(
+            ERROR_CODES.USER_ALREADY_EXISTS,
+            data?.message || 'Phone number already registered',
+            data,
+            status
+          );
+        } else if (status === 422) {
+          throw new SignupError(
+            ERROR_CODES.VALIDATION_ERROR,
+            data?.message || 'Invalid phone number format',
+            data,
+            status
+          );
+        } else if (error.code === 'ECONNABORTED') {
+          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Request timeout');
+        } else if (!error.response) {
+          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error');
+        }
+      }
+      throw error;
     }
   },
 
   async signUpWithGoogle() {
-    const response = await axios.get('/api/auth/oauth/google', {
-      timeout: 5000
-    });
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/auth/oauth/google`, {
+        timeout: 5000
+      });
 
-    if (response.status === 200) {
-      return response.data.url || response.data.redirectUrl;
-    } else {
-      throw new Error('Failed to get Google OAuth URL');
+      if (response.status === 200) {
+        return response.data.url || response.data.redirectUrl;
+      } else {
+        throw new SignupError(
+          ERROR_CODES.SERVER_ERROR,
+          'Failed to get Google OAuth URL'
+        );
+      }
+    } catch (error: any) {
+      if (axios.isAxiosError(error)) {
+        if (error.code === 'ECONNABORTED') {
+          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Request timeout');
+        } else if (!error.response) {
+          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error');
+        }
+      }
+      throw new SignupError(
+        ERROR_CODES.SERVER_ERROR,
+        'Failed to initialize Google signup'
+      );
     }
   },
 
   async validateBusinessName(businessName: string): Promise<{ available: boolean; message?: string }> {
-    const response = await axios.post('/api/auth/validate-business', {
-      business_name: businessName
-    }, {
-      timeout: 5000,
-      validateStatus: (status) => status < 500
-    });
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/validate-business`, {
+        business_name: businessName
+      }, {
+        timeout: 8000,
+        validateStatus: (status) => status < 500
+      });
 
-    if (response.status === 200) {
-      return response.data;
-    } else {
-      throw new Error(response.data?.message || 'Validation service unavailable');
+      if (response.status === 200) {
+        return response.data;
+      } else {
+        throw new SignupError(
+          ERROR_CODES.SERVER_ERROR,
+          response.data?.message || 'Validation service unavailable',
+          response.data,
+          response.status
+        );
+      }
+    } catch (error: any) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 409) {
+          throw new SignupError(
+            ERROR_CODES.BUSINESS_NAME_UNAVAILABLE,
+            error.response.data?.message || 'Business name not available',
+            error.response.data,
+            error.response.status
+          );
+        } else if (error.code === 'ECONNABORTED') {
+          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Validation timeout');
+        } else if (!error.response) {
+          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error during validation');
+        }
+      }
+      throw error;
     }
   }
+};
+
+// Error handler utility
+const handleSignupError = (error: any, t: any): string => {
+  console.error('Signup error:', error);
+
+  // Handle our custom SignupError
+  if (error instanceof SignupError) {
+    return error.message;
+  }
+
+  // Handle Supabase errors
+  if (error?.code?.startsWith('auth/')) {
+    switch (error.code) {
+      case 'auth/email-already-in-use':
+      case 'auth/phone-number-already-exists':
+        return ERROR_MESSAGES[ERROR_CODES.USER_ALREADY_EXISTS];
+      
+      case 'auth/invalid-email':
+        return ERROR_MESSAGES[ERROR_CODES.INVALID_EMAIL];
+      
+      case 'auth/invalid-phone-number':
+        return ERROR_MESSAGES[ERROR_CODES.INVALID_PHONE];
+      
+      case 'auth/weak-password':
+        return ERROR_MESSAGES[ERROR_CODES.WEAK_PASSWORD];
+      
+      case 'auth/too-many-requests':
+        return ERROR_MESSAGES[ERROR_CODES.RATE_LIMITED];
+      
+      default:
+        return error.message || ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR];
+    }
+  }
+
+  // Handle Axios errors
+  if (axios.isAxiosError(error)) {
+    if (error.code === 'ECONNABORTED') {
+      return ERROR_MESSAGES[ERROR_CODES.TIMEOUT_ERROR];
+    }
+    if (!error.response) {
+      return ERROR_MESSAGES[ERROR_CODES.NETWORK_ERROR];
+    }
+    
+    const status = error.response.status;
+    if (status >= 500) {
+      return ERROR_MESSAGES[ERROR_CODES.SERVER_ERROR];
+    }
+    
+    return error.response.data?.message || ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR];
+  }
+
+  // Handle generic errors
+  if (error instanceof Error) {
+    if (error.message.includes('network') || error.message.includes('internet')) {
+      return ERROR_MESSAGES[ERROR_CODES.NETWORK_ERROR];
+    }
+    return error.message || ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR];
+  }
+
+  return ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR];
 };
 
 export default function Signup() {
@@ -194,7 +412,13 @@ export default function Signup() {
       }
     } catch (error: any) {
       console.error('Business name validation error:', error);
-      // Don't show error to user for validation service failure
+      // Only show validation errors for business name availability, not for network issues
+      if (error instanceof SignupError && error.code === ERROR_CODES.BUSINESS_NAME_UNAVAILABLE) {
+        setFormErrors(prev => ({
+          ...prev,
+          business_name: error.message
+        }));
+      }
     } finally {
       setIsValidating(false);
     }
@@ -222,37 +446,45 @@ export default function Signup() {
             formData.password, 
             { business_name: formData.business_name, name: formData.name }
           );
+          console.log(result);
         } catch (apiError: any) {
           console.log('API signup failed, trying direct Supabase:', apiError);
-          // Fallback to direct Supabase auth
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: formData.email,
-            password: formData.password,
-            options: {
-              data: {
-                business_name: formData.business_name,
-                name: formData.name,
-                user_metadata: {
+          
+          // Only fallback to Supabase for network/timeout errors, not for business logic errors
+          if (apiError instanceof SignupError && 
+              (apiError.code === ERROR_CODES.NETWORK_ERROR || apiError.code === ERROR_CODES.TIMEOUT_ERROR)) {
+            
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+              email: formData.email,
+              password: formData.password,
+              options: {
+                data: {
                   business_name: formData.business_name,
                   name: formData.name,
+                  user_metadata: {
+                    business_name: formData.business_name,
+                    name: formData.name,
+                  }
                 }
               }
-            }
-          });
+            });
 
-          if (authError) throw authError;
-          result = authData;
+            if (authError) throw authError;
+            result = authData;
+          } else {
+            throw apiError;
+          }
         }
 
-        if (result?.user) {
+        if (result?.user || result?.success) {
           toast.success(getTranslation('thankYou', 'Account created successfully! Check your email for verification.'));
           
           setTimeout(() => {
-            toast.loading('Redirecting to dashboard...');
-          }, 2000);
+            toast.loading('Redirecting to signin...');
+          }, 1000);
           
           setTimeout(() => {
-            router.push('/dashboard');
+            router.push('/auth/signin');
           }, 4000);
         }
       } else {
@@ -267,24 +499,31 @@ export default function Signup() {
           );
         } catch (apiError: any) {
           console.log('API phone signup failed, trying direct Supabase:', apiError);
-          // Fallback to direct Supabase auth
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            phone: phoneNumber,
-            password: formData.password,
-            options: {
-              data: {
-                business_name: formData.business_name,
-                name: formData.name,
-                user_metadata: {
+          
+          // Only fallback to Supabase for network/timeout errors
+          if (apiError instanceof SignupError && 
+              (apiError.code === ERROR_CODES.NETWORK_ERROR || apiError.code === ERROR_CODES.TIMEOUT_ERROR)) {
+            
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+              phone: phoneNumber,
+              password: formData.password,
+              options: {
+                data: {
                   business_name: formData.business_name,
                   name: formData.name,
+                  user_metadata: {
+                    business_name: formData.business_name,
+                    name: formData.name,
+                  }
                 }
               }
-            }
-          });
+            });
 
-          if (authError) throw authError;
-          result = authData;
+            if (authError) throw authError;
+            result = authData;
+          } else {
+            throw apiError;
+          }
         }
 
         if (result?.user) {
@@ -300,26 +539,8 @@ export default function Signup() {
         }
       }
     } catch (error: any) {
-      console.error('Signup error:', error);
-      
-      // User-friendly error messages
-      if (error.message.includes('User already registered') || error.message.includes('already exists')) {
-        toast.error('An account with this email/phone already exists');
-      } else if (error.message.includes('Invalid email')) {
-        toast.error('Please enter a valid email address');
-      } else if (error.message.includes('Password')) {
-        toast.error('Password does not meet requirements');
-      } else if (error.message.includes('phone')) {
-        toast.error('Please enter a valid phone number');
-      } else if (error.message.includes('rate limit')) {
-        toast.error('Too many attempts. Please try again later.');
-      } else if (error.message.includes('Network Error') || error.message.includes('timeout')) {
-        toast.error('Network connection failed. Please check your internet connection.');
-      } else if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else {
-        toast.error(error.message || 'An error occurred during signup. Please try again.');
-      }
+      const errorMessage = handleSignupError(error, t);
+      toast.error(errorMessage);
     } finally {
       setIsSigningup(false);
       toast.dismiss(loadingToast);
@@ -337,29 +558,32 @@ export default function Signup() {
         window.location.href = redirectUrl;
       } catch (apiError: any) {
         console.log('API Google signup failed, trying direct Supabase:', apiError);
-        // Fallback to direct Supabase OAuth
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: `${window.location.origin}/auth/callback`,
-            queryParams: {
-              access_type: 'offline',
-              prompt: 'consent',
+        
+        // Only fallback for network issues
+        if (apiError instanceof SignupError && 
+            (apiError.code === ERROR_CODES.NETWORK_ERROR || apiError.code === ERROR_CODES.TIMEOUT_ERROR)) {
+          
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              redirectTo: `${window.location.origin}/auth/callback`,
+              queryParams: {
+                access_type: 'offline',
+                prompt: 'consent',
+              },
             },
-          },
-        });
+          });
 
-        if (error) throw error;
-        toast.loading('Redirecting to Google...');
+          if (error) throw error;
+          toast.loading('Redirecting to Google...');
+        } else {
+          throw apiError;
+        }
       }
       
     } catch (error: any) {
-      console.error('Google signup error:', error);
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else {
-        toast.error(error.message || 'An error occurred during Google signup');
-      }
+      const errorMessage = handleSignupError(error, t);
+      toast.error(errorMessage);
       setIsSigningup(false);
     }
   };
