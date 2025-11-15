@@ -24,7 +24,7 @@ export default function NotFound() {
 
         {/* Message */}
         <p className="text-gray-400 text-lg leading-relaxed mb-12 font-light">
-          The page you are looking for doesn't exist or has been moved.
+          This page you are looking for doesn't exist or has been moved.
         </p>
 
         {/* Back Action Button */}
