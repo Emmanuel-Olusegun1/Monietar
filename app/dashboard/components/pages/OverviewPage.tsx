@@ -36,9 +36,10 @@ import {
   BarChart
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend, Area, AreaChart } from 'recharts';
+import { UserInfo, Transaction  } from '@/app/dashboard/types';
 
 interface OverviewPageProps {
-  financialData: FinancialData; 
+  financialData: FinancialData;
   formatCurrency: (amount: number) => string;
   timeFilter: string;
   setTimeFilter: (filter: string) => void;
@@ -59,6 +60,32 @@ interface OverviewPageProps {
   getDataKey: () => string;
   CustomTooltip: any;
   EmptyState: any;
+  showBalance: boolean;
+  currency: string;
+  language: string;
+  aiRecommendations: string[];
+  cashFlowForecast: any[];
+  alerts: Alert[];
+  user: UserInfo;
+  transactions: any[];
+  income: number;
+  expenses:  number;
+  profit: number;
+  totalTransactions: number;
+  averageTransaction: number;
+  topCategory: string;
+  recentActivity: any[];
+  monthlyComparison: { current: number; previous: number }
+  startEditTransaction: (tx: Transaction | null) => void;
+  setDeleteTransactionId: (id: string | null) => void;
+  setShowChangePasswordDialog: () => void;
+  setShowClearDataDialog: () => void;
+  setShowDeleteAccountDialog: () => void;
+  setShowRestoreDialog: () => void;
+  setShowExportDialog: () => void;
+  setShowImportDialog: () => void;
+  setShowLanguageDialog: () => void;
+  setShowCurrencyDialog: () => void;
 }
 
 interface FinancialData {
@@ -78,7 +105,7 @@ interface Budget {
 
 interface Alert {
   message: string;
-  priority: 'critical' | 'high' | 'medium';
+  priority: 'critical' | 'high' | 'low';
 }
 
 interface CategoryBreakdown {
@@ -94,6 +121,9 @@ interface TrendData {
   expenses: number;
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
 const categoryColors: { [key: string]: string } = {
   'Salary': '#10b981',
   'Business': '#3b82f6',
@@ -106,7 +136,6 @@ const categoryColors: { [key: string]: string } = {
   'default': '#6b7280'
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
   darkMode,
@@ -150,7 +179,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       setError(null);
 
       // First, check if user is registered by fetching user data
-      const userResponse = await fetch('/user/register', {
+      const userResponse = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -166,7 +195,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       // If user exists, fetch their financial data
       if (userData.user) {
         // Fetch financial overview data
-        const financialResponse = await fetch(`/user/register?action=overview&timeFilter=${timeFilter}`, {
+        const financialResponse = await fetch(`${API_BASE_URL}/api/auth/register?action=overview&timeFilter=${timeFilter}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -188,7 +217,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         });
 
         // Fetch budgets data
-        const budgetsResponse = await fetch(`/user/register?action=budgets&timeFilter=${timeFilter}`, {
+        const budgetsResponse = await fetch(`${API_BASE_URL}/api/auth/register?action=budgets&timeFilter=${timeFilter}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -201,7 +230,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         }
 
         // Fetch alerts data
-        const alertsResponse = await fetch('/user/register?action=alerts', {
+        const alertsResponse = await fetch(`${API_BASE_URL}/api/auth/register?action=alerts`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -214,7 +243,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         }
 
         // Fetch category breakdown
-        const categoriesResponse = await fetch(`/user/register?action=categories&type=income&timeFilter=${timeFilter}`, {
+        const categoriesResponse = await fetch(`${API_BASE_URL}/api/auth/register?action=categories&type=income&timeFilter=${timeFilter}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -227,7 +256,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         }
 
         // Fetch trend data
-        const trendsResponse = await fetch(`/user/register?action=trends&timeFilter=${timeFilter}`, {
+        const trendsResponse = await fetch(`${API_BASE_URL}/api/auth/register?action=trends&timeFilter=${timeFilter}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -259,7 +288,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   // Add transaction using the user registration endpoint
   const addTransaction = async (transactionData: any) => {
     try {
-      const response = await fetch('/user/register', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -286,7 +315,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   // Delete budget using the user registration endpoint
   const deleteBudget = async (budgetId: string) => {
     try {
-      const response = await fetch('/user/register', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -312,7 +341,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   // Register new user (if needed)
   const registerUser = async (userData: any) => {
     try {
-      const response = await fetch('/user/register', {
+      const response = await fetch(`$SUPABASE_URL}/api/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

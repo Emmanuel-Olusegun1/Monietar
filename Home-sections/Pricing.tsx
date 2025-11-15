@@ -22,7 +22,6 @@ export default function Pricing() {
         'Basic AI recommendations',
         'Email support',
         '1 business account',
-        'Multi-language support'
       ],
       cta: 'Get Started Free',
       popular: true,

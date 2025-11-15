@@ -24,12 +24,15 @@ import {
   BarChart3,
   Receipt
 } from 'lucide-react';
+import { Transaction } from '@/app/dashboard/types';
 
 interface TransactionsPageProps {
   financialData: any;
   formatCurrency: (amount: number) => string;
   setShowIncomeForm: (show: boolean) => void;
   setShowExpenseForm: (show: boolean) => void;
+  editingTransaction: Transaction | null;
+  deleteTransactionId: string | null;
   startEditTransaction: (transaction: any) => void;
   setDeleteTransactionId: (id: string) => void;
   darkMode: boolean;

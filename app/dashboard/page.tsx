@@ -1,36 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import * as Toast from '@radix-ui/react-toast';
 import Image from 'next/image';
 import {
-  TrendingUp, TrendingDown, Wallet, PieChart, Bell, BarChart3,
-  Lightbulb, Mail, Users, Globe, ChevronDown, Search, Settings,
-  User, Home, CreditCard, FileText, AreaChart, HelpCircle, LogOut,
-  Menu, X, Plus, MessageCircle, Send, Bot, XCircle, AlertTriangle,
-  Calendar, DollarSign, Euro, Currency, Filter, Download, MoreHorizontal,
-  Languages, Edit, Trash2, Save, Key, ChevronRight, Eye, EyeOff,
-  Sun, Moon, Sparkles, Zap, Target, Shield, Database, Cloud,
-  ArrowUpRight, ArrowDownRight, RefreshCw, Crown
+  Sun, Moon, MessageCircle
 } from 'lucide-react';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, Legend
-} from 'recharts';
 
 // ──────────────────────────────────────────────────────────────────────
 // Imports
 // ──────────────────────────────────────────────────────────────────────
-import { AddTransactionModal } from './components/modals/AddTransactionModal';
-import { AddBudgetModal } from './components/modals/AddBudgetModal';
-import { EditTransactionModal } from './components/modals/EditTransactionModal';
-import { EditBudgetModal } from './components/modals/EditBudgetModal';
-import { DeleteConfirmationModal } from './components/modals/DeleteConfirmationModal';
-import { ChangePasswordModal } from './components/modals/ChangePasswordModal';
-import { ClearDataModal } from './components/modals/ClearDataModal';
-import { DeleteAccountModal } from './components/modals/DeleteAccountModal';
-import { RestoreBackupModal } from './components/modals/RestoreBackupModal';
 import { AIChatModal } from './components/modals/AIChatModal';
 import { TokenModal } from './components/modals/TokenModal';
 
@@ -45,55 +24,174 @@ import { Sidebar } from './Sidebar';
 import { TokenStatus } from './components/TokenStatus';
 
 import {
-  Transaction, Budget, UserSettings, PasswordData, FinancialData,
-  Alert, UserInfo, CategoryData, ChatMessage, NavigationItem,
-  LanguageOption, CurrencyOption
+  Transaction, Budget, UserSettings, FinancialData,
+  UserInfo, ChatMessage, Alert
 } from './types';
 
 import { RuleBasedFinancialAdvisor } from './utils/FinancialAdvisor';
-import { getWeekOfMonth, getWeekRange } from './utils/dateHelpers';
 
 // ──────────────────────────────────────────────────────────────────────
-// Types
+// Add these helper components / defaults at the top of the file
+// ──────────────────────────────────────────────────────────────────────
+
+
+const defaultCurrentTrendData: any = [];
+const defaultCategoryBreakdown: any= [];
+const defaultRealTimeAlerts: any[] = [];
+const setShowIncomeForm = () => {};
+const setShowExpenseForm = () => {};
+const setShowBudgetForm = () => {};
+const startEditBudget = (budget: EnhancedBudget) => {};
+const setDeleteBudgetId = (id: string | null) => {};
+const startEditTransaction = (tx: Transaction | null) => {};
+const setDeleteTransactionId = (id: string | null) => {};
+const setShowChangePasswordDialog = () => {};
+const setShowClearDataDialog = () => {};
+const setShowDeleteAccountDialog = () => {};
+const setShowRestoreDialog = () => {};
+const setShowExportDialog = () => {};
+const setShowImportDialog = () => {};
+const setShowLanguageDialog = () => {};
+const setShowCurrencyDialog = () => {};
+
+// Language & currency lists
+const languagesList = [
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Français' },
+];
+
+const currencies = [
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+  { code: 'NGN', symbol: '₦', name: 'Nigerian Naira' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+];
+
+const getDataKey = (): string => 'value'; // No param needed
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length > 0) {
+    const value = payload[0].value;
+    function formatCurrency(value: any): import("react").ReactNode {
+      throw new Error('Function not implemented.');
+    }
+
+    return (
+      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          {value !== undefined ? formatCurrency(value) : '—'}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
+const EmptyState = () => (
+  <div className="text-center py-12">
+    <p className="text-gray-500 dark:text-gray-400">No data available</p>
+  </div>
+);
+
+
+const defaultTransactions: Transaction[] = [];
+const defaultBudgets: Budget[] = [];
+
+// ──────────────────────────────────────────────────────────────────────
+// Constants
+// ──────────────────────────────────────────────────────────────────────
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+// ──────────────────────────────────────────────────────────────────────
+// Shared Types (Critical for type consistency)
 // ──────────────────────────────────────────────────────────────────────
 export type TimeFilter = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
-interface EnhancedBudget {
+export interface EnhancedBudget {
   id: string;
   user_id: string;
   category: string;
   budget_limit: number;
   spent: number;
   percentage: number;
-  period: 'monthly' | 'quarterly' | 'yearly';
-  created_at?: string;
+  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  created_at: string; // ← REQUIRED
 }
 
-interface CustomSession {
-  user: {
-    id: string;
-    email: string;
-    name?: string;
-    businessName?: string;
-    avatar?: string;
-    plan?: string;
-    joinedDate?: string;
-  };
-  accessToken: string;
+// ── Prop interfaces (must match component expectations) ──
+interface OverviewPageProps {
+  financialData: FinancialData;
+  formatCurrency: (amount: number) => string;
+  timeFilter: TimeFilter;
+  setTimeFilter: (filter: string) => void;
+  timeFilters: TimeFilter[];
+  hasTransactionData: boolean;
+  themeClasses: any;
+  showBalance: boolean;
+  darkMode: boolean;
+  currency: string;
+  language: string;
+  user: UserInfo;
+  aiRecommendations: string[];
+  cashFlowForecast: any[];
+  alerts: Alert[];
 }
 
-interface ApiService {
-  verifyToken(): Promise<any>;
-  fetchTransactions(userId: string): Promise<any>;
-  fetchBudgets(userId: string): Promise<any>;
-  fetchProfile(userId: string): Promise<any>;
-  addTransaction(transactionData: any): Promise<any>;
-  updateTransaction(transactionId: string, transactionData: any): Promise<any>;
-  deleteTransaction(transactionId: string): Promise<any>;
-  addBudget(budgetData: any): Promise<any>;
-  updateBudget(budgetId: string, budgetData: any): Promise<any>;
-  deleteBudget(budgetId: string): Promise<any>;
-  saveSettings(userId: string, settings: any): Promise<any>;
+interface TransactionsPageProps {
+  financialData: FinancialData;
+  formatCurrency: (amount: number) => string;
+  setShowIncomeForm: () => void;
+  setShowExpenseForm: () => void;
+  startEditTransaction: Dispatch<SetStateAction<Transaction | null>>;
+  setDeleteTransactionId: Dispatch<SetStateAction<string | null>>;
+  editingTransaction: Transaction | null;
+  deleteTransactionId: string | null;
+  darkMode: boolean;
+}
+
+interface BudgetsPageProps {
+  budgetsWithRealTimeTracking: EnhancedBudget[];
+  formatCurrency: (amount: number) => string;
+  setShowBudgetForm: () => void;
+  startEditBudget: (budget: EnhancedBudget) => void;
+  setDeleteBudgetId: Dispatch<SetStateAction<string | null>>;
+  editingBudget: Budget | null;
+  deleteBudgetId: string | null;
+  themeClasses: any;
+  darkMode: boolean;
+}
+
+interface SettingsPageProps {
+  userSettings: UserSettings;
+  setUserSettings: Dispatch<SetStateAction<UserSettings>>;
+  handleSaveSettings: () => Promise<void>;
+  handleExportData: () => void;
+  handleChangePassword: () => void;
+  handleDeleteAccount: () => void;
+  themeClasses: any;
+  darkMode: boolean;
+  currency: string;
+  setCurrency: Dispatch<SetStateAction<string>>;
+  language: string;
+  setLanguage: Dispatch<SetStateAction<string>>;
+}
+
+type AIStatus = 'aws' | 'standard' | 'checking';
+
+interface AIChatModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  messages: ChatMessage[];
+  newMessage: string;
+  onNewMessageChange: Dispatch<SetStateAction<string>>;
+  onSendMessage: () => void;
+  darkMode: boolean;
+  suggestedQuestions: string[];
+  aiStatus: AIStatus;
+  usePremium: boolean;
+  onTogglePremium: () => void;
+  tokensRemaining: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -112,9 +210,9 @@ const isValidToken = (token: string): boolean => {
 };
 
 // ──────────────────────────────────────────────────────────────────────
-// API Service – verifyToken calls /api/verify-session
+// API Service
 // ──────────────────────────────────────────────────────────────────────
-const apiService: ApiService = {
+const apiService = {
   async verifyToken() {
     const token = localStorage.getItem('auth_token');
     if (!token) throw new Error('No token found');
@@ -124,11 +222,11 @@ const apiService: ApiService = {
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
-      const response = await fetch('/api/verify-session', {
+      const response = await fetch(`${API_BASE_URL}/api/verify-session`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // ← REQUIRED HEADER
+          'Authorization': `Bearer ${token}`
         },
         signal: controller.signal
       });
@@ -136,10 +234,9 @@ const apiService: ApiService = {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 401) throw new Error('Unauthorized – invalid or expired token');
+        if (response.status === 401) throw new Error('Unauthorized');
         if (response.status === 403) throw new Error('Forbidden');
-        throw new Error(`Session verification failed: ${response.status} – ${errorText}`);
+        throw new Error(`Session verification failed: ${response.status}`);
       }
 
       const data = await response.json();
@@ -152,62 +249,77 @@ const apiService: ApiService = {
 
   async fetchTransactions(userId: string) {
     const token = localStorage.getItem('auth_token');
-    const response = await fetch('/user/registeractions', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch transactions');
-    const data = await response.json();
-    return { transactions: data.transactions || [] };
+    try {
+      const response = await fetch(`${SUPABASE_URL}/api/transactions`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+      if (!response.ok) {
+        if (response.status === 404) return { transactions: [] };
+        throw new Error('Failed to fetch transactions');
+      }
+      const data = await response.json();
+      return { transactions: data.transactions || [] };
+    } catch {
+      console.warn('Transactions endpoint not available');
+      return { transactions: [] };
+    }
   },
 
   async fetchBudgets(userId: string) {
     const token = localStorage.getItem('auth_token');
-    const response = await fetch('/user/register?action=budgets', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch budgets');
-    const data = await response.json();
-    return { budgets: data.budgets || [] };
+    try {
+      const response = await fetch(`${SUPABASE_URL}/api/budgets`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+      if (!response.ok) {
+        if (response.status === 404) return { budgets: [] };
+        throw new Error('Failed to fetch budgets');
+      }
+      const data = await response.json();
+      return { budgets: data.budgets || [] };
+    } catch {
+      console.warn('Budgets endpoint not available');
+      return { budgets: [] };
+    }
   },
 
   async fetchProfile(userId: string) {
     const token = localStorage.getItem('auth_token');
-    const response = await fetch('/user/register', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch profile');
-    const data = await response.json();
-    return { profile: data.user || {} };
-  },
-
-  // Placeholder CRUD methods
-  addTransaction: async () => ({ transaction: {} }),
-  updateTransaction: async () => ({ transaction: {} }),
-  deleteTransaction: async () => ({ success: true }),
-  addBudget: async () => ({ budget: {} }),
-  updateBudget: async () => ({ budget: {} }),
-  deleteBudget: async () => ({ success: true }),
-  saveSettings: async () => ({ success: true })
+    try {
+      const response = await fetch(`${SUPABASE_URL}/api/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+      if (!response.ok) {
+        if (response.status === 404) return { profile: {} };
+        throw new Error('Failed to fetch profile');
+      }
+      const data = await response.json();
+      return { profile: data.user || {} };
+    } catch {
+      console.warn('Profile endpoint not available');
+      return { profile: {} };
+    }
+  }
 };
 
 // ──────────────────────────────────────────────────────────────────────
 // Dashboard Component
 // ──────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  // ──────── State (all at top) ────────
-  const [session, setSession] = useState<CustomSession | null>(null);
+  // ──────── State ────────
+  const [session, setSession] = useState<any>(null);
   const [user, setUser] = useState<UserInfo>({
     name: 'Loading...', email: 'Loading...', businessName: 'Loading...',
     avatar: '/api/placeholder/40/40', plan: 'Free Plan',
@@ -251,83 +363,19 @@ export default function Dashboard() {
     notifications: { budgetAlerts: true, weeklyReports: true, transactionAlerts: true, aiRecommendations: true }
   });
 
-  const connectionIssuesRef = useRef<number>(0);
-  const lastConnectionAttemptRef = useRef<number>(Date.now());
-  const autoReconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // ──────── Auth Effect ────────
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const verifyAndLoadSession = async () => {
-      try {
-        setLoading(true);
-        setAuthChecked(false);
-
-        const token = localStorage.getItem('auth_token');
-        if (!token || !isValidToken(token)) {
-          localStorage.removeItem('auth_token');
-          window.location.href = '/auth/signin';
-          return;
-        }
-
-        const userData = await apiService.verifyToken(); // calls /api/verify-session
-
-        const customSession: CustomSession = {
-          user: userData,
-          accessToken: token
-        };
-
-        setSession(customSession);
-        setAuthLoaded(true);
-        await fetchData(customSession);
-      } catch (error: any) {
-        console.error('Session invalid:', error.message);
-        localStorage.removeItem('auth_token');
-        window.location.href = '/auth/signin';
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    verifyAndLoadSession();
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'auth_token' && !e.newValue) {
-        window.location.href = '/auth/signin';
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
-
-  // ──────── Loading Screen ────────
-  if (loading || !authChecked) {
-    return (
-      <div className={`flex flex-col items-center justify-center min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <Image
-          src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png"
-          alt="Monietar"
-          width={220}
-          height={50}
-          className="mb-8 animate-pulse"
-        />
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className={darkMode ? 'text-gray-200' : 'text-gray-600'}>
-            {loading ? 'Authenticating...' : 'Loading dashboard...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    if (typeof window !== 'undefined') window.location.href = '/auth/signin';
-    return null;
-  }
+  const suggestedQuestions = [
+    "How can I reduce my expenses?",
+    "What's my spending pattern?",
+    "Any budget recommendations?",
+    "How can I increase my savings?"
+  ];
 
   // ──────── Helpers ────────
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastOpen(true);
+  };
+
   const formatCurrency = (amount: number): string => {
     if (!showBalance && amount !== 0) return '••••••';
     return new Intl.NumberFormat('en-US', {
@@ -341,13 +389,16 @@ export default function Dashboard() {
     window.location.href = '/auth/signin';
   };
 
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    setToastOpen(true);
+  const handleTimeFilterChange = (filter: string) => {
+    setTimeFilter(filter as TimeFilter);
+  };
+
+  const handleStartEditBudget = (budget: EnhancedBudget) => {
+    setEditingBudget(budget as any);
   };
 
   // ──────── fetchData ────────
-  async function fetchData(session: CustomSession) {
+  const fetchData = async (session: any) => {
     setLoading(true);
     try {
       const [transactionsData, budgetsData, profileData] = await Promise.all([
@@ -362,6 +413,20 @@ export default function Dashboard() {
       const expenses = transactionsData.transactions
         ?.filter((t: any) => t.type === 'expense')
         .reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
+
+      const enhancedBudgets: EnhancedBudget[] = (budgetsData.budgets || []).map((b: any) => {
+        const spent = financialData.transactions
+          .filter(t => t.category === b.category && t.type === 'expense')
+          .reduce((s: number, t: Transaction) => s + t.amount, 0);
+        return {
+          ...b,
+          user_id: session.user.id,
+          spent,
+          percentage: b.budget_limit > 0 ? Math.min(100, (spent / b.budget_limit) * 100) : 0,
+          period: (['daily', 'weekly', 'monthly', 'yearly'].includes(b.period) ? b.period : 'monthly') as EnhancedBudget['period'],
+          created_at: b.created_at ?? new Date().toISOString() // ← fallback ensures string
+        };
+      });
 
       setFinancialData(prev => ({
         ...prev,
@@ -387,7 +452,8 @@ export default function Dashboard() {
           .toISOString().split('T')[0]
       });
 
-      setUserSettings({
+      setUserSettings(prev => ({
+        ...prev,
         fullName: profileData?.profile?.full_name || user.name,
         email: session.user.email,
         businessName: profileData?.profile?.business_name || user.businessName,
@@ -396,15 +462,84 @@ export default function Dashboard() {
         language: profileData?.profile?.language || 'en',
         dateFormat: profileData?.profile?.date_format || 'MM/DD/YYYY',
         timezone: profileData?.profile?.timezone || 'UTC',
-        notifications: profileData?.profile?.notification_settings || {
-          budgetAlerts: true, weeklyReports: true, transactionAlerts: true, aiRecommendations: true
-        }
-      });
+        notifications: profileData?.profile?.notification_settings || prev.notifications
+      }));
     } catch (error: any) {
-      showToast('Failed to load data');
+      console.error('Failed to load data:', error);
+      showToast('Failed to load data. Using demo data.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // ──────── Auth Effect ────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const verifyAndLoadSession = async () => {
+      try {
+        setLoading(true);
+        setAuthChecked(false);
+
+        const token = localStorage.getItem('auth_token');
+        if (!token || !isValidToken(token)) {
+          localStorage.removeItem('auth_token');
+          window.location.href = '/auth/signin';
+          return;
+        }
+
+        const userData = await apiService.verifyToken();
+        const customSession = { user: userData, accessToken: token };
+
+        setSession(customSession);
+        setAuthChecked(true);
+        await fetchData(customSession);
+      } catch (error: any) {
+        console.error('Session invalid:', error.message);
+        localStorage.removeItem('auth_token');
+        window.location.href = '/auth/signin';
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifyAndLoadSession();
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'auth_token' && !e.newValue) {
+        window.location.href = '/auth/signin';
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  // ──────── Loading Screen ────────
+  if (loading || !authChecked) {
+    return (
+      <div className={`flex flex-col items-center justify-center min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`} suppressHydrationWarning>
+        <Image
+          src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png"
+          alt="Monietar"
+          width={220}
+          height={50}
+          style={{ width: 'auto', height: 'auto' }}
+          className="mb-8 animate-pulse"
+          priority
+        />
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className={darkMode ? 'text-gray-200' : 'text-gray-600'}>
+            {loading ? 'Authenticating...' : 'Loading dashboard...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    if (typeof window !== 'undefined') window.location.href = '/auth/signin';
+    return null;
   }
 
   // ──────── Theme Classes ────────
@@ -423,7 +558,7 @@ export default function Dashboard() {
 
   // ──────── Render ────────
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-gray-50 via-white to-blue-50'} flex`}>
+    <div className={`min-h-screen ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-gray-50 via-white to-blue-50'} flex`} suppressHydrationWarning>
       <Toast.Provider>
         <Toast.Root
           open={toastOpen}
@@ -474,7 +609,7 @@ export default function Dashboard() {
                 financialData={financialData}
                 formatCurrency={formatCurrency}
                 timeFilter={timeFilter}
-                setTimeFilter={setTimeFilter}
+                setTimeFilter={handleTimeFilterChange}
                 timeFilters={['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] as TimeFilter[]}
                 hasTransactionData={financialData.transactions.length > 0}
                 themeClasses={themeClasses}
@@ -486,6 +621,56 @@ export default function Dashboard() {
                 aiRecommendations={financialData.aiRecommendations}
                 cashFlowForecast={financialData.cashFlowForecast}
                 alerts={financialData.alerts}
+                currentTrendData={defaultCurrentTrendData}
+                categoryBreakdown={defaultCategoryBreakdown}
+                budgetsWithRealTimeTracking={financialData.budgets.map((b: any) => ({
+                  ...b,
+                  user_id: session?.user?.id || '',
+                  spent: 0,
+                  percentage: 0,
+                  period: (b.period || 'monthly') as EnhancedBudget['period'],
+                  created_at: b.created_at ?? new Date().toISOString()
+                })) as EnhancedBudget[]}
+                realTimeAlerts={defaultRealTimeAlerts}
+                transactions={financialData.transactions}
+                income={financialData.income}
+                expenses={financialData.expenses}
+                profit={financialData.profit}
+                totalTransactions={financialData.transactions.length}
+                averageTransaction={financialData.transactions.length > 0
+                  ? financialData.transactions.reduce((s, t) => s + t.amount, 0) / financialData.transactions.length
+                  : 0}
+                topCategory={(() => {
+                  const categoryMap = financialData.transactions.reduce((acc, t) => {
+                    acc[t.category] = (acc[t.category] || 0) + t.amount;
+                    return acc;
+                  }, {} as Record<string, number>);
+                  return Object.entries(categoryMap).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None';
+                })()}
+                recentActivity={financialData.transactions.slice(0, 5)}
+                monthlyComparison={{
+                  current: financialData.profit,
+                  previous: financialData.profit * 0.9
+                }}
+                setShowIncomeForm={setShowIncomeForm}
+    setShowExpenseForm={setShowExpenseForm}
+    setShowBudgetForm={setShowBudgetForm}
+    startEditBudget={startEditBudget}
+    setDeleteBudgetId={setDeleteBudgetId}
+    startEditTransaction={startEditTransaction}
+    setDeleteTransactionId={setDeleteTransactionId}
+    setShowChangePasswordDialog={setShowChangePasswordDialog}
+    setShowClearDataDialog={setShowClearDataDialog}
+    setShowDeleteAccountDialog={setShowDeleteAccountDialog}
+    setShowRestoreDialog={setShowRestoreDialog}
+    setShowExportDialog={setShowExportDialog}
+    setShowImportDialog={setShowImportDialog}
+    setShowLanguageDialog={setShowLanguageDialog}
+    setShowCurrencyDialog={setShowCurrencyDialog}
+    setActiveTab={setActiveTab} // ← real state setter
+    getDataKey={getDataKey}
+    CustomTooltip={CustomTooltip}
+    EmptyState={EmptyState}
               />
             )}
 
@@ -499,22 +684,31 @@ export default function Dashboard() {
                 setDeleteTransactionId={setDeleteTransactionId}
                 editingTransaction={editingTransaction}
                 deleteTransactionId={deleteTransactionId}
-                themeClasses={themeClasses}
                 darkMode={darkMode}
+                themeClasses={themeClasses}
+                EmptyState={EmptyState}
               />
             )}
 
             {activeTab === 'budgets' && (
               <BudgetsPage
-                budgetsWithRealTimeTracking={financialData.budgets.map(b => ({
-                  ...b,
-                  spent: financialData.transactions
+                budgetsWithRealTimeTracking={financialData.budgets.map((b: any) => {
+                  const spent = financialData.transactions
                     .filter(t => t.category === b.category && t.type === 'expense')
-                    .reduce((s, t) => s + t.amount, 0)
-                })) as EnhancedBudget[]}
+                    .reduce((s: number, t: Transaction) => s + t.amount, 0);
+                  const percentage = b.budget_limit > 0 ? Math.min(100, (spent / b.budget_limit) * 100) : 0;
+                  return {
+                    ...b,
+                    user_id: session.user.id,
+                    spent,
+                    percentage,
+                    period: (['daily', 'weekly', 'monthly', 'yearly'].includes(b.period) ? b.period : 'monthly') as EnhancedBudget['period'],
+                    created_at: b.created_at ?? new Date().toISOString()
+                  } as EnhancedBudget;
+                })}
                 formatCurrency={formatCurrency}
                 setShowBudgetForm={() => {}}
-                startEditBudget={(budget: EnhancedBudget) => setEditingBudget(budget as unknown as Budget)}
+                startEditBudget={handleStartEditBudget}
                 setDeleteBudgetId={setDeleteBudgetId}
                 editingBudget={editingBudget}
                 deleteBudgetId={deleteBudgetId}
@@ -538,7 +732,6 @@ export default function Dashboard() {
                 setUserSettings={setUserSettings}
                 handleSaveSettings={async () => {}}
                 handleExportData={() => {}}
-                handleClearData={() => {}}
                 handleChangePassword={() => {}}
                 handleDeleteAccount={() => {}}
                 themeClasses={themeClasses}
@@ -547,6 +740,20 @@ export default function Dashboard() {
                 setCurrency={setCurrency}
                 language={language}
                 setLanguage={setLanguage}
+                setShowChangePasswordDialog={() => {}}
+                setShowClearDataDialog={() => {}}
+                setShowDeleteAccountDialog={() => {}}
+                setShowRestoreDialog={() => {}}
+                setShowExportDialog={() => {}}
+                setShowImportDialog={() => {}}
+                setShowLanguageDialog={() => {}}
+                setShowCurrencyDialog={() => {}}
+                handleBackupData={() => {
+                  showToast('Backup started...');
+                }}
+                setActiveTab={setActiveTab}
+                languagesList={languagesList}
+                currencies={currencies}
               />
             )}
 
@@ -574,7 +781,11 @@ export default function Dashboard() {
             onNewMessageChange={setNewMessage}
             onSendMessage={() => {}}
             darkMode={darkMode}
-            themeClasses={themeClasses}
+            suggestedQuestions={suggestedQuestions}
+            aiStatus={'standard' as AIStatus}
+            usePremium={false}
+            onTogglePremium={() => setShowTokenModal(true)}
+            tokensRemaining={tokenStatus.tokensRemaining}
           />
 
           <TokenModal

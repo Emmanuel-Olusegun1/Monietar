@@ -17,32 +17,31 @@ import {
   BarChart3,
   Download
 } from 'lucide-react';
+import { EnhancedBudget } from '@/app/dashboard/types/budget';
+import { Budget } from '@/app/dashboard/types';
+import { Dispatch, SetStateAction } from 'react';
 
 // Define EnhancedBudget locally since it doesn't exist in types
-interface EnhancedBudget {
-  id: string;
-  category: string;
-  budget_limit: number;
-  spent: number;
-  percentage: number;
-  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  created_at: string;
-}
+// interface EnhancedBudget {
+//   id: string;
+//   category: string;
+//   budget_limit: number;
+//   spent: number;
+//   percentage: number;
+//   period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+//   created_at: string;
+// }
 
-interface BudgetsPageProps {
+export interface BudgetsPageProps {
   budgetsWithRealTimeTracking: EnhancedBudget[];
   formatCurrency: (amount: number) => string;
-  setShowBudgetForm: (show: boolean) => void;
+  setShowBudgetForm: () => void;
   startEditBudget: (budget: EnhancedBudget) => void;
-  setDeleteBudgetId: (id: string | null) => void;
-  darkMode: boolean;
+  setDeleteBudgetId: Dispatch<SetStateAction<string | null>>;
+  editingBudget: Budget | null;
+  deleteBudgetId: string | null;
   themeClasses: any;
-  EmptyState: React.ComponentType<{
-    title: string;
-    description: string;
-    icon: React.ComponentType<any>;
-    action?: React.ReactNode;
-  }>;
+  darkMode: boolean;
 }
 
 export const BudgetsPage: React.FC<BudgetsPageProps> = ({
@@ -53,7 +52,6 @@ export const BudgetsPage: React.FC<BudgetsPageProps> = ({
   setDeleteBudgetId,
   darkMode,
   themeClasses,
-  EmptyState
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [durationFilter, setDurationFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('all');
@@ -183,7 +181,7 @@ export const BudgetsPage: React.FC<BudgetsPageProps> = ({
             Create budgets to track your spending, set limits, and get smart alerts when you're approaching your limits.
           </p>
           <button
-            onClick={() => setShowBudgetForm(true)}
+          onClick={() => setShowBudgetForm()}
             className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm hover:cursor-pointer"
           >
             <Plus className="w-5 h-5" />
@@ -254,7 +252,7 @@ export const BudgetsPage: React.FC<BudgetsPageProps> = ({
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => setShowBudgetForm(true)}
+            onClick={() => setShowBudgetForm()}
             className="flex items-center space-x-2 px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm font-medium hover:cursor-pointer"
           >
             <Plus className="w-5 h-5" />

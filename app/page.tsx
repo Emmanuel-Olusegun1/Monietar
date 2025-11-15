@@ -11,10 +11,10 @@ import Footer from '@/components/Footer';
 import Hero from '@/Home-sections/Hero';
 import Trustbar from '@/Home-sections/Trustbar';
 import Feature from '@/Home-sections/Feature';
-// import Premuim from '@/Home-sections/Premium';
-// import Pricing from '@/Home-sections/Pricing';
+import Premuim from '@/Home-sections/Premium';
+import Pricing from '@/Home-sections/Pricing';
 import Faqs from '@/Home-sections/Faqs';
-import Benefits from '@/Home-sections/Benefits'
+// import Benefits from '@/Home-sections/Benefits'
 // import Testimonials from '@/Home-sections/Testimonial';
 import Contacts from '@/Home-sections/Contacts';
 
@@ -50,17 +50,17 @@ function Home() {
       {/* Hero Section */}
       <Hero />
       {/* Trust Bar */}
-      {/* <Trustbar /> */}
+      <Trustbar />
       {/* Features Section */}
       <Feature />
       {/* Premium Coming Soon Section */}
-      {/* <Premuim />? */}
+      <Premuim />?
       {/* FAQ Section */}
-      {/* Benefits section */}
-      <Benefits />
       <Faqs />
+      {/* Benefits section */}
+      {/* <Benefits /> */}
       {/* Pricing Section */}
-      {/* <Pricing /> */}
+      <Pricing />
       {/* Testimonials Section */}
       {/* <Testimonials /> */}
       {/* Contact Section */}

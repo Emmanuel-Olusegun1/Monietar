@@ -44,10 +44,55 @@ export default function Footer() {
 
       {/* Main Footer Content */}
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 lg:py-20 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-16 mb-6">
+          {/* Company Info */}
+          <div>
+            <h3 className="text-2xl font-bold text-white mb-4">Monietar</h3>
+            <p className="text-gray-400">
+              Empowering African SMEs with AI-driven cash flow management. Track, analyze, and optimize your finances effortlessly.
+            </p>
+          </div>
+          <div>
+            <h4 className="text-xl font-semibold text-white mb-4">Product</h4>
+            <ul className="space-y-2">
+              {productLinks.map((link) => (
+                <li key={link.title}>
+                  <a href={link.link} className="hover:text-white transition-colors duration-300">
+                    {link.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-xl font-semibold text-white mb-4">Company</h4>
+            <ul className="space-y-2">
+              {company.map((link) => (
+                <li key={link.title}>
+                  <a href={link.link} className="hover:text-white transition-colors duration-300">
+                    {link.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div> 
+            <h4 className="text-xl font-semibold text-white mb-4">Resources</h4>  
+            <ul className="space-y-2">
+              {resourceLinks.map((link) => (
+                <li key={link.title}>
+                  <a href={link.link} className="hover:text-white transition-colors duration-300">
+                    {link.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
         {/* Enhanced Bottom Section */}
         <motion.div
-          className="border-t border-gray-800 pt-8"
+          className="border-t border-gray-800 pt-6 mt-6"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}

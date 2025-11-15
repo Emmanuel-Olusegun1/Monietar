@@ -15,44 +15,36 @@ export default function FAQ() {
 
     const faqData = [
         {
-            question: "What is the waitlist for?",
-            answer: "The waitlist gives you early access to our AI-powered financial platform before public launch, along with exclusive benefits for founding members.",
-            category: "general"
+            question: "What is Monietar?",
+            answer: "Monietar is an AI-powered platform designed to help SMes/SMBs and Startups in Afria manage their cash flow, track income and expenses, create budgets, and gain insights into their financial health.",
         },
         {
-            question: "Is there any cost to join the waitlist?",
-            answer: "No, joining the waitlist is completely free. You'll get early access to our core features at no cost when we launch.",
-            category: "pricing"
+            question: "Is Monietar really free to use?",
+            answer: "Yes! Our core features are completely free forever. We believe every African business should have access to powerful financial tools. The Free tier includes income/expense tracking, AI-powered insights, email support and lot more. We'll offer Professional and Enterprise features in the future, but the core functionality will always remain free.",
         },
         {
-            question: "When will the platform launch?",
-            answer: "We're targeting a full public launch by 25th December, 2025. Waitlist members will get access in stages starting from 25th November, 2025.",
-            category: "timeline"
+            question: "Can I access the system on mobile devices?",
+            answer: "Absolutely! Monietar Cash Flow Management System is designed to be mobile-friendly, allowing you to track your finances and access insights anytime, anywhere.",
         },
         {
-            question: "What benefits do waitlist members get?",
-            answer: "Early access, special launch pricing, priority support, and the opportunity to influence product development with your feedback.",
-            category: "benefits"
+            question: "When will the professional plan be available?",
+            answer: "The Pro tier is currently in development and is expected to launch in mid-2026.",
         },
-        {
-            question: "How many spots are available?",
-            answer: "We're limiting early access to the first 2,000 SMEs to ensure quality onboarding and support for our founding members.",
-            category: "availability"
-        },
-        {
-            question: "Can I refer other businesses?",
-            answer: "Yes! Referring other qualified SMEs can move you up the waitlist and unlock additional early bird benefits.",
-            category: "referral"
-        },
+        // {
+        //     question: "How many spots are available?",
+        //     answer: "We're limiting early access to the first 2,000 SMEs to ensure quality onboarding and support for our founding members.",
+        // },
+        // {
+        //     question: "Can I refer other businesses?",
+        //     answer: "Yes! Referring other qualified SMEs can move you up the waitlist and unlock additional early bird benefits.",
+        // },
         {
             question: "What makes this different from other financial tools?",
             answer: "Our platform is specifically designed for African SMEs, with AI-powered insights tailored to local business environments and challenges.",
-            category: "features"
         },
         {
             question: "Is my data secure on the platform?",
             answer: "Yes, we use bank-level encryption and comply with all local data protection regulations to keep your financial information safe.",
-            category: "security"
         }
     ];
 
@@ -122,7 +114,7 @@ export default function FAQ() {
                         viewport={{ once: true }}
                         transition={{ duration: 0.6, delay: 0.3 }}
                     >
-                        Everything you need to know about joining our exclusive waitlist
+                    Everything you need to know about Monietar
                     </motion.p>
 
                     {/* Search Bar */}
@@ -197,9 +189,6 @@ export default function FAQ() {
                                         <h3 className="text-lg font-semibold text-gray-900 group-hover:text-gray-700 transition-colors duration-200 mb-1">
                                             {faq.question}
                                         </h3>
-                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                            {faq.category}
-                                        </span>
                                     </div>
                                 </div>
                                 <motion.div
@@ -273,7 +262,7 @@ export default function FAQ() {
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: 0.6 }}
                         >
-                            Join 1,247+ forward-thinking SMEs on our exclusive waitlist
+                            Join 1,247+ forward-thinking SMEs already benefiting from Monietar's AI-powered cash flow management.
                         </motion.p>
                         
                         <motion.div 
@@ -284,13 +273,13 @@ export default function FAQ() {
                             transition={{ duration: 0.5, delay: 0.7 }}
                         >
                             <motion.a
-                                href="#waitlist"
+                                href="/auth/signup"
                                 className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-white text-gray-900 font-bold hover:bg-gray-50 transition-all duration-200 group shadow-lg"
                                 whileHover={{ scale: 1.05, y: -2 }}
                                 whileTap={{ scale: 0.98 }}
                             >
                                 <MessageCircle className="w-5 h-5" />
-                                Join Waitlist Now
+                                Join Monietar Now
                                 <motion.div
                                     animate={{ x: [0, 4, 0] }}
                                     transition={{ duration: 1.5, repeat: Infinity }}

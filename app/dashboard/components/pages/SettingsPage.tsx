@@ -35,12 +35,23 @@ interface SettingsPageProps {
   setShowClearDataDialog: (show: boolean) => void;
   setShowDeleteAccountDialog: (show: boolean) => void;
   setShowRestoreDialog: (show: boolean) => void;
+  setShowExportDialog: (show: boolean) => void;
+  setShowImportDialog: (show: boolean) => void;
+  setShowLanguageDialog: (show: boolean) => void;
+  setShowCurrencyDialog: (show: boolean) => void;
+  setCurrency: (currency: string) => void;
+  setLanguage: (language: string) => void;
   handleBackupData: () => void;
   setActiveTab: (tab: string) => void;
+  handleChangePassword: () => void;
+  handleDeleteAccount: () => void
   darkMode: boolean;
   themeClasses: any;
   languagesList: any[];
   currencies: any[];
+  currency:string;
+  language:string;
+
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
