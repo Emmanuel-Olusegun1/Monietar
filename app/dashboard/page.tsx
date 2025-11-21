@@ -250,7 +250,7 @@ const apiService = {
   async fetchTransactions(userId: string) {
     const token = localStorage.getItem('auth_token');
     try {
-      const response = await fetch(`${SUPABASE_URL}/api/transactions`, {
+      const response = await fetch(`${API_BASE_URL}/api/user/transactions/fetch/:userId`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -294,7 +294,7 @@ const apiService = {
   async fetchProfile(userId: string) {
     const token = localStorage.getItem('auth_token');
     try {
-      const response = await fetch(`${SUPABASE_URL}/api/profile`, {
+      const response = await fetch(`${API_BASE_URL}/api/user/profiles/fetch/:userId`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
