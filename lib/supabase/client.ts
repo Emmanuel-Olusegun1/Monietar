@@ -1,6 +1,8 @@
 // lib/supabase/client.ts
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+// If your src/types/supabase.ts does not export a module, declare a local Database type here.
+// You can replace `any` with a proper type shape or export the Database type from your types file.
+type Database = any;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
