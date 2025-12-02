@@ -22,17 +22,16 @@ export interface Budget {
   created_at?: string;
 }
 
-// app/dashboard/types/budget.ts
-// app/dashboard/types/budget.ts
 export interface EnhancedBudget {
   id: string;
-  user_id: string;
   category: string;
   budget_limit: number;
   spent: number;
   percentage: number;
-  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  period: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'quarterly';
   created_at: string;
+  user_id?: string;
+  type?: 'expense';
 }
 
 

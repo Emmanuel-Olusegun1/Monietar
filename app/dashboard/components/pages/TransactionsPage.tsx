@@ -69,32 +69,37 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
 
-  // Filter and sort transactions
+  // Filter and sort transactions - UPDATED FOR SUPABASE
   const filteredTransactions = useMemo(() => {
+    if (!financialData?.transactions) return [];
+    
     let transactions = financialData.transactions.filter((transaction: any) => {
-      const matchesSearch = transaction.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          transaction.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = 
+        transaction.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.notes?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = filterType === 'all' || transaction.type === filterType;
       return matchesSearch && matchesType;
     });
 
-    // Sort transactions
+    // Sort transactions - UPDATED FOR SUPABASE DATE FIELD
     transactions.sort((a: any, b: any) => {
       let aValue, bValue;
       
       switch (sortBy) {
         case 'amount':
-          aValue = a.amount;
-          bValue = b.amount;
+          aValue = a.amount || 0;
+          bValue = b.amount || 0;
           break;
         case 'category':
-          aValue = a.category;
-          bValue = b.category;
+          aValue = a.category || '';
+          bValue = b.category || '';
           break;
         case 'date':
         default:
-          aValue = new Date(a.date).getTime();
-          bValue = new Date(b.date).getTime();
+          // Handle both date and created_at fields from Supabase
+          aValue = new Date(a.date || a.created_at || Date.now()).getTime();
+          bValue = new Date(b.date || b.created_at || Date.now()).getTime();
           break;
       }
 
@@ -127,17 +132,39 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
     return sortOrder === 'asc' ? '↑' : '↓';
   };
 
+  // UPDATED FOR SUPABASE - Added null checks
   const stats = useMemo(() => {
+    if (!filteredTransactions) return { totalIncome: 0, totalExpenses: 0, net: 0 };
+    
     const totalIncome = filteredTransactions
       .filter((t: any) => t.type === 'income')
-      .reduce((sum: number, t: any) => sum + t.amount, 0);
+      .reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
     
     const totalExpenses = filteredTransactions
       .filter((t: any) => t.type === 'expense')
-      .reduce((sum: number, t: any) => sum + t.amount, 0);
+      .reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
 
     return { totalIncome, totalExpenses, net: totalIncome - totalExpenses };
   }, [filteredTransactions]);
+
+  // ADDED: Helper function to format date from Supabase
+  const formatDisplayDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
+  // ADDED: Helper function to get display description
+  const getDisplayDescription = (transaction: any) => {
+    return transaction.description || transaction.notes || 'No description';
+  };
 
   return (
     <div className="min-h-screen pb-20">
@@ -189,8 +216,8 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
           </div>
         </div>
 
-        {/* Show empty state when no transactions exist */}
-        {financialData.transactions.length === 0 ? (
+        {/* Show empty state when no transactions exist - UPDATED FOR SUPABASE */}
+        {!financialData?.transactions || financialData.transactions.length === 0 ? (
           <div className="space-y-6">
             {/* Empty State - Exactly like AccountsPage */}
             <div className={`text-center py-12 rounded-2xl border-2 border-dashed ${themeClasses.border}`}>
@@ -489,7 +516,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
                                 <p className={`text-xs truncate mt-1 ${
                                   darkMode ? 'text-gray-400' : 'text-gray-500'
                                 }`}>
-                                  {transaction.description || 'No description'}
+                                  {getDisplayDescription(transaction)}
                                 </p>
                               </div>
                             </div>
@@ -543,17 +570,13 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
                             </div>
                           </div>
                           
-                          {/* Date Row */}
+                          {/* Date Row - UPDATED FOR SUPABASE */}
                           <div className="flex items-center space-x-2 text-xs">
                             <Calendar className={`w-3 h-3 ${
                               darkMode ? 'text-gray-400' : 'text-gray-500'
                             }`} />
                             <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>
-                              {new Date(transaction.date).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
+                              {formatDisplayDate(transaction.date || transaction.created_at)}
                             </span>
                           </div>
                         </div>
@@ -577,7 +600,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
                               <p className={`text-sm truncate mt-1 ${
                                 darkMode ? 'text-gray-400' : 'text-gray-500'
                               }`}>
-                                {transaction.description || 'No description'}
+                                {getDisplayDescription(transaction)}
                               </p>
                             </div>
                           </div>
@@ -590,11 +613,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({
                               <span className={`text-sm ${
                                 darkMode ? 'text-gray-300' : 'text-gray-700'
                               }`}>
-                                {new Date(transaction.date).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}
+                                {formatDisplayDate(transaction.date || transaction.created_at)}
                               </span>
                             </div>
                           </div>

@@ -146,6 +146,7 @@ export function Sidebar({
       {/* Top Navigation Bar - Enhanced with Toggles */}
       <div className={`fixed top-0 left-0 right-0 h-16 border-b z-40 lg:left-64 ${themeClasses.topBar}`}>
         <div className="flex items-center justify-between h-full px-4 lg:px-6">
+          
           {/* Left Section - Only mobile menu button */}
           <div className="flex items-center">
             <button
@@ -226,6 +227,8 @@ export function Sidebar({
                 <span className="text-sm">{getCurrentLanguage()}</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${isLanguageOpen ? 'rotate-180' : ''}`} />
               </button>
+
+
 
               <AnimatePresence>
                 {isLanguageOpen && (

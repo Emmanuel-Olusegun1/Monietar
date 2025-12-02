@@ -17,7 +17,7 @@ import {
   BarChart3,
   Download
 } from 'lucide-react';
-import { EnhancedBudget } from '@/app/dashboard/types/budget';
+import type { EnhancedBudget } from '@/app/dashboard/types';
 import { Budget } from '@/app/dashboard/types';
 import { Dispatch, SetStateAction } from 'react';
 

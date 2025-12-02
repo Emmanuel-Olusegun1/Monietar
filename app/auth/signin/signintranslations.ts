@@ -24,7 +24,8 @@ export const translations = {
     createAccount: 'Create account',
     signingIn: 'Signing in...',
     thankYou: 'Welcome back!',
-    forgotPassword: 'Forgot password?'
+    forgotPassword: 'Forgot password?',
+    sendCode: 'Send code'
   },
   fr: {
     welcome: 'Content de vous revoir',
@@ -42,7 +43,8 @@ export const translations = {
     createAccount: 'Créer un compte',
     signingIn: 'Connexion...',
     thankYou: 'Content de vous revoir!',
-    forgotPassword: 'Mot de passe oublié?'
+    forgotPassword: 'Mot de passe oublié?',
+    sendCode: 'Envoyer le code'
   },
   sw: {
     welcome: 'Karibu Tena',
@@ -60,7 +62,8 @@ export const translations = {
     createAccount: 'Tengeneza akaunti',
     signingIn: 'Inaingia...',
     thankYou: 'Karibu tena!',
-    forgotPassword: 'Umesahau nenosiri?'
+    forgotPassword: 'Umesahau nenosiri?',
+    sendCode: 'Tuma msimbo'
   },
   yo: {
     welcome: 'Kaabo Pada',
@@ -78,7 +81,8 @@ export const translations = {
     createAccount: 'Ṣẹda akọọlu',
     signingIn: 'Nwọle...',
     thankYou: 'Kaabo pada!',
-    forgotPassword: 'Gbẹgbẹ ọrọ igbaniwọle?'
+    forgotPassword: 'Gbẹgbẹ ọrọ igbaniwọle?',
+    sendCode: 'Firanṣẹ koodu'
   },
   ig: {
     welcome: 'Nnọọ Laghachi',
@@ -96,7 +100,8 @@ export const translations = {
     createAccount: 'Mepụta akaụntụ',
     signingIn: 'Na-abanye...',
     thankYou: 'Nnọọ laghachi!',
-    forgotPassword: 'Chefuru okwuntughe?'
+    forgotPassword: 'Chefuru okwuntughe?',
+    sendCode: 'Zipu koodu'
   },
   ha: {
     welcome: 'Barka da Dawowa',
@@ -114,6 +119,7 @@ export const translations = {
     createAccount: 'Ƙirƙiri asusu',
     signingIn: 'Ana shiga...',
     thankYou: 'Barka da dawowa!',
-    forgotPassword: 'Kun manta kalmar sirri?'
+    forgotPassword: 'Kun manta kalmar sirri?',
+    sendCode: 'Send Code'
   }
 };
