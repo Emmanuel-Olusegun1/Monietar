@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -6,299 +6,11 @@ import { useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { translations, languages } from './signuptranslations';
-import { supabase } from '@/lib/supabase/client';
 import { Toaster, toast } from 'react-hot-toast';
-import axios from 'axios';
+import { Loader2, Eye, EyeOff, Globe, ChevronDown } from 'lucide-react';
 
-// Configure Axios defaults
-axios.defaults.headers.common['Content-Type'] = 'application/json';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-// Error types for better type safety
-type AppError = {
-  code: string;
-  message: string;
-  details?: any;
-  status?: number;
-};
-
-type ValidationError = {
-  field: string;
-  message: string;
-};
-
-// Error codes mapping
-const ERROR_CODES = {
-  NETWORK_ERROR: 'NETWORK_ERROR',
-  TIMEOUT_ERROR: 'TIMEOUT_ERROR',
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  BUSINESS_NAME_UNAVAILABLE: 'BUSINESS_NAME_UNAVAILABLE',
-  USER_ALREADY_EXISTS: 'USER_ALREADY_EXISTS',
-  INVALID_EMAIL: 'INVALID_EMAIL',
-  INVALID_PHONE: 'INVALID_PHONE',
-  WEAK_PASSWORD: 'WEAK_PASSWORD',
-  RATE_LIMITED: 'RATE_LIMITED',
-  SERVER_ERROR: 'SERVER_ERROR',
-  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
-} as const;
-
-// Error messages mapping
-const ERROR_MESSAGES = {
-  [ERROR_CODES.NETWORK_ERROR]: 'Network connection failed. Please check your internet connection.',
-  [ERROR_CODES.TIMEOUT_ERROR]: 'Request timed out. Please try again.',
-  [ERROR_CODES.VALIDATION_ERROR]: 'Please check your form data and try again.',
-  [ERROR_CODES.BUSINESS_NAME_UNAVAILABLE]: 'Business name is not available.',
-  [ERROR_CODES.USER_ALREADY_EXISTS]: 'An account with this email/phone already exists.',
-  [ERROR_CODES.INVALID_EMAIL]: 'Please enter a valid email address.',
-  [ERROR_CODES.INVALID_PHONE]: 'Please enter a valid phone number.',
-  [ERROR_CODES.WEAK_PASSWORD]: 'Password does not meet security requirements.',
-  [ERROR_CODES.RATE_LIMITED]: 'Too many attempts. Please try again later.',
-  [ERROR_CODES.SERVER_ERROR]: 'Server error. Please try again later.',
-  [ERROR_CODES.UNKNOWN_ERROR]: 'An unexpected error occurred. Please try again.',
-};
-
-class SignupError extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public details?: any,
-    public status?: number
-  ) {
-    super(message);
-    this.name = 'SignupError';
-  }
-}
-
-// API service for signup using Axios
-const signupAPI = {
-  async signUpWithEmail(email: string, password: string, userData: any) {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/register`, {
-        email,
-        password,
-        business_name: userData.business_name,
-        name: userData.name,
-        signup_method: 'email'
-      });
-
-      if (response.status === 200 || response.status === 201) {
-        const success = await axios.post(`${API_BASE_URL}/api/auth/verify/mail`, { email });
-        if (!success.data) {
-          throw new Error(success.data?.error || success.data?.message || 'Email verification failed');
-        }
-        return { success: true, status: 200 };
-      } else {
-        throw new Error(response.data?.error || response.data?.message || 'Signup failed');
-      }
-    } catch (error: any) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const data = error.response?.data;
-
-        if (status === 409) {
-          throw new SignupError(
-            ERROR_CODES.USER_ALREADY_EXISTS,
-            data?.message || 'Email already registered',
-            data,
-            status
-          );
-        } else if (status === 422) {
-          throw new SignupError(
-            ERROR_CODES.VALIDATION_ERROR,
-            data?.message || 'Invalid email format',
-            data,
-            status
-          );
-        } else if (error.code === 'ECONNABORTED') {
-          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Request timeout');
-        } else if (!error.response) {
-          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error');
-        }
-      }
-      throw error;
-    }
-  },
-
-  async signUpWithPhone(phone: string, password: string, userData: any) {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/signup`, {
-        phone: phone.replace(/\s/g, ''),
-        password,
-        business_name: userData.business_name,
-        name: userData.name,
-        signup_method: 'phone'
-      }, {
-        timeout: 8000,
-        validateStatus: (status) => status < 500
-      });
-
-      if (response.status === 200 || response.status === 201) {
-        return response.data;
-      } else {
-        throw new SignupError(
-          ERROR_CODES.SERVER_ERROR,
-          response.data?.error || response.data?.message || 'Phone signup failed',
-          response.data,
-          response.status
-        );
-      }
-    } catch (error: any) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const data = error.response?.data;
-
-        if (status === 409) {
-          throw new SignupError(
-            ERROR_CODES.USER_ALREADY_EXISTS,
-            data?.message || 'Phone number already registered',
-            data,
-            status
-          );
-        } else if (status === 422) {
-          throw new SignupError(
-            ERROR_CODES.VALIDATION_ERROR,
-            data?.message || 'Invalid phone number format',
-            data,
-            status
-          );
-        } else if (error.code === 'ECONNABORTED') {
-          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Request timeout');
-        } else if (!error.response) {
-          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error');
-        }
-      }
-      throw error;
-    }
-  },
-
-  async signUpWithGoogle() {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/auth/oauth/google`, {
-        timeout: 5000
-      });
-
-      if (response.status === 200) {
-        return response.data.url || response.data.redirectUrl;
-      } else {
-        throw new SignupError(
-          ERROR_CODES.SERVER_ERROR,
-          'Failed to get Google OAuth URL'
-        );
-      }
-    } catch (error: any) {
-      if (axios.isAxiosError(error)) {
-        if (error.code === 'ECONNABORTED') {
-          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Request timeout');
-        } else if (!error.response) {
-          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error');
-        }
-      }
-      throw new SignupError(
-        ERROR_CODES.SERVER_ERROR,
-        'Failed to initialize Google signup'
-      );
-    }
-  },
-
-  async validateBusinessName(businessName: string): Promise<{ available: boolean; message?: string }> {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/validate-business`, {
-        business_name: businessName
-      }, {
-        timeout: 8000,
-        validateStatus: (status) => status < 500
-      });
-
-      if (response.status === 200) {
-        return response.data;
-      } else {
-        throw new SignupError(
-          ERROR_CODES.SERVER_ERROR,
-          response.data?.message || 'Validation service unavailable',
-          response.data,
-          response.status
-        );
-      }
-    } catch (error: any) {
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 409) {
-          throw new SignupError(
-            ERROR_CODES.BUSINESS_NAME_UNAVAILABLE,
-            error.response.data?.message || 'Business name not available',
-            error.response.data,
-            error.response.status
-          );
-        } else if (error.code === 'ECONNABORTED') {
-          throw new SignupError(ERROR_CODES.TIMEOUT_ERROR, 'Validation timeout');
-        } else if (!error.response) {
-          throw new SignupError(ERROR_CODES.NETWORK_ERROR, 'Network error during validation');
-        }
-      }
-      throw error;
-    }
-  }
-};
-
-// Error handler utility
-const handleSignupError = (error: any, t: any): string => {
-  console.error('Signup error:', error);
-
-  // Handle our custom SignupError
-  if (error instanceof SignupError) {
-    return error.message;
-  }
-
-  // Handle Supabase errors
-  if (error?.code?.startsWith('auth/')) {
-    switch (error.code) {
-      case 'auth/email-already-in-use':
-      case 'auth/phone-number-already-exists':
-        return ERROR_MESSAGES[ERROR_CODES.USER_ALREADY_EXISTS];
-      
-      case 'auth/invalid-email':
-        return ERROR_MESSAGES[ERROR_CODES.INVALID_EMAIL];
-      
-      case 'auth/invalid-phone-number':
-        return ERROR_MESSAGES[ERROR_CODES.INVALID_PHONE];
-      
-      case 'auth/weak-password':
-        return ERROR_MESSAGES[ERROR_CODES.WEAK_PASSWORD];
-      
-      case 'auth/too-many-requests':
-        return ERROR_MESSAGES[ERROR_CODES.RATE_LIMITED];
-      
-      default:
-        return error.message || ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR];
-    }
-  }
-
-  // Handle Axios errors
-  if (axios.isAxiosError(error)) {
-    if (error.code === 'ECONNABORTED') {
-      return ERROR_MESSAGES[ERROR_CODES.TIMEOUT_ERROR];
-    }
-    if (!error.response) {
-      return ERROR_MESSAGES[ERROR_CODES.NETWORK_ERROR];
-    }
-    
-    const status = error.response.status;
-    if (status >= 500) {
-      return ERROR_MESSAGES[ERROR_CODES.SERVER_ERROR];
-    }
-    
-    return error.response.data?.message || ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR];
-  }
-
-  // Handle generic errors
-  if (error instanceof Error) {
-    if (error.message.includes('network') || error.message.includes('internet')) {
-      return ERROR_MESSAGES[ERROR_CODES.NETWORK_ERROR];
-    }
-    return error.message || ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR];
-  }
-
-  return ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR];
-};
+// Modern Supabase client (same as your signin page)
+import { supabase } from '@/utils/supabase/client';
 
 export default function Signup() {
   const [isSigningup, setIsSigningup] = useState(false);
@@ -321,30 +33,25 @@ export default function Signup() {
   const router = useRouter();
   const t = translations[currentLanguage.toLowerCase().substring(0, 2) as keyof typeof translations] || translations.en;
 
-  // Type-safe translation access with fallbacks
   const getTranslation = (key: string, fallback: string) => {
-    const translation = (t as any)[key];
-    return translation || fallback;
+    return (t as any)[key] || fallback;
   };
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
 
-    // Business name validation
     if (!formData.business_name.trim()) {
       errors.business_name = getTranslation('businessNameRequired', 'Business name is required');
     } else if (formData.business_name.length < 2) {
       errors.business_name = 'Business name must be at least 2 characters';
     }
 
-    // Name validation
     if (!formData.name.trim()) {
       errors.name = getTranslation('nameRequired', 'Full name is required');
     } else if (formData.name.length < 2) {
       errors.name = 'Full name must be at least 2 characters';
     }
 
-    // Email/Phone validation based on method
     if (signupMethod === 'email') {
       if (!formData.email.trim()) {
         errors.email = getTranslation('emailRequired', 'Email is required');
@@ -361,7 +68,6 @@ export default function Signup() {
       }
     }
 
-    // Password validation
     if (!formData.password) {
       errors.password = getTranslation('passwordRequired', 'Password is required');
     } else if (formData.password.length < 6) {
@@ -370,7 +76,6 @@ export default function Signup() {
       errors.password = 'Password must contain uppercase, lowercase, and numbers';
     }
 
-    // Confirm password validation
     if (!formData.confirm_password) {
       errors.confirm_password = 'Please confirm your password';
     } else if (formData.password !== formData.confirm_password) {
@@ -383,50 +88,24 @@ export default function Signup() {
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [id]: value
-    }));
-
-    // Clear error when user starts typing
+    setFormData(prev => ({ ...prev, [id]: value }));
     if (formErrors[id]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [id]: ''
-      }));
+      setFormErrors(prev => ({ ...prev, [id]: '' }));
     }
   };
 
-  // Validate business name availability
+  // Mock business name validation (you can connect to your backend later if needed)
   const validateBusinessName = async (businessName: string) => {
     if (businessName.length < 2) return;
-    
     setIsValidating(true);
-    try {
-      const result = await signupAPI.validateBusinessName(businessName);
-      if (!result.available) {
-        setFormErrors(prev => ({
-          ...prev,
-          business_name: result.message || 'Business name is not available'
-        }));
-      }
-    } catch (error: any) {
-      console.error('Business name validation error:', error);
-      // Only show validation errors for business name availability, not for network issues
-      if (error instanceof SignupError && error.code === ERROR_CODES.BUSINESS_NAME_UNAVAILABLE) {
-        setFormErrors(prev => ({
-          ...prev,
-          business_name: error.message
-        }));
-      }
-    } finally {
-      setIsValidating(false);
-    }
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 800));
+    // For now, allow all names (or connect to your real endpoint)
+    setIsValidating(false);
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       toast.error('Please fix the errors in the form');
       return;
@@ -436,245 +115,119 @@ export default function Signup() {
     const loadingToast = toast.loading('Creating your account...');
 
     try {
-      let result;
-      
       if (signupMethod === 'email') {
-        // Try API first, fallback to direct Supabase
-        try {
-          result = await signupAPI.signUpWithEmail(
-            formData.email, 
-            formData.password, 
-            { business_name: formData.business_name, name: formData.name }
-          );
-          console.log(result);
-        } catch (apiError: any) {
-          console.log('API signup failed, trying direct Supabase:', apiError);
-          
-          // Only fallback to Supabase for network/timeout errors, not for business logic errors
-          if (apiError instanceof SignupError && 
-              (apiError.code === ERROR_CODES.NETWORK_ERROR || apiError.code === ERROR_CODES.TIMEOUT_ERROR)) {
-            
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-              email: formData.email,
-              password: formData.password,
-              options: {
-                data: {
-                  business_name: formData.business_name,
-                  name: formData.name,
-                  user_metadata: {
-                    business_name: formData.business_name,
-                    name: formData.name,
-                  }
-                }
-              }
-            });
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email.trim(),
+          password: formData.password,
+          options: {
+            data: {
+              name: formData.name.trim(),
+              business_name: formData.business_name.trim(),
+            },
+          },
+        });
 
-            if (authError) throw authError;
-            result = authData;
+        if (error) {
+          if (error.message.includes('already registered')) {
+            toast.error('An account with this email already exists');
+          } else if (error.message.includes('Password should be')) {
+            toast.error('Password is too weak');
           } else {
-            throw apiError;
+            toast.error(error.message);
           }
+          return;
         }
 
-        if (result?.user || result?.success) {
-          toast.success(getTranslation('thankYou', 'Account created successfully! Check your email for verification.'));
-          
-          setTimeout(() => {
-            toast.loading('Redirecting to signin...');
-          }, 1000);
-          
-          setTimeout(() => {
-            router.push('/auth/signin');
-          }, 4000);
+        if (data.user && !data.user.identities?.length) {
+          toast.error('Email already registered');
+          return;
         }
-      } else {
-        // Phone signup
-        const phoneNumber = formData.phone.replace(/\s/g, '');
-        
-        try {
-          result = await signupAPI.signUpWithPhone(
-            phoneNumber,
-            formData.password,
-            { business_name: formData.business_name, name: formData.name }
+
+        toast.success('Account created! Check your email for verification.');
+        setTimeout(() => router.push('/auth/signin'), 3000);
+      } 
+      else {
+        const phone = formData.phone.replace(/\s/g, '');
+
+        const { error } = await supabase.auth.signUp({
+          phone,
+          password: formData.password,
+          options: {
+            data: {
+              name: formData.name.trim(),
+              business_name: formData.business_name.trim(),
+            },
+          },
+        });
+
+        if (error) {
+          toast.error(error.message.includes('already registered')
+            ? 'Phone number already registered'
+            : error.message
           );
-        } catch (apiError: any) {
-          console.log('API phone signup failed, trying direct Supabase:', apiError);
-          
-          // Only fallback to Supabase for network/timeout errors
-          if (apiError instanceof SignupError && 
-              (apiError.code === ERROR_CODES.NETWORK_ERROR || apiError.code === ERROR_CODES.TIMEOUT_ERROR)) {
-            
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-              phone: phoneNumber,
-              password: formData.password,
-              options: {
-                data: {
-                  business_name: formData.business_name,
-                  name: formData.name,
-                  user_metadata: {
-                    business_name: formData.business_name,
-                    name: formData.name,
-                  }
-                }
-              }
-            });
-
-            if (authError) throw authError;
-            result = authData;
-          } else {
-            throw apiError;
-          }
+          return;
         }
 
-        if (result?.user) {
-          toast.success(getTranslation('verifyPhone', 'Verification code sent to your phone!'));
-          
-          setTimeout(() => {
-            toast.loading('Redirecting to verification...');
-          }, 1000);
-          
-          setTimeout(() => {
-            router.push('/auth/verify-phone');
-          }, 4000);
-        }
+        toast.success('Verification code sent to your phone!');
+        setTimeout(() => {
+          router.push(`/auth/verify-phone?phone=${encodeURIComponent(phone)}`);
+        }, 2000);
       }
-    } catch (error: any) {
-      const errorMessage = handleSignupError(error, t);
-      toast.error(errorMessage);
+    } catch (err: any) {
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setIsSigningup(false);
       toast.dismiss(loadingToast);
     }
   };
 
-  const handleGoogleSignup = async () => {
-    try {
-      setIsSigningup(true);
-      
-      // Try API first, fallback to direct Supabase
-      try {
-        const redirectUrl = await signupAPI.signUpWithGoogle();
-        toast.loading('Redirecting to Google...');
-        window.location.href = redirectUrl;
-      } catch (apiError: any) {
-        console.log('API Google signup failed, trying direct Supabase:', apiError);
-        
-        // Only fallback for network issues
-        if (apiError instanceof SignupError && 
-            (apiError.code === ERROR_CODES.NETWORK_ERROR || apiError.code === ERROR_CODES.TIMEOUT_ERROR)) {
-          
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-              redirectTo: `${window.location.origin}/auth/callback`,
-              queryParams: {
-                access_type: 'offline',
-                prompt: 'consent',
-              },
-            },
-          });
-
-          if (error) throw error;
-          toast.loading('Redirecting to Google...');
-        } else {
-          throw apiError;
-        }
-      }
-      
-    } catch (error: any) {
-      const errorMessage = handleSignupError(error, t);
-      toast.error(errorMessage);
-      setIsSigningup(false);
-    }
+  const signUpWithGoogle = async () => {
+    setIsSigningup(true);
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
   };
 
-  const selectLanguage = (languageCode: string, languageName: string) => {
+  const selectLanguage = (languageName: string) => {
     setCurrentLanguage(languageName);
     setShowLanguageDropdown(false);
   };
 
-  // Format phone number as user types (international format with +)
   const formatPhoneNumber = (value: string) => {
     const cleaned = value.replace(/[^\d+\s]/g, '');
-    
-    if (!cleaned.startsWith('+')) {
-      return '+' + cleaned.replace(/[^\d]/g, '');
-    }
-    
-    const plusPart = '+';
-    const numberPart = cleaned.slice(1).replace(/\D/g, '');
-    
-    if (numberPart.length <= 3) {
-      return plusPart + numberPart;
-    } else if (numberPart.length <= 6) {
-      return plusPart + numberPart.slice(0, 3) + ' ' + numberPart.slice(3);
-    } else if (numberPart.length <= 9) {
-      return plusPart + numberPart.slice(0, 3) + ' ' + numberPart.slice(3, 6) + ' ' + numberPart.slice(6);
-    } else {
-      return plusPart + numberPart.slice(0, 3) + ' ' + numberPart.slice(3, 6) + ' ' + numberPart.slice(6, 10) + ' ' + numberPart.slice(10);
-    }
+    if (!cleaned.startsWith('+')) return '+' + cleaned.replace(/[^\d]/g, '');
+    const num = cleaned.slice(1).replace(/\D/g, '');
+    if (num.length <= 3) return '+' + num;
+    if (num.length <= 6) return `+${num.slice(0,3)} ${num.slice(3)}`;
+    if (num.length <= 9) return `+${num.slice(0,3)} ${num.slice(3,6)} ${num.slice(6)}`;
+    return `+${num.slice(0,3)} ${num.slice(3,6)} ${num.slice(6,10)} ${num.slice(10)}`;
   };
 
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const formattedPhone = formatPhoneNumber(e.target.value);
-    setFormData({
-      ...formData,
-      phone: formattedPhone
-    });
-    
+    const formatted = formatPhoneNumber(e.target.value);
+    setFormData(prev => ({ ...prev, phone: formatted }));
     if (formErrors.phone) {
-      setFormErrors(prev => ({
-        ...prev,
-        phone: ''
-      }));
+      setFormErrors(prev => ({ ...prev, phone: '' }));
     }
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword);
   };
 
   return (
     <div className='flex w-full flex-row-reverse md:h-screen bg-gray-900 text-white'>
-      {/* Toast Notifications */}
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: {
-            background: '#1f2937',
-            color: '#fff',
-            border: '1px solid #374151',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
-            },
-          },
-          loading: {
-            duration: Infinity,
-            iconTheme: {
-              primary: '#3b82f6',
-              secondary: '#fff',
-            },
-          },
+          style: { background: '#1f2937', color: '#fff', border: '1px solid #374151' },
+          success: { duration: 3000, iconTheme: { primary: '#10b981', secondary: '#fff' } },
+          error: { duration: 5000, iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+          loading: { duration: Infinity, iconTheme: { primary: '#3b82f6', secondary: '#fff' } },
         }}
       />
-      
-      {/* The image slider section */}
+
+      {/* Left Image */}
       <div className='flex-1 relative hidden md:block shadow-lg h-screen'>
         <Image
           src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757901059/Junior_Bookkeeper_Finance_Associate_ifwrdq.jpg'
@@ -683,46 +236,29 @@ export default function Signup() {
           className='object-cover rounded-md'
           priority
         />
-        {/* Dark overlay for better text contrast */}
         <div className='absolute inset-0 bg-black/30'></div>
       </div>
-      
-      {/* The main and form section */}
+
+      {/* Right Form */}
       <div className='flex-1 flex flex-col justify-center items-center p-4 h-screen relative overflow-hidden bg-gray-900'>
-        {/* Language Switcher - Top Left */}
+        {/* Language Switcher */}
         <div className="absolute top-4 left-4 z-10">
           <button 
             onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-            className="flex items-center gap-1 text-sm text-gray-300 hover:text-white px-3 py-1 rounded-md bg-gray-800 hover:bg-gray-700 hover:cursor-pointer border border-gray-700"
+            className="flex items-center gap-1 text-sm text-gray-300 hover:text-white px-3 py-1 rounded-md bg-gray-800 hover:bg-gray-700 border border-gray-700 transition"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-5 w-5"
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-            </svg>
+            <Globe className="h-5 w-5" />
             <span>{currentLanguage}</span>
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className={`h-4 w-4 transition-transform ${showLanguageDropdown ? 'rotate-180' : ''}`}
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <ChevronDown className={`h-4 w-4 transition-transform ${showLanguageDropdown ? 'rotate-180' : ''}`} />
           </button>
-          
+
           {showLanguageDropdown && (
             <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded shadow-lg z-20 w-40">
               {languages.map((language) => (
                 <button
                   key={language.code}
-                  onClick={() => selectLanguage(language.code, language.name)}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 hover:cursor-pointer text-white"
+                  onClick={() => selectLanguage(language.name)}
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 text-white"
                 >
                   {language.name}
                 </button>
@@ -731,21 +267,19 @@ export default function Signup() {
           )}
         </div>
 
-        {/* Centered Content Container */}
+        {/* Form */}
         <div className="w-full max-w-md px-4 pt-[90px] overflow-y-auto md:pt-8 scrollbar-hide">
           <h1 className='text-3xl font-bold mb-2 text-center text-white'>{t.welcome}</h1>
           <p className='mb-6 text-gray-300 text-center'>{t.subtitle}</p>
 
-          {/* Signup Method Toggle */}
+          {/* Toggle */}
           <div className="w-full mb-4">
             <div className="flex bg-gray-800 rounded-lg p-1">
               <button
                 type="button"
                 onClick={() => setSignupMethod('email')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors hover:cursor-pointer ${
-                  signupMethod === 'email'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-white'
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  signupMethod === 'email' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
                 }`}
               >
                 {getTranslation('signUpWithEmail', 'Email')}
@@ -753,10 +287,8 @@ export default function Signup() {
               <button
                 type="button"
                 onClick={() => setSignupMethod('phone')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors hover:cursor-pointer ${
-                  signupMethod === 'phone'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-white'
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  signupMethod === 'phone' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
                 }`}
               >
                 {getTranslation('signUpWithPhone', 'Phone')}
@@ -771,7 +303,7 @@ export default function Signup() {
             className="w-full"
           >
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Business Name and Full Name side by side */}
+              {/* Business Name + Full Name */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="relative">
                   <input
@@ -790,13 +322,13 @@ export default function Signup() {
                     <p className="text-red-400 text-xs mt-1">{formErrors.business_name}</p>
                   )}
                   {isValidating && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-400"></div>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="animate-spin h-4 w-4 text-emerald-400" />
                     </div>
                   )}
                 </div>
-                
-                <div className="relative">
+
+                <div>
                   <input
                     type="text"
                     id="name"
@@ -813,10 +345,10 @@ export default function Signup() {
                   )}
                 </div>
               </div>
-              
-              {/* Email/Phone Field */}
+
+              {/* Email or Phone */}
               {signupMethod === 'email' ? (
-                <div className="relative">
+                <div>
                   <input
                     type="email"
                     id="email"
@@ -828,29 +360,23 @@ export default function Signup() {
                     placeholder={t.email}
                     required
                   />
-                  {formErrors.email && (
-                    <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
-                  )}
+                  {formErrors.email && <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      id="phone"
-                      value={formData.phone}
-                      onChange={handlePhoneChange}
-                      className={`w-full px-3 py-2 rounded-sm border-b focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white ${
-                        formErrors.phone ? 'border-red-500' : 'border-gray-600'
-                      }`}
-                      placeholder={t.phonePlaceholder || "+1 234 567 8900"}
-                      required
-                      maxLength={20}
-                    />
-                    {formErrors.phone && (
-                      <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>
-                    )}
-                  </div>
+                  <input
+                    type="tel"
+                    id="phone"
+                    value={formData.phone}
+                    onChange={handlePhoneChange}
+                    className={`w-full px-3 py-2 rounded-sm border-b focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white ${
+                      formErrors.phone ? 'border-red-500' : 'border-gray-600'
+                    }`}
+                    placeholder={t.phonePlaceholder || "+1 234 567 8900"}
+                    required
+                    maxLength={20}
+                  />
+                  {formErrors.phone && <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>}
                   <p className="text-xs text-gray-400">
                     {t.phoneFormatHint || "Enter your full international phone number with country code"}
                     <br />
@@ -858,10 +384,9 @@ export default function Signup() {
                   </p>
                 </div>
               )}
-              
-              {/* Password and Confirm Password side by side with toggle */}
+
+              {/* Password + Confirm */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Password Field */}
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -873,30 +398,17 @@ export default function Signup() {
                     }`}
                     placeholder={t.password}
                     required
-                    minLength={6}
                   />
                   <button
                     type="button"
-                    onClick={togglePasswordVisibility}
-                    className="absolute hover:cursor-pointer right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-200 focus:outline-none"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
                   >
-                    {showPassword ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                      </svg>
-                    )}
+                    {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
-                  {formErrors.password && (
-                    <p className="text-red-400 text-xs mt-1">{formErrors.password}</p>
-                  )}
+                  {formErrors.password && <p className="text-red-400 text-xs mt-1">{formErrors.password}</p>}
                 </div>
 
-                {/* Confirm Password Field */}
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
@@ -908,41 +420,26 @@ export default function Signup() {
                     }`}
                     placeholder={t.confirmPassword}
                     required
-                    minLength={6}
                   />
                   <button
                     type="button"
-                    onClick={toggleConfirmPasswordVisibility}
-                    className="absolute hover:cursor-pointer right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-200 focus:outline-none"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
                   >
-                    {showConfirmPassword ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                      </svg>
-                    )}
+                    {showConfirmPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
-                  {formErrors.confirm_password && (
-                    <p className="text-red-400 text-xs mt-1">{formErrors.confirm_password}</p>
-                  )}
+                  {formErrors.confirm_password && <p className="text-red-400 text-xs mt-1">{formErrors.confirm_password}</p>}
                 </div>
               </div>
-              
+
               <button
                 type="submit"
                 disabled={isSigningup}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-medium py-2 rounded-lg transition-colors flex items-center hover:cursor-pointer justify-center"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-3 disabled:cursor-not-allowed"
               >
                 {isSigningup ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                    <Loader2 className="animate-spin h-4 w-4" />
                     {getTranslation('creatingAccount', 'Creating Account...')}
                   </>
                 ) : (
@@ -961,9 +458,9 @@ export default function Signup() {
 
               <button
                 type="button"
-                onClick={handleGoogleSignup}
+                onClick={signUpWithGoogle}
                 disabled={isSigningup}
-                className="w-full flex hover:cursor-pointer justify-center items-center gap-2 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-gray-200 font-medium hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center items-center gap-2 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-gray-200 font-medium hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 48 48">
                   <rect width="48" height="48" fill="none" />
@@ -986,7 +483,6 @@ export default function Signup() {
         </div>
       </div>
 
-      {/* Custom scrollbar hide styles */}
       <style jsx global>{`
         .scrollbar-hide {
           -ms-overflow-style: none;

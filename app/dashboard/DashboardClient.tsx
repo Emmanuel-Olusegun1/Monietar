@@ -147,8 +147,43 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     cashFlowForecast: []
   });
 
-  const incomeCategories = ['Salary', 'Business', 'Freelance', 'Investments', 'Gifts', 'Other'];
-  const expenseCategories = ['Shopping', 'Food', 'Transport', 'Housing', 'Healthcare', 'Entertainment', 'Other'];
+const incomeCategories = [
+  'Sales Money', 'Service Income', 'Bank Interest', 'Share Dividends', 'Rent from Property',
+  'Consulting Fees', 'Subscription Money', 'Commission Earned',
+  'Advertising Money', 'Sponsorship Funds', 'Grants & Donations',
+  'Investment Profits', 'Royalty Payments', 'Property Sale Profits',
+  'Crop Sales (Coffee/Cocoa)', 'Crop Sales (Maize/Cassava)', 'Animal Sales',
+  'Fish Sales', 'Government Salary', 'Market Trading Income',
+  'Small Import Business', 'Export Raw Materials', 'Export Finished Goods',
+  'Online Freelance Work', 'Taxi/Ride Income', 'Motorcycle Taxi Income',
+  'Truck Transport Income', 'Bus/Minibus Income', 'Small Shop Sales',
+  'Handwork/Skills Income', 'Professional Fees', 'Tech Business Income',
+  'House/Room Rent', 'Shop/Office Rent', 'Equipment Rent',
+  'Farm Land Rent', 'Money from Abroad', 'Mobile Money Fees',
+  'Airtime/Data Business', 'Music/Events Income', 'Tourism Income',
+  'Small Mining Income', 'Large Mining Income', 'Solar Energy Sales',
+  'Internet/Phone Services', 'Franchise Fees', 'Brand License Fees',
+  'NGO/Government Grants', 'Loan Interest Income', 'Crypto Trading',
+  'Clothing Business', 'Handicraft Sales', 'Other Income'
+];
+
+const expenseCategories = [
+  'Food & Eating Out', 'Transport Costs', 'Bills (Water/Light)', 'Rent Payment', 'Fun/Entertainment',
+  'Medical Costs', 'School Fees', 'Shopping', 'Travel Costs', 'Miscellaneous',
+  'Generator Fuel', 'Vehicle Fuel', 'Machine Fuel', 'Phone Credit/Data',
+  'Money Transfer Fees', 'Market Daily Fees', 'Company Taxes',
+  'Import Taxes', 'Market Stall Fees', 'Farm Supplies',
+  'Shop/Office Rent', 'House Rent', 'Market Stall Rent',
+  'Generator Repairs', 'Car/Truck Repairs', 'Motorcycle Repairs',
+  'Staff Transport', 'Goods Transport', 'Port/Customs Fees',
+  'Electricity Bill', 'Solar System Cost', 'Water Bill',
+  'Security Costs', 'Daily Worker Pay', 'Staff Salaries',
+  'Family Support', 'Local Materials', 'Imported Materials',
+  'Stock Purchase', 'Packaging Materials', 'Refrigeration Costs',
+  'Union/Group Fees', 'Business Permits', 'Medical Costs (Staff)',
+  'Community Contributions', 'Radio/Newspaper Ads', 'Social Media Ads',
+  'Customer Phone Credit', 'Staff Generator Fuel', 'Other Expenses'
+];
 
   // Real-time enhanced budgets
   const budgetsWithRealTimeTracking: EnhancedBudget[] = useMemo(() => {
