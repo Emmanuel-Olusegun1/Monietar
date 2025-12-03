@@ -90,7 +90,7 @@ const NewUserWelcome = ({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setShowIncomeForm(true)}
-            className={`px-8 py-4 ${darkMode ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-3`}
+            className={`px-8 py-4 ${darkMode ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white font-medium rounded-xl mx-12 transition-colors flex items-center justify-center gap-3`}
           >
             <Plus className="w-5 h-5" />
             Add First Income
@@ -100,7 +100,7 @@ const NewUserWelcome = ({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setShowExpenseForm(true)}
-            className={`px-8 py-4 border ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50 text-gray-700'} font-medium rounded-xl transition-colors flex items-center justify-center gap-3`}
+            className={`px-8 py-4 border ${darkMode ? 'border-gray-600 hover:bg-gray-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50 text-gray-700'} mx-12 font-medium rounded-xl transition-colors flex items-center justify-center gap-3`}
           >
             <Plus className="w-5 h-5" />
             Add Expense
