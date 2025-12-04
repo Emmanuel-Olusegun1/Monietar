@@ -181,15 +181,31 @@ export default function Signup() {
     }
   };
 
-  const signUpWithGoogle = async () => {
-    setIsSigningup(true);
-    await supabase.auth.signInWithOAuth({
+const signUpWithGoogle = async () => {
+  setIsSigningup(true);
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        // Optional: Request specific scopes
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
+        }
       },
     });
-  };
+
+    if (error) throw error;
+    
+    // If successful, Supabase will handle the redirect automatically
+    // No need for toast.success here - user will be redirected
+  } catch (error: any) {
+    console.error('Google OAuth error:', error);
+    toast.error('Failed to sign in with Google. Please try again.');
+    setIsSigningup(false);
+  }
+};
 
   const selectLanguage = (languageName: string) => {
     setCurrentLanguage(languageName);
