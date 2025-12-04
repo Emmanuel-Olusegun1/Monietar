@@ -1,9 +1,8 @@
-// app/dashboard/DashboardClient.tsx
 'use client';
 
 import { useState, useEffect, useMemo, Dispatch, SetStateAction } from 'react';
 import Image from 'next/image';
-import { Sun, Moon, MessageCircle } from 'lucide-react';
+import { Sun, Moon, Bot } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 
 import { Sidebar } from './Sidebar';
@@ -14,7 +13,7 @@ import { BudgetsPage } from './components/pages/BudgetsPage';
 import AccountsPage from './components/pages/AccountsPage';
 import { SettingsPage } from './components/pages/SettingsPage';
 import { ComingSoonPage } from './components/pages/ComingSoonPage';
-import { AIChatModal } from './components/modals/AIChatModal';
+import AIChatModal from './components/modals/AIChatModal';
 import { TokenModal } from './components/modals/TokenModal';
 import { AddTransactionModal } from './components/modals/AddTransactionModal';
 import { EditTransactionModal } from './components/modals/EditTransactionModal';
@@ -25,10 +24,8 @@ import { EditBudgetModal } from './components/modals/EditBudgetModal';
 import type { EnhancedBudget } from '@/app/dashboard/types';
 import { supabase } from '@/utils/supabase/client';
 
-// Only allowed periods in your UI (as per AddBudgetModal & EditBudgetModal)
 type AllowedPeriodDisplay = 'Monthly' | 'Yearly' | 'Quarterly';
 
-// Convert DB lowercase → Display (Capitalized)
 const toDisplayPeriod = (period: string): AllowedPeriodDisplay => {
   const map: Record<string, AllowedPeriodDisplay> = {
     monthly: 'Monthly',
@@ -38,7 +35,6 @@ const toDisplayPeriod = (period: string): AllowedPeriodDisplay => {
   return map[period.toLowerCase()] || 'Monthly';
 };
 
-// Convert Display → DB lowercase
 const toDbPeriod = (period: AllowedPeriodDisplay): 'monthly' | 'yearly' | 'quarterly' => {
   const map: Record<AllowedPeriodDisplay, 'monthly' | 'yearly' | 'quarterly'> = {
     Monthly: 'monthly',
@@ -77,7 +73,15 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Add state for currency and language
+  // AI Chat States
+  const [aiStatus, setAiStatus] = useState<'aws' | 'standard' | 'checking'>('checking');
+  const [tokens, setTokens] = useState(100);
+  const [awsAvailable, setAwsAvailable] = useState(false);
+  const [currentModel, setCurrentModel] = useState<string>('Checking...');
+  const [modelIntelligence, setModelIntelligence] = useState<string>('Medium');
+  const [estimatedCost, setEstimatedCost] = useState<string>('FREE 🎉');
+
+  // Currency and language states
   const [currency, setCurrency] = useState('NGN');
   const [language, setLanguage] = useState('en');
 
@@ -97,7 +101,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     date: ''
   });
 
-  // Form data now matches EXACTLY what AddBudgetModal expects
   const [budgetFormData, setBudgetFormData] = useState<{
     category: string;
     budget_limit: string;
@@ -151,7 +154,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     cashFlowForecast: []
   });
 
-  // Add these arrays with data
   const languagesList = [
     { value: 'en', label: 'English' },
     { value: 'fr', label: 'French' },
@@ -168,52 +170,58 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     { value: 'EUR', label: 'Euro' }
   ];
 
-  // Add mobile menu state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Add realTimeAlerts state
   const [realTimeAlerts, setRealTimeAlerts] = useState<any[]>([]);
 
-const incomeCategories = [
-  'Sales Money', 'Service Income', 'Bank Interest', 'Share Dividends', 'Rent from Property',
-  'Consulting Fees', 'Subscription Money', 'Commission Earned',
-  'Advertising Money', 'Sponsorship Funds', 'Grants & Donations',
-  'Investment Profits', 'Royalty Payments', 'Property Sale Profits',
-  'Crop Sales (Coffee/Cocoa)', 'Crop Sales (Maize/Cassava)', 'Animal Sales',
-  'Fish Sales', 'Government Salary', 'Market Trading Income',
-  'Small Import Business', 'Export Raw Materials', 'Export Finished Goods',
-  'Online Freelance Work', 'Taxi/Ride Income', 'Motorcycle Taxi Income',
-  'Truck Transport Income', 'Bus/Minibus Income', 'Small Shop Sales',
-  'Handwork/Skills Income', 'Professional Fees', 'Tech Business Income',
-  'House/Room Rent', 'Shop/Office Rent', 'Equipment Rent',
-  'Farm Land Rent', 'Money from Abroad', 'Mobile Money Fees',
-  'Airtime/Data Business', 'Music/Events Income', 'Tourism Income',
-  'Small Mining Income', 'Large Mining Income', 'Solar Energy Sales',
-  'Internet/Phone Services', 'Franchise Fees', 'Brand License Fees',
-  'NGO/Government Grants', 'Loan Interest Income', 'Crypto Trading',
-  'Clothing Business', 'Handicraft Sales', 'Other Income'
-];
+  const incomeCategories = [
+    'Sales Money', 'Service Income', 'Bank Interest', 'Share Dividends', 'Rent from Property',
+    'Consulting Fees', 'Subscription Money', 'Commission Earned',
+    'Advertising Money', 'Sponsorship Funds', 'Grants & Donations',
+    'Investment Profits', 'Royalty Payments', 'Property Sale Profits',
+    'Crop Sales (Coffee/Cocoa)', 'Crop Sales (Maize/Cassava)', 'Animal Sales',
+    'Fish Sales', 'Government Salary', 'Market Trading Income',
+    'Small Import Business', 'Export Raw Materials', 'Export Finished Goods',
+    'Online Freelance Work', 'Taxi/Ride Income', 'Motorcycle Taxi Income',
+    'Truck Transport Income', 'Bus/Minibus Income', 'Small Shop Sales',
+    'Handwork/Skills Income', 'Professional Fees', 'Tech Business Income',
+    'House/Room Rent', 'Shop/Office Rent', 'Equipment Rent',
+    'Farm Land Rent', 'Money from Abroad', 'Mobile Money Fees',
+    'Airtime/Data Business', 'Music/Events Income', 'Tourism Income',
+    'Small Mining Income', 'Large Mining Income', 'Solar Energy Sales',
+    'Internet/Phone Services', 'Franchise Fees', 'Brand License Fees',
+    'NGO/Government Grants', 'Loan Interest Income', 'Crypto Trading',
+    'Clothing Business', 'Handicraft Sales', 'Other Income'
+  ];
 
-const expenseCategories = [
-  'Food & Eating Out', 'Transport Costs', 'Bills (Water/Light)', 'Rent Payment', 'Fun/Entertainment',
-  'Medical Costs', 'School Fees', 'Shopping', 'Travel Costs', 'Miscellaneous',
-  'Generator Fuel', 'Vehicle Fuel', 'Machine Fuel', 'Phone Credit/Data',
-  'Money Transfer Fees', 'Market Daily Fees', 'Company Taxes',
-  'Import Taxes', 'Market Stall Fees', 'Farm Supplies',
-  'Shop/Office Rent', 'House Rent', 'Market Stall Rent',
-  'Generator Repairs', 'Car/Truck Repairs', 'Motorcycle Repairs',
-  'Staff Transport', 'Goods Transport', 'Port/Customs Fees',
-  'Electricity Bill', 'Solar System Cost', 'Water Bill',
-  'Security Costs', 'Daily Worker Pay', 'Staff Salaries',
-  'Family Support', 'Local Materials', 'Imported Materials',
-  'Stock Purchase', 'Packaging Materials', 'Refrigeration Costs',
-  'Union/Group Fees', 'Business Permits', 'Medical Costs (Staff)',
-  'Community Contributions', 'Radio/Newspaper Ads', 'Social Media Ads',
-  'Customer Phone Credit', 'Staff Generator Fuel', 'Other Expenses'
-];
+  const expenseCategories = [
+    'Food & Eating Out', 'Transport Costs', 'Bills (Water/Light)', 'Rent Payment', 'Fun/Entertainment',
+    'Medical Costs', 'School Fees', 'Shopping', 'Travel Costs', 'Miscellaneous',
+    'Generator Fuel', 'Vehicle Fuel', 'Machine Fuel', 'Phone Credit/Data',
+    'Money Transfer Fees', 'Market Daily Fees', 'Company Taxes',
+    'Import Taxes', 'Market Stall Fees', 'Farm Supplies',
+    'Shop/Office Rent', 'House Rent', 'Market Stall Rent',
+    'Generator Repairs', 'Car/Truck Repairs', 'Motorcycle Repairs',
+    'Staff Transport', 'Goods Transport', 'Port/Customs Fees',
+    'Electricity Bill', 'Solar System Cost', 'Water Bill',
+    'Security Costs', 'Daily Worker Pay', 'Staff Salaries',
+    'Family Support', 'Local Materials', 'Imported Materials',
+    'Stock Purchase', 'Packaging Materials', 'Refrigeration Costs',
+    'Union/Group Fees', 'Business Permits', 'Medical Costs (Staff)',
+    'Community Contributions', 'Radio/Newspaper Ads', 'Social Media Ads',
+    'Customer Phone Credit', 'Staff Generator Fuel', 'Other Expenses'
+  ];
+
+  // Check AWS Status on component mount
+  useEffect(() => {
+    checkAWSStatus();
+  }, []);
 
   // Real-time enhanced budgets
   const budgetsWithRealTimeTracking: EnhancedBudget[] = useMemo(() => {
+    if (!financialData.budgets || financialData.budgets.length === 0) {
+      return [];
+    }
+    
     return financialData.budgets.map((budget: any): EnhancedBudget => {
       const spent = financialData.transactions
         .filter((t: any) => t.type === 'expense' && t.category === budget.category)
@@ -231,7 +239,7 @@ const expenseCategories = [
         percentage,
         period,
         created_at: budget.created_at,
-        user_id: budget.user_id || session.user.id || '',
+        user_id: budget.user_id || session?.user?.id || '',
         type: 'expense'
       };
     });
@@ -245,6 +253,296 @@ const expenseCategories = [
     }).format(amount);
   };
 
+  const formatCurrencyForAI = (amount: number): string => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  // IMPROVED: Context generation for smarter AI with null safety
+  const generateFinancialContext = (): string => {
+    const hasTransactions = financialData.transactions && financialData.transactions.length > 0;
+    const hasBudgets = financialData.budgets && financialData.budgets.length > 0;
+    const hasData = hasTransactions || hasBudgets;
+    
+    if (!hasData) {
+      return `NO FINANCIAL DATA: User has not added any transactions or budgets yet. They need to track finances first.`;
+    }
+
+    // Core metrics
+    const keyMetrics = `FINANCIAL METRICS:
+• Total Income: ${formatCurrencyForAI(financialData.income)}
+• Total Expenses: ${formatCurrencyForAI(financialData.expenses)}
+• Net ${financialData.profit >= 0 ? 'Profit' : 'Loss'}: ${formatCurrencyForAI(Math.abs(financialData.profit))}
+• Profit Margin: ${financialData.income > 0 ? ((financialData.profit / financialData.income) * 100).toFixed(1) : 0}%
+• Transaction Count: ${hasTransactions ? financialData.transactions.length : 0}
+• Active Budgets: ${hasBudgets ? financialData.budgets.length : 0}`;
+
+    // Expense breakdown
+    let expenseBreakdown = '';
+    const expenseTransactions = financialData.transactions.filter((t: any) => t.type === 'expense');
+    
+    if (expenseTransactions.length > 0) {
+      const expenseByCategory = expenseTransactions.reduce((acc: Record<string, number>, t: any) => {
+        acc[t.category] = (acc[t.category] || 0) + (Number(t.amount) || 0);
+        return acc;
+      }, {});
+      
+      const sortedExpenses = Object.entries(expenseByCategory)
+        .sort(([, a], [, b]) => b - a);
+      
+      if (sortedExpenses.length > 0) {
+        expenseBreakdown = `EXPENSE BREAKDOWN (Top 5):\n${sortedExpenses.slice(0, 5).map(([cat, amt], i) => {
+          const percentage = financialData.expenses > 0 ? ((amt / financialData.expenses) * 100).toFixed(1) : '0';
+          return `${i+1}. ${cat}: ${formatCurrencyForAI(amt)} (${percentage}%)`;
+        }).join('\n')}`;
+      }
+    }
+
+    // Income breakdown
+    let incomeBreakdown = '';
+    const incomeTransactions = financialData.transactions.filter((t: any) => t.type === 'income');
+    
+    if (incomeTransactions.length > 0) {
+      const incomeByCategory = incomeTransactions.reduce((acc: Record<string, number>, t: any) => {
+        acc[t.category] = (acc[t.category] || 0) + (Number(t.amount) || 0);
+        return acc;
+      }, {});
+      
+      const sortedIncome = Object.entries(incomeByCategory)
+        .sort(([, a], [, b]) => b - a);
+      
+      if (sortedIncome.length > 0) {
+        incomeBreakdown = `INCOME SOURCES:\n${sortedIncome.slice(0, 3).map(([cat, amt], i) => {
+          const percentage = financialData.income > 0 ? ((amt / financialData.income) * 100).toFixed(1) : '0';
+          return `${i+1}. ${cat}: ${formatCurrencyForAI(amt)} (${percentage}%)`;
+        }).join('\n')}`;
+      }
+    }
+
+    // Budget analysis
+    let budgetAnalysis = '';
+    if (hasBudgets && financialData.budgets.length > 0) {
+      const budgetItems = financialData.budgets.map((b: any) => {
+        const spent = financialData.transactions
+          .filter((t: any) => t.type === 'expense' && t.category === b.category)
+          .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
+        const percentage = b.budget_limit > 0 ? (spent / b.budget_limit) * 100 : 0;
+        const remaining = b.budget_limit - spent;
+        const status = percentage > 100 ? '❌ OVER' : percentage > 90 ? '⚠️ NEAR LIMIT' : percentage > 70 ? '📊 WATCHING' : '✅ OK';
+        return `• ${b.category}: ${status} - ${percentage.toFixed(1)}% used (${formatCurrencyForAI(spent)} / ${formatCurrencyForAI(b.budget_limit)}) - Remaining: ${formatCurrencyForAI(remaining > 0 ? remaining : 0)}`;
+      });
+      budgetAnalysis = `BUDGET ANALYSIS:\n${budgetItems.join('\n')}`;
+    }
+
+    // Recent activity
+    let recentActivity = '';
+    const recentTransactions = financialData.transactions.slice(0, 5);
+    if (recentTransactions.length > 0) {
+      recentActivity = `RECENT TRANSACTIONS:\n${recentTransactions.map((t: any, i: number) => 
+        `${i+1}. ${t.date}: ${t.type === 'income' ? '📈 INCOME' : '📉 EXPENSE'} - ${t.category} - ${formatCurrencyForAI(t.amount)}${t.description ? ` (${t.description})` : ''}`
+      ).join('\n')}`;
+    }
+
+    // Financial health indicators
+    const savingsRate = financialData.income > 0 ? ((financialData.profit / financialData.income) * 100).toFixed(1) : '0';
+    const emergencyFundMonths = financialData.expenses > 0 ? (0 / financialData.expenses).toFixed(1) : '0'; // Assuming 0 savings for now
+    
+    const healthIndicators = `FINANCIAL HEALTH:
+• Savings Rate: ${savingsRate}% ${Number(savingsRate) >= 20 ? '✅' : Number(savingsRate) >= 10 ? '⚠️' : '❌'}
+• Emergency Fund: ${emergencyFundMonths} months coverage (Goal: 3-6 months)
+• Expense-to-Income Ratio: ${financialData.income > 0 ? ((financialData.expenses / financialData.income) * 100).toFixed(1) : '0'}%`;
+
+    return `${keyMetrics}\n\n${healthIndicators}\n\n${expenseBreakdown}\n\n${incomeBreakdown}\n\n${budgetAnalysis}\n\n${recentActivity}`.trim();
+  };
+
+  // UPDATED: AWS status check with model detection
+  const checkAWSStatus = async () => {
+    try {
+      console.log('🔄 Checking AWS Bedrock for smart models...');
+      setAiStatus('checking');
+      setCurrentModel('Checking availability...');
+      
+      // First check if API is accessible
+      const response = await fetch('/api/aws/health');
+      if (!response.ok) {
+        throw new Error(`Health check failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('📊 AWS Health Status:', data);
+      
+      if (data.status === 'healthy' && data.awsConfigured) {
+        setAwsAvailable(true);
+        setAiStatus('aws');
+        
+        if (data.bestModel) {
+          setCurrentModel(data.bestModel.name);
+          setModelIntelligence(data.bestModel.intelligence);
+          
+          // Show success message for smart models
+          if (data.bestModel.intelligence === 'High' || data.bestModel.intelligence === 'Highest') {
+            toast.success(`✅ Smart AI Enabled: ${data.bestModel.name}`, {
+              duration: 3000,
+              icon: '🚀'
+            });
+          } else if (data.bestModel.intelligence.includes('Medium')) {
+            toast.success(`✅ AI Ready: ${data.bestModel.name}`, {
+              duration: 3000
+            });
+          }
+        } else {
+          setCurrentModel('Titan Text Express');
+          setModelIntelligence('Medium');
+          toast('Using basic AI model. Enable Claude for smarter responses.', {
+            duration: 4000,
+            icon: 'ℹ️'
+          });
+        }
+        
+        console.log(`✅ AWS Bedrock ready. Best model: ${currentModel}`);
+      } else {
+        setAwsAvailable(false);
+        setAiStatus('standard');
+        setCurrentModel('Not Available');
+        setModelIntelligence('Basic');
+        
+        console.warn('⚠️ AWS not properly configured:', data.message);
+        toast.error('Smart AI not available. Check AWS setup.', {
+          duration: 4000
+        });
+      }
+      
+    } catch (error: any) {
+      console.error('❌ AWS Health check failed:', error);
+      setAiStatus('standard');
+      setAwsAvailable(false);
+      setCurrentModel('Offline');
+      setModelIntelligence('Basic');
+      
+      toast.error('AI services offline. Using fallback mode.', {
+        duration: 3000
+      });
+    }
+  };
+
+  // UPDATED: AI Chat handler with model tracking
+  const handleSendMessage = async (message: string): Promise<string> => {
+    try {
+      console.log('=== AI REQUEST START ===');
+      console.log('💭 User question:', message);
+      
+      // Check if we have data to analyze
+      const hasFinancialData = financialData.transactions.length > 0 || (financialData.budgets && financialData.budgets.length > 0);
+      
+      if (!hasFinancialData) {
+        console.log('⚠️ No financial data available');
+        return `I notice you haven't added any financial data to your dashboard yet. 
+
+To get **personalized financial advice**, please:
+
+1. **Add transactions** - Track your income and expenses
+2. **Set up budgets** - Create spending limits for categories  
+3. **Connect accounts** - For automatic tracking (optional)
+
+Once you have data, I can:
+• Analyze your spending patterns
+• Calculate savings rates  
+• Recommend specific budget adjustments
+• Project future financial growth
+
+For now, here's general advice: **Start tracking every naira you earn and spend. Awareness is the first step to financial control.**`;
+      }
+
+      // Generate context with actual data
+      const financialContext = generateFinancialContext();
+      
+      console.log('📊 Financial Context Generated');
+      console.log('First 300 chars:', financialContext.substring(0, 300) + '...');
+      console.log('=== AI REQUEST END ===');
+
+      // Send to API
+      const startTime = Date.now();
+      const response = await fetch('/api/aws/chat', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          message: message,
+          context: financialContext
+        })
+      });
+
+      const responseTime = Date.now() - startTime;
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', response.status, errorText);
+        throw new Error(`AI service error (${response.status})`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error('❌ API returned error:', data);
+        throw new Error(data.error || 'AI service error');
+      }
+      
+      // Update model info from response
+      if (data.modelName) {
+        setCurrentModel(data.modelName);
+        setModelIntelligence(data.modelIntelligence || 'Medium');
+        setEstimatedCost(data.estimatedCost || 'FREE');
+        
+        console.log(`✅ Using ${data.modelName} (${data.modelIntelligence})`);
+        console.log(`💰 Cost: ${data.estimatedCost}`);
+        console.log(`⚡ Response time: ${responseTime}ms`);
+        console.log(`📝 Response length: ${data.response?.length || 0} chars`);
+        
+        // Log if response references user data
+        if (data.usesUserData) {
+          console.log('🎯 Response references user data ✓');
+        }
+      }
+      
+      return data.response || "I analyzed your data but didn't receive a complete response. Please try again.";
+      
+    } catch (error: any) {
+      console.error('❌ AI request failed:', error);
+      console.error('Error details:', error.message);
+      
+      // Smart fallback with user's actual data
+      const hasData = financialData.transactions.length > 0;
+      
+      if (hasData) {
+        const savingsRecommendation = financialData.profit > 0 
+          ? `Save ${Math.min(30, Math.max(10, Math.floor((financialData.profit / financialData.income) * 100)))}% of your ₦${formatCurrencyForAI(financialData.profit).replace('₦', '')} monthly profit.`
+          : `Reduce expenses by ${Math.min(20, Math.floor((Math.abs(financialData.profit) / financialData.expenses) * 100))}% to reach positive cash flow.`;
+        
+        return `**AI Service Temporarily Unavailable**
+
+Based on your dashboard data:
+
+**Current Financial Position:**
+• Income: ${formatCurrencyForAI(financialData.income)}
+• Expenses: ${formatCurrencyForAI(financialData.expenses)}  
+• ${financialData.profit >= 0 ? 'Profit' : 'Loss'}: ${formatCurrencyForAI(Math.abs(financialData.profit))}
+• Transactions: ${financialData.transactions.length}
+
+**Immediate Recommendation:**
+${savingsRecommendation}
+
+**Regarding "${message.substring(0, 50)}..."** - Track expenses closely and consider setting specific financial goals in your dashboard.`;
+      } else {
+        return "I'm having trouble accessing AI services right now. Please check your internet connection and try again. In the meantime, consider adding some transactions to your dashboard for future analysis.";
+      }
+    }
+  };
+
   const loadData = async () => {
     if (!session?.user) {
       setLoading(false);
@@ -252,25 +550,32 @@ const expenseCategories = [
     }
 
     try {
+      console.log('🔄 Loading user data...');
       const [{ data: txs }, { data: budgets }] = await Promise.all([
         supabase.from('transactions').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }),
         supabase.from('budgets').select('*').eq('user_id', session.user.id)
       ]);
 
       const transactions = txs || [];
+      const budgetsArray = budgets || [];
+      
       const income = transactions.filter(t => t.type === 'income').reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
       const expenses = transactions.filter(t => t.type === 'expense').reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
+      const profit = income - expenses;
 
       setFinancialData({
         income,
         expenses,
-        profit: income - expenses,
+        profit,
         transactions,
-        budgets: budgets || [],
+        budgets: budgetsArray,
         alerts: [],
         aiRecommendations: transactions.length > 3
-          ? ['Great saving this month!', 'Consider reducing food spending']
-          : ['Start adding transactions to unlock AI insights'],
+          ? [
+              profit >= 0 ? `Great! You're saving ${((profit / income) * 100).toFixed(1)}% of income` : `Reduce expenses by ${((Math.abs(profit) / expenses) * 100).toFixed(1)}%`,
+              budgetsArray.length > 0 ? `${budgetsArray.length} active budgets tracking` : 'Set up budgets to control spending'
+            ]
+          : ['Add transactions to unlock smart AI insights'],
         cashFlowForecast: []
       });
 
@@ -282,8 +587,11 @@ const expenseCategories = [
         plan: 'Free Plan',
         joinedDate: new Date(session.user.created_at || Date.now()).toISOString().split('T')[0]
       });
+      
+      console.log('✅ Data loaded successfully');
+      
     } catch (err) {
-      console.error('Error loading data:', err);
+      console.error('❌ Error loading data:', err);
       toast.error('Failed to load your data');
     } finally {
       setLoading(false);
@@ -294,7 +602,7 @@ const expenseCategories = [
     loadData();
   }, [session?.user?.id]);
 
-  // Transaction handlers
+  // Transaction handlers (unchanged, but included for completeness)
   const handleSubmitTransaction = async () => {
     if (!session?.user) return toast.error('Please sign in');
     setIsSubmitting(true);
@@ -362,48 +670,37 @@ const expenseCategories = [
     }
   };
 
-  // Budget handlers
- const handleSubmitBudget = async () => {
-  if (!session?.user?.id) {
-    toast.error('Not authenticated');
-    return;
-  }
-
-  const userId = session.user.id;
-  console.log('Inserting budget with user_id:', userId);
-
-  setIsSubmitting(true);
-  try {
-    const { data, error } = await supabase
-      .from('budgets')
-      .insert({
-        category: budgetFormData.category,
-        budget_limit: parseFloat(budgetFormData.budget_limit) || 0,
-        period: toDbPeriod(budgetFormData.period),
-        user_id: userId,
-      })
-      .select();
-
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
+  const handleSubmitBudget = async () => {
+    if (!session?.user?.id) {
+      toast.error('Not authenticated');
+      return;
     }
 
-    console.log('Budget created successfully:', data);
-    toast.success('Budget created!');
-    setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
-    setShowBudgetForm(false);
-    await loadData();
-  } catch (error: any) {
-    toast.error(
-      error.message.includes('foreign key')
-        ? 'Auth mismatch — log out and log in again'
-        : error.message
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    const userId = session.user.id;
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from('budgets')
+        .insert({
+          category: budgetFormData.category,
+          budget_limit: parseFloat(budgetFormData.budget_limit) || 0,
+          period: toDbPeriod(budgetFormData.period),
+          user_id: userId,
+        })
+        .select();
+
+      if (error) throw error;
+
+      toast.success('Budget created!');
+      setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
+      setShowBudgetForm(false);
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleStartEditBudget = (budget: EnhancedBudget) => {
     setEditingBudget(budget);
@@ -430,7 +727,7 @@ const expenseCategories = [
         .eq('id', editingBudget.id);
 
       if (error) throw error;
-      toast.success('Budget updated successfully!');
+      toast.success('Budget updated!');
       setShowEditBudgetModal(false);
       setEditingBudget(null);
       await loadData();
@@ -441,7 +738,6 @@ const expenseCategories = [
     }
   };
 
-  // Fixed: Correct React.Dispatch type
   const handleStartDeleteBudget: Dispatch<SetStateAction<string | null>> = (value) => {
     const id = typeof value === 'function' ? value(deleteBudgetId) : value;
     setDeleteBudgetId(id);
@@ -538,19 +834,37 @@ const expenseCategories = [
         setCurrency={setCurrency}
         language={language}
         setLanguage={setLanguage}
-        currencies={currencies} // Now passing actual data
-        languagesList={languagesList} // Now passing actual data
+        currencies={currencies}
+        languagesList={languagesList}
         realTimeAlerts={realTimeAlerts}
       />
 
       <div className="flex-1 flex flex-col md:ml-64">
         <header className="bg-gray-900/90 backdrop-blur border-b border-gray-800 sticky top-0 z-30">
           <div className="flex items-center justify-between px-6 h-16">
-            <TokenStatus
-              tokenStatus={{ tokensRemaining: 5, totalTokens: 10, resetTime: new Date(), percentage: 50 }}
-              darkMode={darkMode}
-              onUpgradeClick={() => setShowTokenModal(true)}
-            />
+            <div className="flex items-center gap-4">
+              <TokenStatus
+                tokenStatus={{ 
+                  tokensRemaining: tokens, 
+                  totalTokens: 100, 
+                  resetTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                  percentage: (tokens / 100) * 100 
+                }}
+                darkMode={darkMode}
+                onUpgradeClick={() => setShowTokenModal(true)}
+              />
+              {awsAvailable && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-900/30 border border-emerald-700/50">
+                  <div className={`w-2 h-2 rounded-full ${
+                    modelIntelligence === 'High' || modelIntelligence === 'Highest' ? 'bg-purple-500' :
+                    modelIntelligence.includes('Medium') ? 'bg-blue-500' : 'bg-green-500'
+                  }`} />
+                  <span className="text-xs font-medium text-emerald-300">
+                    {currentModel.replace('Claude 3 ', '').replace('Amazon ', '')}
+                  </span>
+                </div>
+              )}
+            </div>
             <button onClick={() => setDarkMode(d => !d)} className="p-2 rounded-lg hover:bg-gray-800 transition">
               {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
@@ -740,30 +1054,35 @@ const expenseCategories = [
 
       <button
         onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-emerald-600 rounded-full shadow-2xl hover:scale-110 transition-all z-40 flex items-center justify-center"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-emerald-600 to-green-500 rounded-full shadow-2xl hover:scale-110 transition-all z-40 flex items-center justify-center group"
+        title="Smart AI Assistant"
       >
-        <MessageCircle className="w-7 h-7" />
+        <Bot className="w-7 h-7 text-white" />
+        {awsAvailable && (
+          <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+            <span className="text-xs font-bold text-white">AI</span>
+          </div>
+        )}
       </button>
 
       <AIChatModal
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
-        messages={[]}
-        newMessage=""
-        onNewMessageChange={() => {}}
-        onSendMessage={() => {}}
-        darkMode={darkMode}
-        suggestedQuestions={[]}
-        aiStatus="standard"
-        usePremium={false}
-        onTogglePremium={() => setShowTokenModal(true)}
-        tokensRemaining={5}
+        onSendMessage={handleSendMessage}
+        awsAvailable={awsAvailable}
+        currentModel={currentModel}
+        modelIntelligence={modelIntelligence}
+        estimatedCost={estimatedCost}
       />
 
       <TokenModal
         isOpen={showTokenModal}
         onClose={() => setShowTokenModal(false)}
-        tokenStatus={{ tokensRemaining: 5, totalTokens: 10, resetTime: new Date() }}
+        tokenStatus={{ 
+          tokensRemaining: tokens, 
+          totalTokens: 100, 
+          resetTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        }}
         darkMode={darkMode}
       />
     </div>

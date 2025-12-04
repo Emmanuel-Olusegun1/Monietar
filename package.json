@@ -8,7 +8,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.914.0",
+    "@aws-sdk/client-bedrock": "^3.944.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.943.0",
     "@aws-sdk/client-dynamodb": "^3.914.0",
     "@aws-sdk/client-sts": "^3.914.0",
     "@aws-sdk/lib-dynamodb": "^3.914.0",
@@ -36,10 +37,13 @@
     "react-fast-marquee": "^1.6.5",
     "react-hot-toast": "^2.6.0",
     "react-i18next": "^15.7.3",
+    "react-markdown": "^10.1.0",
     "react-multi-carousel": "^2.8.6",
     "react-slick": "^0.31.0",
     "recharts": "^3.2.1",
-    "slick-carousel": "^1.8.1"
+    "remark-gfm": "^4.0.1",
+    "slick-carousel": "^1.8.1",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.12",
