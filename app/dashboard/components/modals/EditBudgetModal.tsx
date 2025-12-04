@@ -3,7 +3,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Check, Tag, DollarSign, Calendar, X, Loader2, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Tag, Currency, Calendar, X, Loader2, AlertCircle } from 'lucide-react'
 import { Budget } from '../../types'
 
 // Define consistent period types
@@ -98,7 +98,7 @@ export function EditBudgetModal({
 
   const steps: { id: Step; title: string; icon: React.ReactNode }[] = [
     { id: 'category', title: 'Category', icon: <Tag size={16} /> },
-    { id: 'amount', title: 'Amount', icon: <DollarSign size={16} /> },
+    { id: 'amount', title: 'Amount', icon: <Currency size={16} /> },
     { id: 'period', title: 'Period', icon: <Calendar size={16} /> },
     { id: 'review', title: 'Review', icon: <Check size={16} /> },
   ]
@@ -260,7 +260,7 @@ export function EditBudgetModal({
                 Budget Limit
               </label>
               <div className="relative">
-                <DollarSign className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${themeClasses.text.tertiary}`} size={20} />
+                <Currency className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${themeClasses.text.tertiary}`} size={20} />
                 <input
                   type="number"
                   placeholder="0.00"

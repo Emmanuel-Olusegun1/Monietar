@@ -4,7 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Transaction } from '../../types'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Check, DollarSign, Tag, FileText, Calendar, X, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Currency, Tag, FileText, Calendar, X, Loader2 } from 'lucide-react'
 
 interface EditTransactionModalProps {
   isOpen: boolean
@@ -88,7 +88,7 @@ export function EditTransactionModal({
   }
 
   const steps: { id: Step; title: string; icon: React.ReactNode }[] = [
-    { id: 'amount', title: 'Amount', icon: <DollarSign size={16} /> },
+    { id: 'amount', title: 'Amount', icon: <Currency size={16} /> },
     { id: 'category', title: 'Category', icon: <Tag size={16} /> },
     { id: 'details', title: 'Details', icon: <FileText size={16} /> },
     { id: 'review', title: 'Review', icon: <Check size={16} /> },
@@ -232,7 +232,7 @@ export function EditTransactionModal({
                 Amount
               </label>
               <div className="relative">
-                <DollarSign className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${themeClasses.text.tertiary}`} size={20} />
+                <Currency className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${themeClasses.text.tertiary}`} size={20} />
                 <input
                   type="number"
                   placeholder="0.00"

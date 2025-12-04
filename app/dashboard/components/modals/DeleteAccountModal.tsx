@@ -360,7 +360,7 @@ export function DeleteAccountModal({
         {currentStep === 'review' ? (
           <button
             onClick={handleConfirm}
-            className={`flex items-center px-6 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all flex items-center justify-center gap-2`}
+            className={`flex  px-6 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all items-center justify-center gap-2`}
           >
             <Trash2 size={16} />
             Delete Account Permanently

@@ -77,6 +77,10 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Add state for currency and language
+  const [currency, setCurrency] = useState('NGN');
+  const [language, setLanguage] = useState('en');
+
   // Modal states
   const [showIncomeForm, setShowIncomeForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -146,6 +150,29 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     aiRecommendations: ['Add transactions to get insights'],
     cashFlowForecast: []
   });
+
+  // Add these arrays with data
+  const languagesList = [
+    { value: 'en', label: 'English' },
+    { value: 'fr', label: 'French' },
+    { value: 'sw', label: 'Swahili' },
+    { value: 'yo', label: 'Yoruba' },
+    { value: 'ig', label: 'Igbo' },
+    { value: 'ha', label: 'Hausa' }
+  ];
+
+  const currencies = [
+    { value: 'NGN', label: 'Naira' },
+    { value: 'CFA', label: 'XFA' },
+    { value: 'USD', label: 'Dollar' },
+    { value: 'EUR', label: 'Euro' }
+  ];
+
+  // Add mobile menu state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Add realTimeAlerts state
+  const [realTimeAlerts, setRealTimeAlerts] = useState<any[]>([]);
 
 const incomeCategories = [
   'Sales Money', 'Service Income', 'Bank Interest', 'Share Dividends', 'Rent from Property',
@@ -343,7 +370,7 @@ const expenseCategories = [
   }
 
   const userId = session.user.id;
-  console.log('Inserting budget with user_id:', userId); // ← CHECK THIS IN CONSOLE
+  console.log('Inserting budget with user_id:', userId);
 
   setIsSubmitting(true);
   try {
@@ -353,9 +380,9 @@ const expenseCategories = [
         category: budgetFormData.category,
         budget_limit: parseFloat(budgetFormData.budget_limit) || 0,
         period: toDbPeriod(budgetFormData.period),
-        user_id: userId, // ← this is the raw UUID, never modified
+        user_id: userId,
       })
-      .select(); // ← add .select() to see what was inserted
+      .select();
 
     if (error) {
       console.error('Supabase error:', error);
@@ -505,15 +532,15 @@ const expenseCategories = [
         setDarkMode={setDarkMode}
         showBalance={showBalance}
         setShowBalance={setShowBalance}
-        isMobileMenuOpen={false}
-        setIsMobileMenuOpen={() => {}}
-        currency="NGN"
-        setCurrency={() => {}}
-        language="en"
-        setLanguage={() => {}}
-        currencies={[]}
-        languagesList={[]}
-        realTimeAlerts={[]}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+        currency={currency}
+        setCurrency={setCurrency}
+        language={language}
+        setLanguage={setLanguage}
+        currencies={currencies} // Now passing actual data
+        languagesList={languagesList} // Now passing actual data
+        realTimeAlerts={realTimeAlerts}
       />
 
       <div className="flex-1 flex flex-col md:ml-64">
@@ -581,7 +608,7 @@ const expenseCategories = [
               setShowBudgetForm={() => setShowBudgetForm(true)}
               startEditBudget={handleStartEditBudget}
               setDeleteBudgetId={handleStartDeleteBudget}
-              editingBudget={editingBudget as any}  // Safe: EnhancedBudget has all Budget fields
+              editingBudget={editingBudget as any}
               deleteBudgetId={deleteBudgetId}
               themeClasses={themeClasses}
               darkMode={darkMode}
@@ -602,10 +629,10 @@ const expenseCategories = [
               handleDeleteAccount={() => {}}
               themeClasses={themeClasses}
               darkMode={darkMode}
-              currency="NGN"
-              setCurrency={() => {}}
-              language="en"
-              setLanguage={() => {}}
+              currency={currency}
+              setCurrency={setCurrency}
+              language={language}
+              setLanguage={setLanguage}
               setShowChangePasswordDialog={() => {}}
               setShowClearDataDialog={() => {}}
               setShowDeleteAccountDialog={() => {}}
@@ -616,8 +643,8 @@ const expenseCategories = [
               setShowCurrencyDialog={() => {}}
               handleBackupData={() => toast.success('Backup started')}
               setActiveTab={setActiveTab}
-              languagesList={[]}
-              currencies={[]}
+              languagesList={languagesList}
+              currencies={currencies}
             />
           )}
 
@@ -678,7 +705,7 @@ const expenseCategories = [
       <EditBudgetModal
         isOpen={showEditBudgetModal}
         onClose={() => { setShowEditBudgetModal(false); setEditingBudget(null); }}
-        budget={editingBudget as any}  // Safe cast: has all required fields
+        budget={editingBudget as any}
         formData={editBudgetFormData}
         onFormDataChange={setEditBudgetFormData}
         onSubmit={handleUpdateBudget}

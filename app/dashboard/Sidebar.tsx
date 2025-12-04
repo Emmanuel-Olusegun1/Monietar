@@ -15,15 +15,13 @@ import {
   LogOut,
   ChevronDown,
   Bell,
-  Search,
-  Zap,
   Crown,
   Sun,
   Moon,
-  Globe,
   Eye,
   EyeOff,
-  Languages
+  Languages,
+  Currency
 } from 'lucide-react'
 
 interface NavigationItem {
@@ -90,7 +88,7 @@ export function Sidebar({
   realTimeAlerts
 }: SidebarProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
-   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false)
   const [isLanguageOpen, setIsLanguageOpen] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -133,11 +131,21 @@ export function Sidebar({
   }
 
   const getCurrentLanguage = () => {
-    return languagesList.find(lang => lang.value === language)?.label || 'English'
+    return languagesList?.find(lang => lang.value === language)?.label || 'English'
   }
 
   const getCurrentCurrency = () => {
-    return currencies.find(curr => curr.value === currency)?.label || 'USD'
+    return currencies?.find(curr => curr.value === currency)?.label || 'NGN'
+  }
+
+  const handleCurrencyChange = (newCurrency: string) => {
+    setCurrency(newCurrency)
+    setIsCurrencyOpen(false)
+  }
+
+  const handleLanguageChange = (newLanguage: string) => {
+    setLanguage(newLanguage)
+    setIsLanguageOpen(false)
   }
 
   return (
@@ -156,17 +164,15 @@ export function Sidebar({
             </button>
           </div>
 
-          {/* Center Section - Removed search bar */}
-
           {/* Enhanced Right Section with Functional Toggles */}
           <div className="flex items-center space-x-3">
             {/* Currency Selector */}
             <div className="relative hidden md:block">
               <button
                 onClick={() => setIsCurrencyOpen(!isCurrencyOpen)}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
+                className="flex items-center space-x-2 px-3 py-2 hover:cursor-pointer rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
               >
-                <Globe className="w-4 h-4" />
+                <Currency className="w-4 h-4" />
                 <span className="text-sm">{getCurrentCurrency()}</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${isCurrencyOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -182,11 +188,8 @@ export function Sidebar({
                     {currencies.map((curr) => (
                       <button
                         key={curr.value}
-                        onClick={() => {
-                          setCurrency(curr.value)
-                          setIsCurrencyOpen(false)
-                        }}
-                        className={`w-full px-3 py-2 text-sm text-left hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                        onClick={() => handleCurrencyChange(curr.value)}
+                        className={`w-full px-3 py-2 text-sm text-left hover:cursor-pointer hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
                           currency === curr.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
                         }`}
                       >
@@ -201,7 +204,7 @@ export function Sidebar({
             {/* Theme Toggle */}
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
+              className="p-2 rounded-lg bg-gray-800 hover:cursor-pointer hover:bg-gray-700 transition-colors text-gray-300"
               title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -210,7 +213,7 @@ export function Sidebar({
             {/* Balance Visibility */}
             <button
               onClick={() => setShowBalance(!showBalance)}
-              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
+              className="p-2 rounded-lg bg-gray-800 hover:cursor-pointer hover:bg-gray-700 transition-colors text-gray-300"
               title={showBalance ? 'Hide balance' : 'Show balance'}
             >
               {showBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -220,14 +223,12 @@ export function Sidebar({
             <div className="relative hidden md:block">
               <button
                 onClick={() => setIsLanguageOpen(!isLanguageOpen)}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
+                className="flex items-center space-x-2 px-3 py-2 hover:cursor-pointer rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
               >
                 <Languages className="w-4 h-4" />
                 <span className="text-sm">{getCurrentLanguage()}</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${isLanguageOpen ? 'rotate-180' : ''}`} />
               </button>
-
-
 
               <AnimatePresence>
                 {isLanguageOpen && (
@@ -240,11 +241,8 @@ export function Sidebar({
                     {languagesList.map((lang) => (
                       <button
                         key={lang.value}
-                        onClick={() => {
-                          setLanguage(lang.value)
-                          setIsLanguageOpen(false)
-                        }}
-                        className={`w-full px-3 py-2 text-sm text-left hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                        onClick={() => handleLanguageChange(lang.value)}
+                        className={`w-full px-3 py-2 text-sm hover:cursor-pointer text-left hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
                           language === lang.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
                         }`}
                       >
@@ -257,7 +255,7 @@ export function Sidebar({
             </div>
 
             {/* Notifications */}
-            <button className="p-2 rounded-lg relative text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+            <button className="p-2 rounded-lg relative hover:cursor-pointer text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
               <Bell className="w-5 h-5" />
               {realTimeAlerts.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-900"></span>
@@ -268,7 +266,7 @@ export function Sidebar({
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center space-x-3 p-2 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
+                className="flex items-center space-x-3 p-2 hover:cursor-pointer rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
               >
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
@@ -326,7 +324,7 @@ export function Sidebar({
                     <div className="p-2 border-t border-gray-700">
                       <button
                         onClick={handleLogoutConfirm}
-                        className="flex items-center w-full px-3 py-2 text-sm text-red-400 rounded-lg hover:bg-red-900/20 transition-colors"
+                        className="flex items-center w-full px-3 hover:cursor-pointer py-2 text-sm text-red-400 rounded-lg hover:bg-red-900/20 transition-colors"
                       >
                         <LogOut className="w-4 h-4 mr-2" />
                         Sign Out
@@ -390,7 +388,7 @@ export function Sidebar({
               {/* Logout Button */}
               <button
                 onClick={handleLogoutConfirm}
-                className="group relative bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white py-3 px-4 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="group relative bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white hover:cursor-pointer py-3 px-4 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <div className="flex hover:cursor-pointer items-center justify-center space-x-2">
                   <LogOut className="w-4 h-4" />
@@ -411,7 +409,7 @@ export function Sidebar({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-              onClick={() => setIsMobileMenuOpen(true)}
+              onClick={() => setIsMobileMenuOpen(false)}
             />
             <motion.div
               initial={{ x: -300 }}
@@ -476,7 +474,7 @@ export function Sidebar({
                   {/* Logout Button */}
                   <button
                     onClick={handleLogoutConfirm}
-                    className="group relative bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white py-3 px-4 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="group relative bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white hover:cursor-pointer py-3 px-4 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
                   >
                     <div className="flex hover:cursor-pointer items-center justify-center space-x-2">
                       <LogOut className="w-4 h-4" />
@@ -521,13 +519,13 @@ export function Sidebar({
                 <div className="flex space-x-3">
                   <button
                     onClick={() => setShowLogoutConfirm(false)}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2 text-sm hover:cursor-pointer font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2 text-sm hover:cursor-pointer font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                   >
                     Sign Out
                   </button>
