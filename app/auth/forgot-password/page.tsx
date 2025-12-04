@@ -1,63 +1,15 @@
 'use client'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Loader2, Mail, ArrowLeft, ShieldAlert } from 'lucide-react';
 
-// MOCK_DATA for frontend development
-const MOCK_DATA = {
-  users: {
-    'user@monitar.com': {
-      name: 'Monietar User1',
-      id: 'user-001'
-    },
-    'my@monietar.com': {
-      name: 'Monietar User2',
-      id: 'user-002'
-    }
-  }
-};
-
-// Mock API service module
-const authAPI = {
-  async resetPassword(email: string) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Check if this is a test email
-    const user = MOCK_DATA.users[email as keyof typeof MOCK_DATA.users];
-    
-    if (user) {
-      return {
-        success: true,
-        message: 'Password reset instructions sent!'
-      };
-    } else {
-      throw new Error('user not found');
-    }
-    
-    // REAL API CALL - COMMENTED OUT
-    /*
-    const response = await fetch('/api/auth/reset-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email }),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to send reset instructions');
-    }
-    
-    return await response.json();
-    */
-  }
-};
+// Modern Supabase client (2025+)
+import { supabase } from '@/utils/supabase/client';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -65,6 +17,15 @@ export default function ForgotPasswordPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Pre-fill email from query parameter if available
+  useEffect(() => {
+    const emailFromQuery = searchParams.get('email');
+    if (emailFromQuery) {
+      setEmail(decodeURIComponent(emailFromQuery));
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,20 +44,32 @@ export default function ForgotPasswordPage() {
     const loadingToast = toast.loading('Sending reset instructions...');
 
     try {
-      await authAPI.resetPassword(email);
+      // Use Supabase's built-in password reset function
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+
+      if (error) {
+        console.error('Password reset error:', error);
+        
+        if (error.message.includes('user not found')) {
+          toast.error('No account found with this email address');
+        } else if (error.message.includes('rate limit')) {
+          toast.error('Please wait before requesting another reset');
+        } else if (error.message.includes('disabled')) {
+          toast.error('Password reset is temporarily disabled. Please contact support.');
+        } else {
+          toast.error(error.message || 'Failed to send reset instructions');
+        }
+        return;
+      }
       
       setIsSubmitted(true);
-      toast.success('Password reset instructions sent!');
-    } catch (error: any) {
-      console.error('Reset password error:', error);
+      toast.success('Password reset instructions sent! Check your email.');
       
-      if (error.message.includes('user not found')) {
-        toast.error('No account found with this email address');
-      } else if (error.message.includes('rate limit')) {
-        toast.error('Please wait before requesting another reset');
-      } else {
-        toast.error(error.message || 'Failed to send reset instructions');
-      }
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
       toast.dismiss(loadingToast);
@@ -105,6 +78,34 @@ export default function ForgotPasswordPage() {
 
   const handleBackToSignIn = () => {
     router.push('/auth/signin');
+  };
+
+  const handleResendInstructions = async () => {
+    if (!email) {
+      toast.error('Please enter your email address first');
+      return;
+    }
+
+    setIsLoading(true);
+    const loadingToast = toast.loading('Resending instructions...');
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+
+      if (error) {
+        toast.error(error.message || 'Failed to resend instructions');
+        return;
+      }
+
+      toast.success('Reset instructions resent! Check your email again.');
+    } catch (error: any) {
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+      toast.dismiss(loadingToast);
+    }
   };
 
   return (
@@ -169,28 +170,20 @@ export default function ForgotPasswordPage() {
             {/* Header */}
             <div className="text-center mb-8">
               <div className="w-16 h-16 bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-800/50">
-                <svg
-                  className="w-8 h-8 text-emerald-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
+                {isSubmitted ? (
+                  <Mail className="w-8 h-8 text-emerald-400" />
+                ) : (
+                  <ShieldAlert className="w-8 h-8 text-emerald-400" />
+                )}
               </div>
               
               <h1 className="text-2xl font-bold text-white mb-2">
-                Forgot Password?
+                {isSubmitted ? 'Check Your Email' : 'Forgot Password?'}
               </h1>
               
               <p className="text-gray-300">
                 {isSubmitted 
-                  ? 'Check your email for reset instructions'
+                  ? 'We\'ve sent password reset instructions to your email address. Check your inbox (and spam folder).'
                   : 'Enter your email address and we\'ll send you a link to reset your password'
                 }
               </p>
@@ -208,24 +201,22 @@ export default function ForgotPasswordPage() {
                     id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none transition-colors placeholder-gray-400 bg-gray-700 text-white"
-                    placeholder="Enter your email address"
+                    className="w-full px-3 py-3 border border-gray-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors placeholder-gray-500 bg-gray-700 text-white"
+                    placeholder="you@example.com"
                     required
                     disabled={isLoading}
+                    autoComplete="email"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full hover:cursor-pointer bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-3 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
+                      <Loader2 className="animate-spin h-5 w-5" />
                       Sending...
                     </>
                   ) : (
@@ -237,11 +228,10 @@ export default function ForgotPasswordPage() {
                   <button
                     type="button"
                     onClick={handleBackToSignIn}
-                    className="text-gray-400 hover:cursor-pointer hover:text-gray-200 font-medium flex items-center justify-center mx-auto"
+                    disabled={isLoading}
+                    className="text-gray-400 hover:text-gray-200 font-medium flex items-center justify-center mx-auto gap-2 disabled:opacity-50"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
+                    <ArrowLeft className="w-4 h-4" />
                     Back to Sign In
                   </button>
                 </div>
@@ -249,31 +239,18 @@ export default function ForgotPasswordPage() {
             ) : (
               /* Success State */
               <div className="text-center space-y-6">
-                <div className="w-20 h-20 bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-800/50">
-                  <svg
-                    className="w-10 h-10 text-green-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-                
                 <div className="space-y-2">
                   <h2 className="text-xl font-semibold text-white">
-                    Check Your Email
+                    Instructions Sent!
                   </h2>
                   <p className="text-gray-300">
-                    We've sent password reset instructions to:
+                    We sent an email to:
                   </p>
-                  <p className="text-lg font-medium text-emerald-400">
+                  <p className="text-lg font-medium text-emerald-400 break-all">
                     {email}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Click the link in the email to reset your password.
                   </p>
                 </div>
 
@@ -281,41 +258,62 @@ export default function ForgotPasswordPage() {
                   <div className="flex flex-col space-y-3">
                     <button
                       onClick={handleBackToSignIn}
-                      className="w-full hover:cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded-lg transition-colors"
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded-lg transition-colors"
                     >
                       Back to Sign In
                     </button>
+                    
+                    <button
+                      onClick={handleResendInstructions}
+                      disabled={isLoading}
+                      className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="animate-spin h-5 w-5" />
+                          Resending...
+                        </>
+                      ) : (
+                        'Resend Instructions'
+                      )}
+                    </button>
                   </div>
 
-                  <div className="text-sm text-gray-400">
-                    <p>Didn't receive the email?</p>
-                    <div className="mt-2 space-x-4">
-                      <button
-                        onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
-                        className="text-emerald-400 hover:cursor-pointer hover:text-emerald-300 font-medium"
-                      >
-                        Resend instructions
-                      </button>
+                  <div className="p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+                    <div className="flex items-start space-x-3">
+                      <svg className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="text-sm text-gray-300">
+                        <p className="font-medium">Didn't receive the email?</p>
+                        <ul className="mt-2 space-y-1 text-left">
+                          <li>• Check your spam or junk folder</li>
+                          <li>• Make sure you entered the correct email</li>
+                          <li>• Try resending the instructions</li>
+                          <li>• Contact support at{' '}
+                            <a href="mailto:support@monietar.com" className="text-emerald-400 hover:text-emerald-300">
+                              support@monietar.com
+                            </a>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Help Section */}
+            {/* Security Note */}
             {!isSubmitted && (
-              <div className="mt-8 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+              <div className="mt-6 p-4 bg-gray-700/30 rounded-lg border border-gray-600">
                 <div className="flex items-start space-x-3">
-                  <svg className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                   <div className="text-sm text-gray-300">
-                    <p className="font-medium">Need help?</p>
+                    <p className="font-medium text-emerald-400">Security Note</p>
                     <p className="mt-1">
-                      If you're having trouble resetting your password, contact our support team at{' '}
-                      <a href="mailto:support@monietar.com" className="text-emerald-400 hover:text-emerald-300">
-                        support@monietar.com
-                      </a>
+                      For security reasons, password reset links expire after 24 hours. If you don't receive the email within a few minutes, please check your spam folder.
                     </p>
                   </div>
                 </div>

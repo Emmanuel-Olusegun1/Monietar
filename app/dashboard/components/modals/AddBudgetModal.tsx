@@ -300,7 +300,7 @@ export function AddBudgetModal({
                 <div className="flex justify-between">
                   <span className={themeClasses.text.secondary}>Budget Limit:</span>
                   <span className="font-medium text-emerald-500">
-                    ${formData.budget_limit || '0.00'}
+                  {formData.budget_limit || '0.00'}
                   </span>
                 </div>
                 <div className="flex justify-between">

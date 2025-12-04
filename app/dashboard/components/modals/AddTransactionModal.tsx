@@ -343,7 +343,7 @@ export function AddTransactionModal({
                 <div className="flex justify-between">
                   <span className={themeClasses.text.secondary}>Amount:</span>
                   <span className={`font-medium ${type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
-                    ${formData.amount || '0.00'}
+                  {formData.amount || '0.00'}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -397,7 +397,7 @@ export function AddTransactionModal({
           <button
             onClick={continueEditing}
             disabled={isSubmitting}
-            className={`flex items-center px-6 py-2 rounded-xl transition-all ${
+            className={`flex items-center px-6 hover:Cursor-pointer py-2 rounded-xl transition-all ${
               darkMode 
                 ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -408,7 +408,7 @@ export function AddTransactionModal({
           <button
             onClick={resetAndClose}
             disabled={isSubmitting}
-            className={`flex items-center px-6 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all ${
+            className={`flex items-center px-6 py-2 rounded-xl hover:Cursor-pointer bg-red-600 text-white hover:bg-red-700 transition-all ${
               isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
@@ -432,7 +432,7 @@ export function AddTransactionModal({
         <button
           onClick={prevStep}
           disabled={isSubmitting}
-          className={`flex items-center px-4 py-2 rounded-xl transition-all ${
+          className={`flex items-center px-4 py-2 hover:Cursor-pointer rounded-xl transition-all ${
             darkMode 
               ? 'text-gray-300 hover:bg-gray-700' 
               : 'text-gray-600 hover:bg-gray-100'
@@ -446,7 +446,7 @@ export function AddTransactionModal({
           <button
             onClick={handleSubmit}
             disabled={!canProceed() || isSubmitting}
-            className={`flex items-center px-6 py-2 rounded-xl text-white transition-all ${
+            className={`flex items-center px-6 py-2 hover:Cursor-pointer rounded-xl text-white transition-all ${
               type === 'income' 
                 ? 'bg-emerald-600 hover:bg-emerald-700' 
                 : 'bg-red-600 hover:bg-red-700'
@@ -468,7 +468,7 @@ export function AddTransactionModal({
           <button
             onClick={nextStep}
             disabled={!canProceed() || isSubmitting}
-            className={`flex items-center px-6 py-2 rounded-xl text-white transition-all ${
+            className={`flex items-center px-6 py-2 hover:Cursor-pointer rounded-xl text-white transition-all ${
               type === 'income' 
                 ? 'bg-emerald-600 hover:bg-emerald-700' 
                 : 'bg-red-600 hover:bg-red-700'
@@ -515,7 +515,7 @@ export function AddTransactionModal({
                     <button
                       onClick={handleCancel}
                       disabled={isSubmitting}
-                      className={`p-2 rounded-lg transition-all ${
+                      className={`p-2 rounded-lg hover:Cursor-pointer transition-all ${
                         darkMode 
                           ? 'hover:bg-gray-700 text-gray-400' 
                           : 'hover:bg-gray-100 text-gray-500'

@@ -346,7 +346,7 @@ export function EditBudgetModal({
                   <span className={themeClasses.text.secondary}>Budget Limit:</span>
                   <div className="text-right">
                     <span className="font-medium text-emerald-500">
-                      ${formData.budget_limit}
+                    {formData.budget_limit}
                     </span>
                     {budget && parseFloat(formData.budget_limit) !== budget.budget_limit && (
                       <div className="text-xs text-emerald-500">

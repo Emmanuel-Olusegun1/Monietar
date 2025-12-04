@@ -348,7 +348,7 @@ export function EditTransactionModal({
                 <div className="flex justify-between">
                   <span className={themeClasses.text.secondary}>Amount:</span>
                   <span className={`font-medium ${transaction?.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
-                    ${formData.amount || '0.00'}
+                  {formData.amount || '0.00'}
                   </span>
                 </div>
                 <div className="flex justify-between">
