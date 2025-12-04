@@ -1,17 +1,18 @@
+// app/auth/forgot-password/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
 import Image from 'next/image';
 import { Loader2, Mail, ArrowLeft, ShieldAlert } from 'lucide-react';
 
 // Modern Supabase client (2025+)
 import { supabase } from '@/utils/supabase/client';
 
-export default function ForgotPasswordPage() {
+// Create a client component that uses search params
+function ForgotPasswordContent() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -323,5 +324,23 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading component
+function LoadingFallback() {
+  return (
+    <div className="flex w-full h-screen bg-gray-900 justify-center items-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+    </div>
+  );
+}
+
+// Main page component with Suspense
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ForgotPasswordContent />
+    </Suspense>
   );
 }
