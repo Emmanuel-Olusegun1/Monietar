@@ -11,10 +11,41 @@ import {
   Loader2, AlertTriangle,
   Search, ChevronLeft, ChevronRight,
   Maximize2, Minimize2, Zap, PieChart, CreditCard, ArrowUp, Edit3,
-  Play, Pause, MoreHorizontal
+  Play, Pause, MoreHorizontal,
+  Mic, MicOff, Paperclip, FileText, Download, Image as ImageIcon,
+  ChevronDown, Upload, FileUp,
+  Sparkles, Slash, Star,
+  Settings, Key,
+  Globe, Cpu,
+  Shield as ShieldIcon,
+  Zap as ZapIcon,
+  BrainCircuit,
+  BarChart3,
+  TrendingUp as TrendingUpIcon,
+  DollarSign,
+  Users,
+  Target as TargetIcon,
+  Coins,
+  LineChart,
+  PieChart as PieChartIcon,
+  FileBarChart,
+  Download as DownloadIcon,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast, Toaster } from 'react-hot-toast';
+import { useReactToPrint } from 'react-to-print';
+
+// Define interface for uploaded files
+interface UploadedFile {
+  id: string;
+  name: string;
+  type: 'image' | 'pdf' | 'document' | 'spreadsheet' | 'text';
+  size: string;
+  preview?: string;
+  uploadedAt: Date;
+}
 
 interface ChatMessage {
   id: string;
@@ -22,8 +53,11 @@ interface ChatMessage {
   sender: 'user' | 'ai';
   timestamp: Date;
   model?: string;
-  modelIntelligence?: string;
+  provider?: string;
   estimatedCost?: string;
+  tokensUsed?: number;
+  attachments?: UploadedFile[];
+  reasoningTokens?: number;
 }
 
 interface ChatSession {
@@ -38,30 +72,244 @@ interface ChatSession {
 interface AIChatModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSendMessage: (message: string) => Promise<string>;
-  awsAvailable: boolean;
+  openRouterAvailable: boolean;
   currentModel?: string;
-  modelIntelligence?: string;
   estimatedCost?: string;
-  hasNova?: boolean;
-  userData?: {
-    monthlyIncome?: number;
-    savingsGoal?: number;
-    debtAmount?: number;
-    riskTolerance?: 'low' | 'medium' | 'high';
+  usageStats?: {
+    dailyRequests: number;
+    dailyLimit: number;
+    monthlyTokens: number;
+    monthlyLimit: number;
+    responseTime: number;
   };
+  // New props for dashboard data
+  financialData?: {
+    income: number;
+    expenses: number;
+    profit: number;
+    transactions: any[];
+    budgets: any[];
+    aiRecommendations: string[];
+  };
+  userData?: {
+    name: string;
+    businessName: string;
+    currency: string;
+  };
+  formatCurrency?: (amount: number) => string;
+}
+
+// OpenRouter models
+const FREE_MODELS = [
+  { id: 'amazon/nova-2-lite-v1:free', name: 'Amazon Nova Lite', description: 'Fast & free', icon: <Zap className="w-3 h-3" />, speed: 'fast', intelligence: 'medium' },
+  { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash', description: 'Google AI', icon: <Brain className="w-3 h-3" />, speed: 'very-fast', intelligence: 'high' },
+  { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B', description: 'Open source', icon: <Globe className="w-3 h-3" />, speed: 'fast', intelligence: 'medium' },
+  { id: 'meta-llama/llama-3.2-3b-instruct:free', name: 'Llama 3.2', description: 'Meta AI', icon: <Cpu className="w-3 h-3" />, speed: 'medium', intelligence: 'good' },
+];
+
+const PAID_MODELS = [
+  { id: 'anthropic/claude-3.5-sonnet:beta', name: 'Claude 3.5 Sonnet', description: 'Most intelligent', icon: <Sparkles className="w-3 h-3" />, speed: 'medium', intelligence: 'excellent' },
+  { id: 'openai/gpt-4o', name: 'GPT-4o', description: 'OpenAI latest', icon: <BrainCircuit className="w-3 h-3" />, speed: 'fast', intelligence: 'excellent' },
+  { id: 'google/gemini-2.0-pro-exp-02-05:free', name: 'Gemini 2.0 Pro', description: 'Professional', icon: <BarChart3 className="w-3 h-3" />, speed: 'medium', intelligence: 'high' },
+];
+
+// Function to generate financial context from dashboard data
+const generateFinancialContext = (
+  financialData?: {
+    income: number;
+    expenses: number;
+    profit: number;
+    transactions: any[];
+    budgets: any[];
+    aiRecommendations: string[];
+  },
+  userData?: {
+    name: string;
+    businessName: string;
+    currency: string;
+  },
+  formatCurrency?: (amount: number) => string
+): string => {
+  if (!financialData) {
+    return "NO FINANCIAL DATA";
+  }
+  
+  try {
+    const { income = 0, expenses = 0, profit = 0, transactions = [], budgets = [], aiRecommendations = [] } = financialData;
+    
+    // Format currency
+    const formatCurrencyFunc = (amount: number) => {
+      if (formatCurrency && typeof formatCurrency === 'function') {
+        return formatCurrency(amount);
+      }
+      // Fallback formatting
+      return new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency: userData?.currency || 'NGN',
+        minimumFractionDigits: 0
+      }).format(amount);
+    };
+    
+    let context = `FINANCIAL DATA FOR ANALYSIS:\n\n`;
+    context += `USER PROFILE:\n`;
+    context += `• Name: ${userData?.name || 'User'}\n`;
+    context += `• Business: ${userData?.businessName || 'Not specified'}\n`;
+    context += `• Currency: ${userData?.currency || 'NGN'}\n\n`;
+    
+    context += `FINANCIAL OVERVIEW:\n`;
+    context += `• Total Income: ${formatCurrencyFunc(income)}\n`;
+    context += `• Total Expenses: ${formatCurrencyFunc(expenses)}\n`;
+    context += `• Net ${profit >= 0 ? 'Profit' : 'Loss'}: ${formatCurrencyFunc(Math.abs(profit))}\n`;
+    context += `• Profit Margin: ${income > 0 ? ((profit / income) * 100).toFixed(1) : 0}%\n`;
+    context += `• Transaction Count: ${transactions?.length || 0}\n\n`;
+    
+    if (budgets && budgets.length > 0) {
+      context += `BUDGETS:\n`;
+      budgets.forEach((budget: any, index: number) => {
+        const spent = budget.spent || 0;
+        const limit = budget.limit || 0;
+        const percentage = limit > 0 ? ((spent / limit) * 100).toFixed(1) : '0';
+        const status = spent > limit ? '❌ Over' : spent > (limit * 0.8) ? '⚠️ Close' : '✅ Good';
+        context += `• ${budget.name || `Budget ${index + 1}`}: ${status} (${percentage}% used)\n`;
+      });
+      context += `\n`;
+    }
+    
+    if (transactions && transactions.length > 0) {
+      // Get top categories
+      const categoryTotals: Record<string, number> = {};
+      transactions.forEach((transaction: any) => {
+        const category = transaction.category || 'Uncategorized';
+        const amount = Math.abs(transaction.amount || 0);
+        if (amount > 0) {
+          categoryTotals[category] = (categoryTotals[category] || 0) + amount;
+        }
+      });
+      
+      const topCategories = Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+      
+      if (topCategories.length > 0) {
+        context += `TOP EXPENSE CATEGORIES:\n`;
+        topCategories.forEach(([category, amount]) => {
+          const percentage = expenses > 0 ? ((amount / expenses) * 100).toFixed(1) : '0';
+          context += `• ${category}: ${formatCurrencyFunc(amount)} (${percentage}%)\n`;
+        });
+        context += `\n`;
+      }
+      
+      // Recent transactions
+      const recentTransactions = transactions.slice(-5).reverse();
+      if (recentTransactions.length > 0) {
+        context += `RECENT TRANSACTIONS:\n`;
+        recentTransactions.forEach((transaction: any) => {
+          const amount = transaction.amount || 0;
+          const type = amount >= 0 ? 'Income' : 'Expense';
+          const date = transaction.date ? new Date(transaction.date).toLocaleDateString() : 'Recent';
+          context += `• ${date}: ${transaction.description || 'Transaction'} - ${formatCurrencyFunc(Math.abs(amount))} (${type})\n`;
+        });
+        context += `\n`;
+      }
+    }
+    
+    if (aiRecommendations && aiRecommendations.length > 0) {
+      context += `PREVIOUS AI RECOMMENDATIONS:\n`;
+      aiRecommendations.slice(0, 3).forEach((rec: string, index: number) => {
+        context += `• ${rec}\n`;
+      });
+      context += `\n`;
+    }
+    
+    context += `FINANCIAL HEALTH INDICATORS:\n`;
+    context += `• Savings Rate: ${income > 0 ? ((profit > 0 ? profit : 0) / income * 100).toFixed(1) : 0}%\n`;
+    context += `• Expense-to-Income Ratio: ${income > 0 ? ((expenses / income) * 100).toFixed(1) : 0}%\n`;
+    context += `• Transaction Frequency: ~${transactions?.length > 0 ? Math.ceil(transactions.length / 30) : 0} per day\n`;
+    
+    return context;
+    
+  } catch (error) {
+    console.error('Error generating financial context:', error);
+    return "NO FINANCIAL DATA - Error generating context";
+  }
+};
+
+// Add OpenRouter API function
+async function queryOpenRouterAPI(
+  message: string, 
+  financialContext: string,
+  files?: File[], 
+  model: string = FREE_MODELS[0].id,
+  style: 'simple' | 'balanced' | 'professional' = 'balanced'
+): Promise<{ 
+  response: string; 
+  model: string;
+  provider: string;
+  tokensUsed: number;
+  reasoningTokens?: number;
+  costEstimate: string;
+  responseTime: number;
+  isFreeTier: boolean;
+}> {
+  try {
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('context', financialContext);
+    formData.append('model', model);
+    formData.append('style', style);
+    
+    if (files && files.length > 0) {
+      files.forEach(file => {
+        formData.append('files', file);
+      });
+    }
+    
+    const startTime = Date.now();
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const data = await response.json();
+    const responseTime = Date.now() - startTime;
+    
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to get response');
+    }
+    
+    return {
+      response: data.response,
+      model: data.model || model,
+      provider: data.provider || 'OpenRouter',
+      tokensUsed: data.tokensUsed || 0,
+      reasoningTokens: data.costEstimate?.reasoningTokens,
+      costEstimate: data.costEstimate?.estimatedCost || '0.000000',
+      responseTime,
+      isFreeTier: data.costEstimate?.isFreeTier || true
+    };
+    
+  } catch (error: any) {
+    console.error('OpenRouter API error:', error);
+    throw error;
+  }
 }
 
 export default function AIChatModal({
   isOpen,
   onClose,
-  onSendMessage,
-  awsAvailable,
-  currentModel = 'Claude 3',
-  modelIntelligence = 'Advanced',
-  estimatedCost = 'FREE',
-  hasNova = false,
-  userData
+  openRouterAvailable,
+  currentModel = FREE_MODELS[0].id,
+  estimatedCost = '0.000000',
+  usageStats = {
+    dailyRequests: 0,
+    dailyLimit: 50,
+    monthlyTokens: 0,
+    monthlyLimit: 1000000,
+    responseTime: 0
+  },
+  financialData,
+  userData,
+  formatCurrency
 }: AIChatModalProps) {
   const [darkMode, setDarkMode] = useState(true);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -71,18 +319,32 @@ export default function AIChatModal({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [textToSpeech, setTextToSpeech] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(window.innerWidth >= 768);
+  const [showSidebar, setShowSidebar] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [aiModel, setAiModel] = useState(currentModel);
-  const [aiIntelligence, setAiIntelligence] = useState(modelIntelligence);
+  const [aiModel, setAiModel] = useState<string>(currentModel);
   const [aiCost, setAiCost] = useState(estimatedCost);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [userProfile] = useState({
-    name: 'User',
-    plan: 'Premium',
-    advisorLevel: 'Personal'
-  });
+  const [responseStyle, setResponseStyle] = useState<'simple' | 'balanced' | 'professional'>('balanced');
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  
+  // OpenRouter specific states
+  const [openRouterUsage, setOpenRouterUsage] = useState(usageStats);
+  const [modelPerformance, setModelPerformance] = useState<Record<string, { avgResponseTime: number; successRate: number }>>({});
+
+  // Voice Input States
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [speechRecognition, setSpeechRecognition] = useState<any>(null);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+
+  // File Upload States
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Export States
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'txt' | 'json'>('pdf');
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // New states for enhanced features
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -90,6 +352,9 @@ export default function AIChatModal({
   const [showSessionMenu, setShowSessionMenu] = useState<string | null>(null);
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(null);
   const [speechProgress, setSpeechProgress] = useState<Record<string, number>>({});
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamedResponse, setStreamedResponse] = useState('');
+  const [showDashboardInsights, setShowDashboardInsights] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -97,8 +362,72 @@ export default function AIChatModal({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const sessionMenuRefs = useRef<Record<string, HTMLDivElement>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const modelSelectorRef = useRef<HTMLDivElement>(null);
 
-  // Handle click outside session menu
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || 
+                               (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          setIsListening(true);
+          toast.success('Listening... Speak now!');
+        };
+
+        recognition.onresult = (event: any) => {
+          const transcript = Array.from(event.results)
+            .map((result: any) => result[0])
+            .map(result => result.transcript)
+            .join('');
+          setTranscript(transcript);
+          setNewMessage(prev => prev + ' ' + transcript);
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+          toast.error('Voice input failed. Please try again.');
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        setSpeechRecognition(recognition);
+        setVoiceSupported(true);
+      } else {
+        setVoiceSupported(false);
+        console.warn('Speech Recognition not supported');
+      }
+    }
+  }, []);
+
+  // Update OpenRouter usage stats
+  useEffect(() => {
+    const fetchUsage = async () => {
+      try {
+        const response = await fetch('/api/usage');
+        const data = await response.json();
+        setOpenRouterUsage(data);
+      } catch (error) {
+        console.error('Failed to fetch usage stats');
+      }
+    };
+    
+    fetchUsage();
+    const interval = setInterval(fetchUsage, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (showSessionMenu) {
@@ -107,11 +436,17 @@ export default function AIChatModal({
           setShowSessionMenu(null);
         }
       }
+      if (showExportMenu && exportRef.current && !exportRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+      if (showModelSelector && modelSelectorRef.current && !modelSelectorRef.current.contains(event.target as Node)) {
+        setShowModelSelector(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSessionMenu]);
+  }, [showSessionMenu, showExportMenu, showModelSelector]);
 
   // Fullscreen functionality
   const toggleFullscreen = () => {
@@ -128,7 +463,6 @@ export default function AIChatModal({
     }
   };
 
-  // Handle fullscreen change events
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -151,13 +485,12 @@ export default function AIChatModal({
   // Update AI model info when props change
   useEffect(() => {
     setAiModel(currentModel);
-    setAiIntelligence(modelIntelligence);
     setAiCost(estimatedCost);
-  }, [currentModel, modelIntelligence, estimatedCost]);
+  }, [currentModel, estimatedCost]);
 
   // Initialize chat sessions
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && isOpen) {
       const saved = localStorage.getItem('monietar_chat_sessions');
       if (saved) {
         try {
@@ -172,37 +505,49 @@ export default function AIChatModal({
             }))
           }));
           setChatSessions(sessions);
-          setCurrentSessionId(sessions[0]?.id || '');
+          if (sessions.length > 0) {
+            setCurrentSessionId(sessions[0].id);
+          } else {
+            createDefaultSession();
+          }
         } catch (e) {
+          console.error('Error parsing saved sessions:', e);
           createDefaultSession();
         }
       } else {
         createDefaultSession();
       }
     }
-  }, []);
+  }, [isOpen]);
 
   const createDefaultSession = () => {
-    const defaultSession: ChatSession = {
-      id: 'default_' + Date.now(),
-      title: 'Cash Flow Analysis',
+    const currentModelInfo = [...FREE_MODELS, ...PAID_MODELS].find(m => m.id === aiModel) || FREE_MODELS[0];
+    const financialContext = generateFinancialContext(financialData, userData, formatCurrency);
+    const hasData = financialData && (financialData.transactions?.length > 0 || financialData.budgets?.length > 0);
+    
+    const newSessionId = `session_${Date.now()}`;
+    const newSession: ChatSession = {
+      id: newSessionId,
+      title: 'Financial Analysis',
       messages: [{
         id: 'welcome',
-        text: awsAvailable 
-          ? `# Welcome to Monietar AI 💰\n\nI'm your personal financial analyst, specializing in cash flow management and financial optimization.\n\n## What I can help with:\n\n• **Cash Flow Analysis** - Track inflows/outflows, calculate burn rate\n• **Budget Optimization** - Smart budgeting & expense reduction\n• **Investment Planning** - ROI calculations & portfolio advice\n• **Debt Management** - Payoff strategies & interest optimization\n• **Savings Strategy** - Goal-based savings & compound growth\n\n**💡 Pro Tip:** Start by sharing your financial data for personalized insights.`
-          : "**🔧 Setup Required**\n\nConnect to AI services to unlock financial analysis capabilities.",
+        text: openRouterAvailable 
+          ? `# 🎯 Monietar AI - Your Personal Financial Analyst\n\nI'm your financial assistant powered by **${currentModelInfo.name}** via OpenRouter.\n\n${hasData ? '## 📊 Your Financial Overview:\n' + financialContext.split('\n').slice(0, 10).join('\n') + '\n\n...' : '## 📈 Get Started:\nAdd transactions and budgets to get personalized insights!'}\n\n### 💡 What I Can Help With:\n• Analyzing your spending patterns\n• Budget optimization strategies\n• Investment recommendations\n• Debt management advice\n• Savings goal planning\n\n### ⚙️ Current Settings:\n• **Model:** ${currentModelInfo.name}\n• **Style:** ${responseStyle}\n• **Status:** Ready\n\n**Ask me anything about your finances!**`
+          : `## 🔧 Setup Required\n\n### Get Started with OpenRouter:\n1. Visit **https://openrouter.ai**\n2. Sign up for free account\n3. Get your API key\n4. Add to your environment\n\n**Current Mode:** Using built-in financial knowledge`,
         sender: 'ai',
         timestamp: new Date(),
-        model: aiModel,
-        modelIntelligence: aiIntelligence,
-        estimatedCost: aiCost
+        model: currentModelInfo.name,
+        provider: 'OpenRouter',
+        estimatedCost: '0.000000',
+        tokensUsed: 0
       }],
       createdAt: new Date(),
       lastActive: new Date(),
       category: 'general'
     };
-    setChatSessions([defaultSession]);
-    setCurrentSessionId(defaultSession.id);
+    
+    setChatSessions([newSession]);
+    setCurrentSessionId(newSessionId);
   };
 
   const currentSession = chatSessions.find(s => s.id === currentSessionId) || chatSessions[0];
@@ -225,42 +570,184 @@ export default function AIChatModal({
     }
   }, []);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     if (messagesEndRef.current && isOpen) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [currentSession?.messages, isOpen]);
+  }, [currentSession?.messages, isOpen, streamedResponse]);
 
+  // Focus input when modal opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
+  // Stop speech when modal closes
   useEffect(() => {
     if (!isOpen && isSpeaking) {
       stopSpeech();
     }
   }, [isOpen, isSpeaking]);
 
-  const createNewChat = () => {
-    if (!awsAvailable) {
-      toast.error('Please check your connection and try again.');
+  // Voice Input Functions
+  const toggleVoiceInput = () => {
+    if (!voiceSupported) {
+      toast.error('Voice input not supported in your browser');
       return;
     }
 
+    if (isListening) {
+      speechRecognition.stop();
+      setIsListening(false);
+      toast('Voice input stopped', { icon: '🎤' });
+    } else {
+      setTranscript('');
+      try {
+        speechRecognition.start();
+      } catch (error) {
+        console.error('Failed to start speech recognition:', error);
+        toast.error('Failed to start voice input');
+      }
+    }
+  };
+
+  // File Upload Functions
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const validFiles = files.filter(file => {
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/jpg', 'image/gif',
+        'application/pdf',
+        'text/plain', 'text/csv',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel'
+      ];
+
+      if (file.size > maxSize) {
+        toast.error(`${file.name} exceeds 10MB limit`);
+        return false;
+      }
+
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`${file.name} file type not supported`);
+        return false;
+      }
+
+      return true;
+    });
+
+    setUploadedFiles(prev => [...prev, ...validFiles]);
+    toast.success(`${validFiles.length} file(s) selected`);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const getFileIcon = (file: File) => {
+    if (file.type.startsWith('image/')) return <ImageIcon className="w-4 h-4" />;
+    if (file.type === 'application/pdf') return <FileText className="w-4 h-4" />;
+    return <FileText className="w-4 h-4" />;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Export Functions
+  const handlePrint = useReactToPrint({
+    contentRef: chatContainerRef,
+    documentTitle: `Monietar-Chat-${currentSession?.title || 'Export'}`,
+    onAfterPrint: () => toast.success('Exported successfully!')
+  });
+
+  const exportToTxt = () => {
+    if (!currentSession) return;
+    
+    const content = currentSession.messages.map(msg => 
+      `${msg.sender === 'user' ? 'You' : 'Monietar AI'} (${msg.timestamp.toLocaleString()}):\n${msg.text}\n\n`
+    ).join('---\n\n');
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `monietar-chat-${currentSession?.title || 'export'}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Exported as TXT!');
+  };
+
+  const exportToJson = () => {
+    if (!currentSession) return;
+    
+    const data = {
+      session: currentSession,
+      exportedAt: new Date().toISOString(),
+      version: '1.0'
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `monietar-chat-${currentSession?.title || 'export'}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Exported as JSON!');
+  };
+
+  const handleExport = () => {
+    setShowExportMenu(false);
+    
+    switch (exportFormat) {
+      case 'pdf':
+        handlePrint();
+        break;
+      case 'txt':
+        exportToTxt();
+        break;
+      case 'json':
+        exportToJson();
+        break;
+    }
+  };
+
+  const createNewChat = () => {
+    if (!openRouterAvailable) {
+      toast.error('Please configure OpenRouter API key to start chatting.');
+      return;
+    }
+
+    const currentModelInfo = [...FREE_MODELS, ...PAID_MODELS].find(m => m.id === aiModel) || FREE_MODELS[0];
     const newSessionId = `session_${Date.now()}`;
     const newSession: ChatSession = {
       id: newSessionId,
       title: 'New Analysis',
       messages: [{
         id: 'welcome_' + Date.now(),
-        text: `# New Financial Analysis Session 💼\n\nI'm ready to analyze your financial data. You can:\n\n• Share specific financial questions\n• Upload transaction data\n• Request cash flow projections\n• Get investment recommendations\n\n**Ask me anything about your finances!**`,
+        text: `# 💼 New Financial Analysis Session\n\nI'm ready to analyze your financial data using **${currentModelInfo.name}** via OpenRouter.\n\n## 📊 Your Current Data:\n${generateFinancialContext(financialData, userData, formatCurrency).split('\n').slice(0, 8).join('\n')}\n\n## 🎯 What would you like to focus on today?`,
         sender: 'ai',
         timestamp: new Date(),
-        model: aiModel,
-        modelIntelligence: aiIntelligence,
-        estimatedCost: aiCost
+        model: currentModelInfo.name,
+        provider: 'OpenRouter',
+        estimatedCost: '0.000000',
+        tokensUsed: 0
       }],
       createdAt: new Date(),
       lastActive: new Date(),
@@ -270,6 +757,7 @@ export default function AIChatModal({
     setChatSessions(prev => [newSession, ...prev]);
     setCurrentSessionId(newSessionId);
     setNewMessage('');
+    setUploadedFiles([]);
     setConnectionError(null);
     
     toast.success('New conversation created!');
@@ -280,7 +768,9 @@ export default function AIChatModal({
   const switchChatSession = (sessionId: string) => {
     setCurrentSessionId(sessionId);
     setNewMessage('');
+    setUploadedFiles([]);
     setConnectionError(null);
+    setStreamedResponse('');
     
     setChatSessions(prev => prev.map(session => 
       session.id === sessionId 
@@ -384,10 +874,11 @@ export default function AIChatModal({
   };
 
   const handleSend = async () => {
-    if (!newMessage.trim() || isLoading) return;
+    if ((!newMessage.trim() && uploadedFiles.length === 0) || isLoading) return;
     
-    if (!awsAvailable) {
-      setConnectionError('Connection issue. Please check your internet.');
+    if (!openRouterAvailable) {
+      toast.error('Please configure OpenRouter API key in settings.');
+      setConnectionError('OpenRouter API key not configured');
       return;
     }
 
@@ -395,10 +886,20 @@ export default function AIChatModal({
       id: `user_${Date.now()}`,
       text: newMessage,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      attachments: uploadedFiles.map((file, index) => ({
+        id: `file_${Date.now()}_${index}`,
+        name: file.name,
+        type: file.type.startsWith('image/') ? 'image' : 
+              file.type === 'application/pdf' ? 'pdf' :
+              file.type.includes('spreadsheet') ? 'spreadsheet' :
+              file.type === 'text/plain' ? 'text' : 'document',
+        size: formatFileSize(file.size),
+        uploadedAt: new Date()
+      }))
     };
 
-    if (currentSession?.messages.length === 1) {
+    if (currentSession?.messages.length === 1 && newMessage.trim()) {
       updateChatTitle(currentSessionId, newMessage);
     }
 
@@ -413,21 +914,34 @@ export default function AIChatModal({
     ));
 
     const currentMessage = newMessage;
+    const currentFiles = [...uploadedFiles];
+    const financialContext = generateFinancialContext(financialData, userData, formatCurrency);
+    
     setNewMessage('');
+    setUploadedFiles([]);
     setIsLoading(true);
+    setStreamedResponse('');
     setConnectionError(null);
 
     try {
-      const aiResponse = await onSendMessage(currentMessage);
+      const openRouterResponse = await queryOpenRouterAPI(
+        currentMessage, 
+        financialContext,
+        currentFiles, 
+        aiModel,
+        responseStyle
+      );
       
       const aiMessage: ChatMessage = {
         id: `ai_${Date.now()}`,
-        text: aiResponse,
+        text: openRouterResponse.response,
         sender: 'ai',
         timestamp: new Date(),
-        model: aiModel,
-        modelIntelligence: aiIntelligence,
-        estimatedCost: aiCost
+        model: openRouterResponse.model,
+        provider: openRouterResponse.provider,
+        estimatedCost: `$${openRouterResponse.costEstimate}`,
+        tokensUsed: openRouterResponse.tokensUsed,
+        reasoningTokens: openRouterResponse.reasoningTokens
       };
 
       setChatSessions(prev => prev.map(session => 
@@ -436,27 +950,48 @@ export default function AIChatModal({
           : session
       ));
       
+      // Update model performance
+      setModelPerformance(prev => ({
+        ...prev,
+        [aiModel]: {
+          avgResponseTime: openRouterResponse.responseTime,
+          successRate: 100
+        }
+      }));
+      
       toast.success('Response received!');
       
     } catch (error: any) {
-      console.error('Request failed:', error);
-      toast.error('Temporary service issue. Please try again in a moment.');
+      console.error('OpenRouter request failed:', error);
       
-      const errorMessage: ChatMessage = {
+      let errorMessage = '';
+      if (error.message?.includes('quota') || error.message?.includes('429')) {
+        errorMessage = `## ⚠️ Free Tier Limit Reached\n\n### Usage Status:\n📊 **Requests:** ${openRouterUsage.dailyRequests}/${openRouterUsage.dailyLimit} daily\n💾 **Tokens:** ${(openRouterUsage.monthlyTokens/1000).toFixed(0)}K/${(openRouterUsage.monthlyLimit/1000).toFixed(0)}K monthly\n\n### Options:\n1. **Wait** for daily reset\n2. **Upgrade** for more capacity\n3. **Use shorter messages**\n\n**💡 Tip:** Free tier resets daily at midnight UTC`;
+        toast.error('Free tier limit reached for today');
+      } else if (error.message?.includes('API key')) {
+        errorMessage = `## 🔑 OpenRouter API Key Required\n\n### Setup Steps:\n1. Visit **https://openrouter.ai**\n2. Sign up for free account\n3. Get your API key\n4. Add to environment:\n\n\`\`\`env\nOPENROUTER_API_KEY=your_key_here\n\`\`\`\n\n**Current Mode:** Using built-in financial knowledge`;
+        toast.error('OpenRouter API key not configured');
+      } else {
+        errorMessage = `## ⚠️ Service Temporary Unavailable\n\n### Details:\n**Error:** ${error.message || 'Unknown error'}\n\n### What to do:\n1. Try again in a few moments\n2. Check your internet connection\n3. Use simpler questions\n\n**⚠️ Using built-in financial guidance**`;
+        toast.error('Temporary service issue');
+      }
+      
+      const errorAiMessage: ChatMessage = {
         id: `error_${Date.now()}`,
-        text: `## Service Temporarily Unavailable ⚠️\n\nI apologize for the interruption. Please try your question again in a few moments.\n\n**Quick Tips:**\n• Check your internet connection\n• Refresh if needed\n• Your chat history is saved locally`,
+        text: errorMessage,
         sender: 'ai',
         timestamp: new Date(),
-        model: 'Monietar AI'
+        model: 'Built-in'
       };
       
       setChatSessions(prev => prev.map(session => 
         session.id === currentSessionId 
-          ? { ...session, messages: [...session.messages, errorMessage] }
+          ? { ...session, messages: [...session.messages, errorAiMessage] }
           : session
       ));
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
     }
   };
 
@@ -468,8 +1003,8 @@ export default function AIChatModal({
   };
 
   const handleSuggestedQuestion = (question: string) => {
-    if (!awsAvailable) {
-      toast.error('Please check your connection.');
+    if (!openRouterAvailable) {
+      toast.error('Please configure OpenRouter API key.');
       return;
     }
     setNewMessage(question);
@@ -490,7 +1025,6 @@ export default function AIChatModal({
 
   const readText = (text: string, messageId: string) => {
     if ('speechSynthesis' in window) {
-      // Stop any currently playing speech
       stopSpeech();
       
       const utterance = new SpeechSynthesisUtterance(text);
@@ -512,7 +1046,6 @@ export default function AIChatModal({
         toast.error('Text-to-speech failed');
       };
       
-      // Track progress
       utterance.onboundary = (event) => {
         if (event.name === 'word') {
           const progress = Math.min(100, Math.floor((event.charIndex / text.length) * 100));
@@ -564,48 +1097,38 @@ export default function AIChatModal({
     return date.toLocaleDateString();
   };
 
-  const getIntelligenceColor = (intelligence: string) => {
-    switch (intelligence) {
-      case 'Expert':
-      case 'Highest': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800';
-      case 'Advanced':
-      case 'High': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
-      case 'Professional':
-      case 'Medium': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300 border border-gray-200 dark:border-gray-800';
-    }
+  const getCurrentModelInfo = () => {
+    return [...FREE_MODELS, ...PAID_MODELS].find(m => m.id === aiModel) || FREE_MODELS[0];
   };
 
-  const getIntelligenceIcon = (intelligence: string) => {
-    switch (intelligence) {
-      case 'Expert':
-      case 'Highest': return <Zap className="w-3.5 h-3.5" />;
-      case 'Advanced':
-      case 'High': return <Brain className="w-3.5 h-3.5" />;
-      default: return <Bot className="w-3.5 h-3.5" />;
-    }
+  const getModelColor = (modelId: string) => {
+    if (modelId.includes('claude')) return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
+    if (modelId.includes('gpt')) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+    if (modelId.includes('gemini')) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+    if (modelId.includes('llama')) return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300';
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
   };
 
   const financialTopics = [
-    { icon: <Calculator className="w-4 h-4" />, text: "Cash Flow", desc: "Analyze inflows/outflows" },
-    { icon: <TrendingUp className="w-4 h-4" />, text: "Investments", desc: "ROI & portfolio advice" },
-    { icon: <Wallet className="w-4 h-4" />, text: "Budgeting", desc: "Expense optimization" },
-    { icon: <Target className="w-4 h-4" />, text: "Savings", desc: "Goal-based planning" },
-    { icon: <Shield className="w-4 h-4" />, text: "Risk Analysis", desc: "Financial protection" },
-    { icon: <PieChart className="w-4 h-4" />, text: "Portfolio", desc: "Asset allocation" },
-    { icon: <CreditCard className="w-4 h-4" />, text: "Debt", desc: "Payoff strategies" },
-    { icon: <Banknote className="w-4 h-4" />, text: "Tax", desc: "Optimization tips" },
+    { icon: <Calculator className="w-4 h-4" />, text: "Analyze spending", desc: "Review expense patterns" },
+    { icon: <TrendingUp className="w-4 h-4" />, text: "Investment advice", desc: "Grow your money" },
+    { icon: <Wallet className="w-4 h-4" />, text: "Budget optimization", desc: "Improve cash flow" },
+    { icon: <Target className="w-4 h-4" />, text: "Savings goals", desc: "Plan for the future" },
+    { icon: <Shield className="w-4 h-4" />, text: "Risk assessment", desc: "Financial protection" },
+    { icon: <PieChartIcon className="w-4 h-4" />, text: "Portfolio review", desc: "Asset allocation" },
+    { icon: <CreditCard className="w-4 h-4" />, text: "Debt strategy", desc: "Payoff planning" },
+    { icon: <Banknote className="w-4 h-4" />, text: "Tax tips", desc: "Optimize taxes" },
   ];
 
   const suggestedQuestions = [
-    "Analyze my monthly cash flow",
-    "How to reduce expenses by 20%",
-    "Best investment for ₦500,000",
-    "Create a debt payoff plan",
-    "Calculate my emergency fund needs",
-    "Should I rent or buy property?",
-    "Retirement savings strategy",
-    "Tax optimization for businesses"
+    "How can I reduce my expenses?",
+    "What's the best way to save for emergencies?",
+    "Should I pay off debt or invest first?",
+    "How can I optimize my budget?",
+    "What investments are good for beginners?",
+    "How much should I save for retirement?",
+    "How can I improve my cash flow?",
+    "What are the best ways to grow my money?"
   ];
 
   const filteredSessions = chatSessions.filter(session =>
@@ -613,7 +1136,7 @@ export default function AIChatModal({
     session.messages.some(msg => msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  // Custom markdown components for beautiful formatting
+  // Custom markdown components with clean black/white theme
   const markdownComponents = {
     h1: ({ children }: any) => (
       <h1 className="text-xl font-bold mb-3 mt-4 text-gray-900 dark:text-gray-100">
@@ -647,12 +1170,12 @@ export default function AIChatModal({
     ),
     li: ({ children }: any) => (
       <li className="flex items-start">
-        <span className="mr-2 text-emerald-500 mt-1">•</span>
+        <span className="mr-2 text-gray-800 dark:text-gray-300 mt-1">•</span>
         <span className="text-gray-700 dark:text-gray-300">{children}</span>
       </li>
     ),
     strong: ({ children }: any) => (
-      <strong className="font-semibold text-emerald-600 dark:text-emerald-400">
+      <strong className="font-semibold text-gray-900 dark:text-gray-100">
         {children}
       </strong>
     ),
@@ -667,14 +1190,14 @@ export default function AIChatModal({
       </code>
     ),
     pre: ({ children }: any) => (
-      <pre className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-x-auto mb-4">
+      <pre className="p-3 bg-gray-100 dark:bg-gray-800 rounded overflow-x-auto mb-4">
         <code className="text-sm font-mono text-gray-800 dark:text-gray-200">
           {children}
         </code>
       </pre>
     ),
     blockquote: ({ children }: any) => (
-      <blockquote className="border-l-4 border-emerald-500 pl-4 italic text-gray-600 dark:text-gray-400 my-4">
+      <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-400 my-4">
         {children}
       </blockquote>
     ),
@@ -695,534 +1218,925 @@ export default function AIChatModal({
         {children}
       </td>
     ),
+    a: ({ children, href }: any) => (
+      <a 
+        href={href} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 underline underline-offset-2"
+      >
+        {children}
+      </a>
+    ),
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-hidden" ref={modalRef}>
-      <Toaster position="top-right" />
-      
-      {/* ChatGPT-like backdrop */}
-      <div className={`absolute inset-0 ${darkMode ? 'bg-gray-900/90' : 'bg-black/50'} backdrop-blur-sm`} onClick={onClose} />
-      
-      {/* Main Modal - Full Screen */}
-      <div className={`absolute inset-0 flex ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} ${isFullscreen ? '' : 'md:inset-4 md:rounded-xl overflow-hidden'}`}>
-        {/* Left Sidebar - ChatGPT style */}
-        {showSidebar && (
-          <div className={`w-64 md:w-72 ${darkMode ? 'bg-gray-800' : 'bg-white'} border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex flex-col transition-all duration-300`}>
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-gray-700/50 dark:border-gray-200/20">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                    <Brain className="w-5 h-5 text-emerald-500" />
+    <>
+      <style jsx global>{`
+        * {
+          scroll-behavior: smooth;
+        }
+        
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        
+        .chat-container::-webkit-scrollbar {
+          width: 4px;
+        }
+        
+        .chat-container::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .chat-container::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.1);
+          border-radius: 2px;
+        }
+        
+        .chat-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .dark .chat-container::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .dark .chat-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .message-enter {
+          animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .typing-indicator {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        
+        .typing-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #6b7280;
+          animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .dark .typing-dot {
+          background: #9ca3af;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        .typing-dot:nth-child(3) { animation-delay: 0s; }
+        
+        @keyframes typing {
+          0%, 60%, 100% { transform: translateY(0); }
+          30% { transform: translateY(-6px); }
+        }
+      `}</style>
+      <div className="fixed inset-0 z-[100] overflow-hidden" ref={modalRef}>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: darkMode ? '#1f2937' : '#ffffff',
+              color: darkMode ? '#f3f4f6' : '#111827',
+              border: darkMode ? '1px solid #374151' : '1px solid #e5e7eb',
+              borderRadius: '8px',
+              fontSize: '14px',
+            },
+            duration: 3000,
+          }}
+        />
+        
+        {/* Clean backdrop */}
+        <div className={`absolute inset-0 ${darkMode ? 'bg-gray-900/95' : 'bg-black/60'}`} onClick={onClose} />
+        
+        {/* Main Modal - Clean Black/White Design */}
+        <div className={`absolute inset-0 flex ${darkMode ? 'bg-gray-900' : 'bg-white'} ${isFullscreen ? '' : 'md:inset-4 md:rounded-lg overflow-hidden'}`}>
+          {/* Left Sidebar - Clean Design */}
+          {showSidebar && (
+            <div className={`w-64 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex flex-col`}>
+              {/* Sidebar Header */}
+              <div className="p-4 border-b border-gray-700/50 dark:border-gray-200/20">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded`}>
+                      <Brain className="w-5 h-5 text-gray-800 dark:text-gray-200" />
+                    </div>
+                    <div>
+                      <h1 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Monietar AI</h1>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Financial Assistant</p>
+                    </div>
                   </div>
-                  <div>
-                    <h1 className="font-semibold text-sm">Monietar AI</h1>
-                    <p className="text-xs text-gray-500">Financial Analyst</p>
+                  <button
+                    onClick={() => setShowSidebar(false)}
+                    className="p-1.5 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded md:hidden"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  </button>
+                </div>
+                
+                {/* New Chat Button */}
+                <button 
+                  onClick={createNewChat}
+                  disabled={!openRouterAvailable}
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded text-sm font-medium ${
+                    openRouterAvailable 
+                      ? `${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} text-gray-900 dark:text-gray-100`
+                      : 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-400'
+                  }`}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Chat</span>
+                </button>
+                
+                {/* Search */}
+                <div className="mt-3 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search chats..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={`w-full pl-9 pr-3 py-2 rounded text-sm ${
+                      darkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                    } border focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-gray-500`}
+                  />
+                </div>
+
+                {/* Export Button */}
+                <div className="mt-3 relative" ref={exportRef}>
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded text-sm font-medium ${
+                      darkMode 
+                        ? 'bg-gray-700 hover:bg-gray-600' 
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    } text-gray-900 dark:text-gray-100`}
+                  >
+                    <DownloadIcon className="w-4 h-4" />
+                    <span>Export Chat</span>
+                  </button>
+
+                  {showExportMenu && (
+                    <div className={`absolute left-0 right-0 top-12 z-20 rounded shadow-lg border ${
+                      darkMode 
+                        ? 'bg-gray-800 border-gray-700' 
+                        : 'bg-white border-gray-200'
+                    }`}>
+                      <div className="p-2">
+                        <div className="text-xs font-medium px-2 py-1 text-gray-500 mb-1">Export Format</div>
+                        {(['pdf', 'txt', 'json'] as const).map((format) => (
+                          <button
+                            key={format}
+                            onClick={() => setExportFormat(format)}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded text-sm mb-1 ${
+                              exportFormat === format
+                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                                : darkMode
+                                  ? 'hover:bg-gray-700 text-gray-300'
+                                  : 'hover:bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              {format === 'pdf' && <FileText className="w-4 h-4" />}
+                              {format === 'txt' && <FileText className="w-4 h-4" />}
+                              {format === 'json' && <FileText className="w-4 h-4" />}
+                              {format.toUpperCase()}
+                            </span>
+                            {exportFormat === format && <Check className="w-4 h-4" />}
+                          </button>
+                        ))}
+                        <button
+                          onClick={handleExport}
+                          className="w-full mt-2 px-3 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white rounded text-sm font-medium"
+                        >
+                          Export Now
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Chat History */}
+              <div className="flex-1 overflow-y-auto no-scrollbar p-2">
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-2 py-2 mb-2">Recent</div>
+                <div className="space-y-1">
+                  {filteredSessions.slice(0, 8).map((session) => (
+                    <div key={session.id} className="relative message-enter">
+                      {editingSessionId === session.id ? (
+                        <div className="p-2 rounded bg-gray-700/30 dark:bg-gray-200/20">
+                          <input
+                            type="text"
+                            value={sessionEditTitle}
+                            onChange={(e) => setSessionEditTitle(e.target.value)}
+                            className={`w-full px-2 py-1.5 rounded text-sm ${
+                              darkMode 
+                                ? 'bg-gray-600 text-white' 
+                                : 'bg-gray-200 text-gray-900'
+                            } border ${darkMode ? 'border-gray-500' : 'border-gray-300'} focus:outline-none focus:ring-1 focus:ring-gray-500`}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveRenameSession(session.id);
+                              if (e.key === 'Escape') cancelRenameSession();
+                            }}
+                            autoFocus
+                          />
+                          <div className="flex gap-1 mt-2">
+                            <button
+                              onClick={() => saveRenameSession(session.id)}
+                              className="flex-1 px-2 py-1 text-xs bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white rounded"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelRenameSession}
+                              className="flex-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => switchChatSession(session.id)}
+                          className={`w-full flex items-center justify-between p-2 rounded ${
+                            currentSessionId === session.id 
+                              ? `${darkMode ? 'bg-gray-700' : 'bg-gray-100'} text-gray-900 dark:text-gray-100`
+                              : `${darkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-100'} text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100`
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <MessageSquare className="w-3.5 h-3.5 flex-shrink-0" />
+                            <div className="text-left truncate">
+                              <div className="text-sm truncate">{session.title}</div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {formatDate(session.lastActive)}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => toggleSessionMenu(session.id, e)}
+                            className="p-1 hover:bg-gray-700/30 dark:hover:bg-gray-200/20 rounded"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </button>
+                        </button>
+                      )}
+
+                      {/* Session Menu */}
+                      {showSessionMenu === session.id && (
+                        <div
+                          ref={el => {
+                            if (el) sessionMenuRefs.current[session.id] = el;
+                          }}
+                          className={`absolute right-2 top-10 z-20 w-48 rounded shadow-lg border ${
+                            darkMode 
+                              ? 'bg-gray-800 border-gray-700' 
+                              : 'bg-white border-gray-200'
+                          }`}
+                        >
+                          <div className="p-1">
+                            <button
+                              onClick={() => startRenameSession(session.id)}
+                              className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
+                                darkMode 
+                                  ? 'hover:bg-gray-700 text-gray-300' 
+                                  : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              <Edit3 className="w-4 h-4" />
+                              Rename
+                            </button>
+                            <button
+                              onClick={() => duplicateSession(session.id)}
+                              className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
+                                darkMode 
+                                  ? 'hover:bg-gray-700 text-gray-300' 
+                                  : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              <Copy className="w-4 h-4" />
+                              Duplicate
+                            </button>
+                            <div className="h-px my-1 bg-gray-700/30 dark:bg-gray-200/20" />
+                            <button
+                              onClick={() => deleteChatSession(session.id)}
+                              className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
+                                darkMode 
+                                  ? 'hover:bg-red-500/20 text-red-400' 
+                                  : 'hover:bg-red-50 text-red-600'
+                              }`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sidebar Footer */}
+              <div className={`p-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${openRouterAvailable ? 'bg-gray-900 dark:bg-gray-100' : 'bg-red-600'}`} />
+                    <span className="text-xs text-gray-600 dark:text-gray-400">{openRouterAvailable ? 'Connected' : 'Offline'}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setDarkMode(!darkMode)}
+                      className="p-1.5 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded"
+                    >
+                      {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={toggleFullscreen}
+                      className="p-1.5 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded"
+                    >
+                      {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowSidebar(false)}
-                  className="p-1.5 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded-md transition md:hidden"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
+                {!openRouterAvailable && (
+                  <div className="text-xs text-red-600 dark:text-red-400 mt-2 p-1.5 rounded bg-red-50 dark:bg-red-900/20">
+                    <Key className="w-3 h-3 inline mr-1" />
+                    Add OPENROUTER_API_KEY
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Main Chat Area - Clean Design */}
+          <div className={`flex-1 flex flex-col ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
+            {/* Chat Header */}
+            <div className={`px-4 md:px-6 h-16 flex items-center justify-between border-b ${
+              darkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className="flex items-center gap-4">
+                {!showSidebar && (
+                  <button
+                    onClick={() => setShowSidebar(true)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                  >
+                    <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </button>
+                )}
+                
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                    <Brain className="w-5 h-5 text-gray-800 dark:text-gray-200" />
+                  </div>
+                  <div>
+                    <h1 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{currentSession?.title || 'Financial Analysis'}</h1>
+                    <div className="flex items-center gap-2">
+                      {/* Model Selector */}
+                      <div className="relative" ref={modelSelectorRef}>
+                        <button
+                          onClick={() => setShowModelSelector(!showModelSelector)}
+                          className={`text-xs px-2.5 py-1 rounded flex items-center gap-1.5 ${getModelColor(aiModel)}`}
+                        >
+                          {getCurrentModelInfo().icon}
+                          <span className="font-medium">{getCurrentModelInfo().name}</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                        
+                        {showModelSelector && (
+                          <div className={`absolute top-10 left-0 z-20 w-64 rounded shadow-lg border ${
+                            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                          }`}>
+                            <div className="p-2">
+                              <div className="text-xs font-medium text-gray-500 mb-2 px-2">Free Models</div>
+                              <div className="space-y-1 mb-2">
+                                {FREE_MODELS.map((model) => (
+                                  <button
+                                    key={model.id}
+                                    onClick={() => {
+                                      setAiModel(model.id);
+                                      setShowModelSelector(false);
+                                      toast.success(`Switched to ${model.name}`);
+                                    }}
+                                    className={`w-full flex items-center justify-between p-2 rounded text-sm ${
+                                      aiModel === model.id
+                                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                                        : darkMode
+                                          ? 'hover:bg-gray-700 text-gray-300'
+                                          : 'hover:bg-gray-100 text-gray-700'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {model.icon}
+                                      <div className="text-left">
+                                        <div className="font-medium">{model.name}</div>
+                                        <div className="text-xs text-gray-500">{model.description}</div>
+                                      </div>
+                                    </div>
+                                    <div className={`w-2 h-2 rounded-full ${aiModel === model.id ? 'bg-gray-900 dark:bg-gray-100' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Response Style */}
+                      <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded p-0.5">
+                        {(['simple', 'balanced', 'professional'] as const).map((style) => (
+                          <button
+                            key={style}
+                            onClick={() => setResponseStyle(style)}
+                            className={`text-xs px-2 py-0.5 rounded ${
+                              responseStyle === style
+                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                                : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-100'
+                            }`}
+                          >
+                            {style.charAt(0).toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               
-              {/* New Chat Button */}
-              <button 
-                onClick={createNewChat}
-                disabled={!awsAvailable}
-                className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
-                  awsAvailable 
-                    ? `${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} border ${darkMode ? 'border-gray-600' : 'border-gray-300'}`
-                    : 'bg-gray-300 cursor-not-allowed'
-                } transition`}
-              >
-                <Plus className="w-4 h-4" />
-                <span className="font-medium">New chat</span>
-              </button>
-              
-              {/* Search */}
-              <div className="mt-3 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search chats..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full pl-9 pr-3 py-2 rounded-lg text-sm ${
-                    darkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-500'
-                  } border focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500`}
-                />
+              <div className="flex items-center gap-1">
+                {/* Voice Input Button */}
+                <button
+                  onClick={toggleVoiceInput}
+                  className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded ${
+                    isListening
+                      ? 'text-red-600 animate-pulse'
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}
+                  title={voiceSupported ? "Voice input" : "Voice input not supported"}
+                  disabled={!voiceSupported}
+                >
+                  {isListening ? (
+                    <MicOff className="w-4 h-4" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </button>
+
+                <button
+                  onClick={toggleTextToSpeech}
+                  className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded ${
+                    textToSpeech 
+                      ? 'text-gray-900 dark:text-gray-100' 
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}
+                  title="Text-to-speech"
+                >
+                  {textToSpeech ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                >
+                  <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </button>
               </div>
             </div>
 
-            {/* Chat History */}
-            <div className="flex-1 overflow-y-auto p-2">
-              <div className="space-y-1">
-                {filteredSessions.slice(0, 8).map((session) => (
-                  <div key={session.id} className="relative">
-                    {editingSessionId === session.id ? (
-                      <div className="p-2 rounded-lg bg-gray-700/30 dark:bg-gray-200/20">
-                        <input
-                          type="text"
-                          value={sessionEditTitle}
-                          onChange={(e) => setSessionEditTitle(e.target.value)}
-                          className={`w-full px-2 py-1.5 rounded text-sm ${
-                            darkMode 
-                              ? 'bg-gray-600 text-white' 
-                              : 'bg-gray-200 text-gray-900'
-                          } border ${darkMode ? 'border-gray-500' : 'border-gray-300'} focus:outline-none focus:ring-1 focus:ring-emerald-500`}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveRenameSession(session.id);
-                            if (e.key === 'Escape') cancelRenameSession();
-                          }}
-                          autoFocus
-                        />
-                        <div className="flex gap-1 mt-2">
+            {/* Dashboard Insights Panel */}
+            {showDashboardInsights && financialData && (
+              <div className={`border-b ${darkMode ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Your Financial Snapshot</h3>
+                    <button
+                      onClick={() => setShowDashboardInsights(false)}
+                      className="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className={`p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Income</div>
+                      <div className="font-semibold text-gray-900 dark:text-gray-100">
+                        {formatCurrency ? formatCurrency(financialData.income) : `$${financialData.income}`}
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Expenses</div>
+                      <div className="font-semibold text-gray-900 dark:text-gray-100">
+                        {formatCurrency ? formatCurrency(financialData.expenses) : `$${financialData.expenses}`}
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Profit</div>
+                      <div className={`font-semibold ${financialData.profit >= 0 ? 'text-gray-900 dark:text-gray-100' : 'text-red-600'}`}>
+                        {formatCurrency ? formatCurrency(financialData.profit) : `$${financialData.profit}`}
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Transactions</div>
+                      <div className="font-semibold text-gray-900 dark:text-gray-100">
+                        {financialData.transactions?.length || 0}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Messages Container */}
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto chat-container">
+              <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
+                {connectionError && (
+                  <div className={`p-4 rounded ${
+                    darkMode
+                      ? 'bg-red-900/20 border border-red-800/30'
+                      : 'bg-red-50 border border-red-200'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-red-600 dark:text-red-400">Connection Error</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{connectionError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Voice Input Indicator */}
+                {isListening && (
+                  <div className={`p-4 rounded ${
+                    darkMode
+                      ? 'bg-blue-900/20 border border-blue-800/30'
+                      : 'bg-blue-50 border border-blue-200'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Mic className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-pulse" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-blue-600 dark:text-blue-400">Listening...</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          {transcript || "Speak now..."}
+                        </p>
+                      </div>
+                      <button
+                        onClick={toggleVoiceInput}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                      >
+                        Stop
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Messages */}
+                {currentSession?.messages.map((message, index) => (
+                  <div 
+                    key={message.id} 
+                    className={`flex gap-3 message-enter ${message.sender === 'user' ? 'justify-end' : ''}`}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    {message.sender === 'ai' && (
+                      <div className={`w-8 h-8 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
+                        <Brain className="w-4 h-4 text-gray-800 dark:text-gray-200" />
+                      </div>
+                    )}
+                    
+                    <div className={`flex-1 ${message.sender === 'user' ? 'flex flex-col items-end' : ''}`}>
+                      <div className={`flex items-center justify-between mb-1 px-1 ${message.sender === 'user' ? 'text-gray-700 dark:text-gray-300' : 'text-gray-600 dark:text-gray-400'}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {message.sender === 'ai' ? 'Monietar AI' : 'You'}
+                          </span>
+                          {message.model && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${getModelColor(message.model || '')}`}>
+                              {message.model.split('/')[0]}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">{formatTime(message.timestamp)}</span>
                           <button
-                            onClick={() => saveRenameSession(session.id)}
-                            className="flex-1 px-2 py-1 text-xs bg-emerald-500 hover:bg-emerald-600 text-white rounded transition"
+                            onClick={() => copyMessage(message.text, message.id)}
+                            className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
                           >
-                            Save
-                          </button>
-                          <button
-                            onClick={cancelRenameSession}
-                            className="flex-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded transition"
-                          >
-                            Cancel
+                            {copiedMessageId === message.id ? (
+                              <Check className="w-3 h-3 text-gray-900 dark:text-gray-100" />
+                            ) : (
+                              <Copy className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                            )}
                           </button>
                         </div>
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => switchChatSession(session.id)}
-                        className={`w-full flex items-center justify-between p-3 rounded-lg transition ${
-                          currentSessionId === session.id 
-                            ? `${darkMode ? 'bg-gray-700' : 'bg-gray-100'} ${darkMode ? 'text-white' : 'text-gray-900'}`
-                            : `${darkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-100'} ${darkMode ? 'text-gray-300' : 'text-gray-600'}`
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 truncate">
-                          <MessageSquare className="w-4 h-4 flex-shrink-0" />
-                          <div className="text-left truncate">
-                            <div className="text-sm font-medium truncate">{session.title}</div>
-                            <div className="text-xs truncate">
-                              {formatDate(session.lastActive)}
-                            </div>
+                      
+                      <div className={`rounded-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} ${message.sender === 'user' ? 'bg-gray-900 text-gray-100 dark:bg-gray-700' : ''}`}>
+                        <ReactMarkdown components={markdownComponents}>
+                          {message.text}
+                        </ReactMarkdown>
+                        
+                        {/* Message Actions */}
+                        <div className={`flex items-center justify-between mt-3 pt-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                          <div className="flex items-center gap-2">
+                            {message.sender === 'ai' && (
+                              <>
+                                <button
+                                  onClick={() => togglePlayPause(message.text, message.id)}
+                                  className={`p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded ${
+                                    currentlyPlayingId === message.id
+                                      ? 'text-gray-900 dark:text-gray-100'
+                                      : 'text-gray-500 dark:text-gray-400'
+                                  }`}
+                                >
+                                  {currentlyPlayingId === message.id ? (
+                                    <Pause className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Play className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                                {speechProgress[message.id] !== undefined && (
+                                  <div className="w-16 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-gray-900 dark:bg-gray-100 transition-all duration-300"
+                                      style={{ width: `${speechProgress[message.id]}%` }}
+                                    />
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            {message.tokensUsed && message.tokensUsed > 0 && (
+                              <span>Tokens: {message.tokensUsed}</span>
+                            )}
+                            {message.estimatedCost && message.estimatedCost !== '$0.000000' && (
+                              <span>Cost: {message.estimatedCost}</span>
+                            )}
                           </div>
                         </div>
-                        <button
-                          onClick={(e) => toggleSessionMenu(session.id, e)}
-                          className="p-1 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded transition"
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                      </button>
-                    )}
-
-                    {/* Session Menu */}
-                    {showSessionMenu === session.id && (
-                      <div
-                        ref={el => {
-                          if (el) sessionMenuRefs.current[session.id] = el;
-                        }}
-                        className={`absolute right-2 top-10 z-20 w-48 rounded-lg shadow-lg border ${
-                          darkMode 
-                            ? 'bg-gray-800 border-gray-700' 
-                            : 'bg-white border-gray-200'
-                        }`}
-                      >
-                        <div className="p-1">
-                          <button
-                            onClick={() => startRenameSession(session.id)}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
-                              darkMode 
-                                ? 'hover:bg-gray-700 text-gray-300' 
-                                : 'hover:bg-gray-100 text-gray-700'
-                            } transition`}
-                          >
-                            <Edit3 className="w-4 h-4" />
-                            Rename
-                          </button>
-                          <button
-                            onClick={() => duplicateSession(session.id)}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
-                              darkMode 
-                                ? 'hover:bg-gray-700 text-gray-300' 
-                                : 'hover:bg-gray-100 text-gray-700'
-                            } transition`}
-                          >
-                            <Copy className="w-4 h-4" />
-                            Duplicate
-                          </button>
-                          <div className="h-px my-1 bg-gray-700/50 dark:bg-gray-200/20" />
-                          <button
-                            onClick={() => deleteChatSession(session.id)}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
-                              darkMode 
-                                ? 'hover:bg-red-500/20 text-red-400' 
-                                : 'hover:bg-red-50 text-red-600'
-                            } transition`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
-                          </button>
-                        </div>
+                      </div>
+                    </div>
+                    
+                    {message.sender === 'user' && (
+                      <div className={`w-8 h-8 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
+                        <User className="w-4 h-4 text-gray-800 dark:text-gray-200" />
                       </div>
                     )}
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Sidebar Footer */}
-            <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${awsAvailable ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                  <span className="text-xs">{awsAvailable ? 'Connected' : 'Offline'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setDarkMode(!darkMode)}
-                    className="p-1.5 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded transition"
-                  >
-                    {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={toggleFullscreen}
-                    className="p-1.5 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded transition"
-                  >
-                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Main Chat Area - ChatGPT Style */}
-        <div className={`flex-1 flex flex-col ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} transition-all duration-300`}>
-          {/* Chat Header */}
-          <div className={`sticky top-0 z-10 px-4 md:px-6 h-16 flex items-center justify-between border-b ${
-            darkMode ? 'border-gray-700 bg-gray-900/95' : 'border-gray-200 bg-gray-50/95'
-          } backdrop-blur-sm`}>
-            <div className="flex items-center gap-4">
-              {!showSidebar && (
-                <button
-                  onClick={() => setShowSidebar(true)}
-                  className="p-2 hover:bg-gray-800/50 dark:hover:bg-gray-200/20 rounded-lg transition"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              )}
-              
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                  <Brain className="w-5 h-5 text-emerald-500" />
-                </div>
-                <div>
-                  <h1 className="font-semibold text-sm">{currentSession?.title || 'Financial Analysis'}</h1>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${getIntelligenceColor(aiIntelligence)}`}>
-                      <span className="flex items-center gap-1">
-                        {getIntelligenceIcon(aiIntelligence)}
-                        {aiModel}
-                      </span>
-                    </span>
-                    {awsAvailable && (
-                      <span className="text-xs text-gray-500">• Online</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleTextToSpeech}
-                className={`p-2 rounded-lg transition ${
-                  textToSpeech 
-                    ? 'bg-emerald-500/20 text-emerald-400' 
-                    : `${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'}`
-                }`}
-                title="Text-to-speech"
-              >
-                {textToSpeech ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200/20 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Messages Container */}
-          <div ref={chatContainerRef} className="flex-1 overflow-y-auto scrollbar-thin">
-            <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
-              {connectionError && (
-                <div className={`p-4 rounded-lg ${
-                  darkMode ? 'bg-red-900/20 border border-red-800/30' : 'bg-red-50 border border-red-200'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-red-400">Connection Error</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{connectionError}</p>
+                
+                {/* Loading Indicator */}
+                {isLoading && (
+                  <div className="flex gap-3 message-enter">
+                    <div className={`w-8 h-8 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
+                      <Brain className="w-4 h-4 text-gray-800 dark:text-gray-200" />
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Messages */}
-              {currentSession?.messages.map((message, index) => (
-                <div key={message.id} className={`flex gap-4 ${message.sender === 'user' ? 'justify-end' : ''}`}>
-                  {message.sender === 'ai' && (
-                    <div className={`w-8 h-8 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
-                      <Brain className="w-4 h-4 text-emerald-500" />
-                    </div>
-                  )}
-                  
-                  <div className={`flex-1 ${message.sender === 'user' ? 'max-w-[80%]' : ''}`}>
-                    <div className={`rounded-2xl p-4 ${
-                      message.sender === 'user'
-                        ? `${darkMode ? 'bg-emerald-600' : 'bg-emerald-500'} text-white rounded-tr-none`
-                        : `${darkMode ? 'bg-gray-800' : 'bg-white'} ${darkMode ? 'text-gray-200' : 'text-gray-800'} border ${darkMode ? 'border-gray-700' : 'border-gray-200'} rounded-tl-none`
-                    }`}>
-                      <div className={`flex items-center justify-between mb-2 ${message.sender === 'user' ? 'text-emerald-100' : 'text-gray-500'}`}>
-                        <span className="text-sm font-medium">
-                          {message.sender === 'ai' ? 'Monietar AI' : 'You'}
-                        </span>
-                        <span className="text-xs">{formatTime(message.timestamp)}</span>
-                      </div>
-                      
-                      {/* Beautiful Markdown Content */}
-                      <div className={`prose max-w-none ${darkMode ? 'prose-invert' : ''} prose-sm`}>
-                        <ReactMarkdown components={markdownComponents}>
-                          {message.text}
-                        </ReactMarkdown>
-                      </div>
-                      
-                      {/* Message Actions */}
-                      {message.sender === 'ai' && (
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700/30 dark:border-gray-200/20">
-                          <div className="flex items-center gap-2">
-                            {/* Play/Pause Button */}
-                            <button
-                              onClick={() => togglePlayPause(message.text, message.id)}
-                              className={`p-1.5 rounded transition ${
-                                currentlyPlayingId === message.id
-                                  ? 'bg-emerald-500 text-white'
-                                  : darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'
-                              }`}
-                              title={currentlyPlayingId === message.id ? 'Stop reading' : 'Read aloud'}
-                            >
-                              {currentlyPlayingId === message.id ? (
-                                <Pause className="w-3.5 h-3.5" />
-                              ) : (
-                                <Play className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-
-                            {/* Copy Button */}
-                            <button
-                              onClick={() => copyMessage(message.text, message.id)}
-                              className={`p-1.5 rounded transition ${
-                                copiedMessageId === message.id
-                                  ? 'bg-emerald-500 text-white'
-                                  : darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'
-                              }`}
-                              title="Copy to clipboard"
-                            >
-                              {copiedMessageId === message.id ? (
-                                <Check className="w-3.5 h-3.5" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-
-                            {/* Speech Progress Bar (only when playing) */}
-                            {currentlyPlayingId === message.id && speechProgress[message.id] !== undefined && (
-                              <div className="w-32 h-1.5 bg-gray-700/30 dark:bg-gray-200/20 rounded-full overflow-hidden">
-                                <div 
-                                  className="h-full bg-emerald-500 transition-all duration-300"
-                                  style={{ width: `${speechProgress[message.id]}%` }}
-                                />
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="text-xs text-gray-500 flex items-center gap-2">
-                            {message.model && (
-                              <span className="px-2 py-0.5 bg-gray-700/30 dark:bg-gray-200/20 rounded">
-                                {message.model}
-                              </span>
-                            )}
-                            {message.estimatedCost}
+                    <div className="flex-1">
+                      <div className={`rounded-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Monietar AI</span>
+                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="typing-indicator">
+                              <div className="typing-dot"></div>
+                              <div className="typing-dot"></div>
+                              <div className="typing-dot"></div>
+                            </div>
+                            <span>Thinking...</span>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {message.sender === 'user' && (
-                    <div className={`w-8 h-8 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
-                      <User className="w-4 h-4" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              
-              {/* Loading Indicator */}
-              {isLoading && (
-                <div className="flex gap-4">
-                  <div className={`w-8 h-8 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
-                    <Brain className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div className="flex-1">
-                    <div className={`rounded-2xl p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${darkMode ? 'border-gray-700' : 'border-gray-200'} rounded-tl-none`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-500">Monietar AI</span>
-                        <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
-                      </div>
-                      <div className="space-y-2 mt-3">
-                        <div className={`h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '80%' }} />
-                        <div className={`h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '60%' }} />
-                        <div className={`h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '70%' }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Welcome Screen */}
-              {currentSession?.messages.length === 1 && !connectionError && (
-                <div className="text-center py-12 px-4">
-                  <div className="inline-flex items-center justify-center p-3 rounded-full bg-gradient-to-br from-emerald-500/10 to-blue-500/10 mb-6">
-                    <Brain className="w-12 h-12 text-emerald-500" />
-                  </div>
-                  <h1 className="text-2xl font-bold mb-3 text-gray-900 dark:text-gray-100">
-                    Monietar Financial AI
-                  </h1>
-                  <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
-                    Your personal financial analyst for cash flow management, investment planning, and wealth optimization.
-                  </p>
-                  
-                  {/* Quick Actions */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto mb-8">
-                    {financialTopics.map((topic, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSuggestedQuestion(topic.text)}
-                        className={`group p-3 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} border ${darkMode ? 'border-gray-700 group-hover:border-emerald-500/50' : 'border-gray-200 group-hover:border-emerald-300'} transition-all`}
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <div className={`p-2 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} group-hover:bg-emerald-500/10 transition`}>
-                            {topic.icon}
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium">{topic.text}</div>
-                            <div className="text-xs text-gray-500">{topic.desc}</div>
-                          </div>
+                        <div className="space-y-1.5">
+                          <div className={`h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '85%' }} />
+                          <div className={`h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '70%' }} />
+                          <div className={`h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '60%' }} />
                         </div>
-                      </button>
-                    ))}
+                      </div>
+                    </div>
                   </div>
-                  
-                  {/* Suggested Questions */}
-                  <div className="max-w-2xl mx-auto">
-                    <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-4">
-                      Try asking...
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {suggestedQuestions.map((question, index) => (
+                )}
+                
+                {/* Welcome Screen */}
+                {currentSession?.messages.length === 1 && !connectionError && (
+                  <div className="text-center py-8 px-4">
+                    <div className="inline-flex items-center justify-center p-3 rounded-lg bg-gray-100 dark:bg-gray-800 mb-6">
+                      <Brain className="w-12 h-12 text-gray-800 dark:text-gray-200" />
+                    </div>
+                    <h1 className="text-2xl font-bold mb-3 text-gray-900 dark:text-gray-100">
+                      Monietar Financial AI
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                      Your personal financial analyst powered by AI
+                    </p>
+                    
+                    {/* Quick Actions */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto mb-6">
+                      {financialTopics.map((topic, index) => (
                         <button
                           key={index}
-                          onClick={() => handleSuggestedQuestion(question)}
-                          className={`text-left p-3 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'} border ${darkMode ? 'border-gray-700' : 'border-gray-200'} transition text-sm`}
+                          onClick={() => handleSuggestedQuestion(topic.text)}
+                          className={`group p-3 rounded-lg text-left ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'} transition`}
                         >
-                          {question}
+                          <div className="flex flex-col items-start gap-2">
+                            <div className={`p-2 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                              {topic.icon}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{topic.text}</div>
+                              <div className="text-xs text-gray-500">{topic.desc}</div>
+                            </div>
+                          </div>
                         </button>
                       ))}
                     </div>
-                  </div>
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} className="h-px" />
-            </div>
-          </div>
-
-          {/* Input Area - ChatGPT Style */}
-          <div className={`sticky bottom-0 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-            <div className="max-w-3xl mx-auto p-4 md:p-6">
-              <div className={`rounded-xl border ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-white'} shadow-lg`}>
-                <textarea
-                  ref={inputRef}
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder={awsAvailable ? "Message Monietar AI..." : "Connecting to AI services..."}
-                  className={`w-full px-4 py-3 bg-transparent outline-none resize-none ${darkMode ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'} min-h-[60px] max-h-[200px]`}
-                  rows={1}
-                  disabled={isLoading || !awsAvailable}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement;
-                    target.style.height = 'auto';
-                    target.style.height = Math.min(target.scrollHeight, 200) + 'px';
-                  }}
-                />
-                
-                <div className="flex items-center justify-between px-4 py-2 border-t border-gray-700/50 dark:border-gray-200/20">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={toggleTextToSpeech}
-                      className={`p-1.5 rounded ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition`}
-                      title="Text-to-speech"
-                    >
-                      {textToSpeech ? (
-                        <Volume2 className="w-4 h-4 text-emerald-500" />
-                      ) : (
-                        <VolumeX className="w-4 h-4 text-gray-400" />
-                      )}
-                    </button>
-                    <div className="text-xs text-gray-500">
-                      {awsAvailable ? 'Press Enter to send' : 'Disconnected'}
+                    
+                    {/* Suggested Questions */}
+                    <div className="max-w-2xl mx-auto">
+                      <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-4">
+                        Try asking...
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {suggestedQuestions.map((question, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleSuggestedQuestion(question)}
+                            className={`text-left p-3 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'} transition text-sm text-gray-900 dark:text-gray-100`}
+                          >
+                            {question}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  
-                  <button
-                    onClick={handleSend}
-                    disabled={!newMessage.trim() || isLoading || !awsAvailable}
-                    className={`p-2 rounded-lg transition ${newMessage.trim() && !isLoading && awsAvailable
-                      ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 cursor-not-allowed'
-                    }`}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <ArrowUp className="w-4 h-4" />
-                    )}
-                  </button>
+                )}
+                
+                <div ref={messagesEndRef} className="h-px" />
+              </div>
+            </div>
+
+            {/* File Upload Preview */}
+            {uploadedFiles.length > 0 && (
+              <div className={`px-4 md:px-6 py-3 border-t ${darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                <div className="max-w-3xl mx-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      Files to upload ({uploadedFiles.length})
+                    </div>
+                    <button
+                      onClick={() => setUploadedFiles([])}
+                      className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {uploadedFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-center gap-2 px-3 py-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}
+                      >
+                        {getFileIcon(file)}
+                        <div className="text-sm">
+                          <div className="font-medium truncate max-w-[150px] text-gray-900 dark:text-gray-100">
+                            {file.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {formatFileSize(file.size)}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="ml-2 p-1 hover:bg-gray-700/30 rounded"
+                        >
+                          <X className="w-3 h-3 text-gray-500" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              
-              <div className="text-xs text-center text-gray-500 mt-3">
-                Monietar AI can make mistakes. Consider verifying important financial information.
+            )}
+
+            {/* Input Area */}
+            <div className={`border-t ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+              <div className="max-w-3xl mx-auto p-4 md:p-6">
+                <div className={`rounded-lg border ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-50'}`}>
+                  <div className="flex items-start gap-2 px-4 py-3">
+                    {/* File Upload Button */}
+                    <div className="relative">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded`}
+                        title="Upload files"
+                      >
+                        <Paperclip className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        multiple
+                        accept=".jpg,.jpeg,.png,.gif,.pdf,.txt,.csv,.xlsx,.xls"
+                      />
+                    </div>
+
+                    {/* Text Area */}
+                    <textarea
+                      ref={inputRef}
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      placeholder={openRouterAvailable ? "Ask about your finances..." : "Configure OpenRouter API key to start..."}
+                      className={`flex-1 px-2 py-2 bg-transparent outline-none resize-none ${
+                        darkMode ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'
+                      } min-h-[60px] max-h-[200px]`}
+                      rows={1}
+                      disabled={isLoading || !openRouterAvailable}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = Math.min(target.scrollHeight, 200) + 'px';
+                      }}
+                    />
+                    
+                    {/* Send Button */}
+                    <button
+                      onClick={handleSend}
+                      disabled={(!newMessage.trim() && uploadedFiles.length === 0) || isLoading || !openRouterAvailable}
+                      className={`p-2 rounded ${
+                        (newMessage.trim() || uploadedFiles.length > 0) && !isLoading && openRouterAvailable
+                          ? 'bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white'
+                          : 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                      }`}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  
+                  <div className={`flex items-center justify-between px-4 py-2 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={toggleTextToSpeech}
+                        className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded ${
+                          textToSpeech 
+                            ? 'text-gray-900 dark:text-gray-100' 
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                        title="Text-to-speech"
+                      >
+                        {textToSpeech ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                      </button>
+                      <div className="text-xs text-gray-500">
+                        {openRouterAvailable 
+                          ? `${getCurrentModelInfo().name} • ${responseStyle} style • Enter to send`
+                          : 'OpenRouter not configured'}
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-gray-500">
+                      {openRouterUsage.dailyRequests}/{openRouterUsage.dailyLimit} requests today
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-xs text-center text-gray-500 mt-3">
+                  Powered by OpenRouter • Secured
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

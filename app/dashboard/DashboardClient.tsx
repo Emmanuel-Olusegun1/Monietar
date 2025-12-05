@@ -73,10 +73,10 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // AI Chat States
-  const [aiStatus, setAiStatus] = useState<'aws' | 'standard' | 'checking'>('checking');
+  // AI Chat States - UPDATED FOR OPENROUTER
+  const [aiStatus, setAiStatus] = useState<'openrouter' | 'standard' | 'checking'>('checking');
   const [tokens, setTokens] = useState(100);
-  const [awsAvailable, setAwsAvailable] = useState(false);
+  const [openRouterAvailable, setOpenRouterAvailable] = useState(false); // Changed from awsAvailable
   const [currentModel, setCurrentModel] = useState<string>('Checking...');
   const [modelIntelligence, setModelIntelligence] = useState<string>('Medium');
   const [estimatedCost, setEstimatedCost] = useState<string>('FREE 🎉');
@@ -211,9 +211,9 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     'Customer Phone Credit', 'Staff Generator Fuel', 'Other Expenses'
   ];
 
-  // Check AWS Status on component mount
+  // Check OpenRouter Status on component mount
   useEffect(() => {
-    checkAWSStatus();
+    checkOpenRouterStatus();
   }, []);
 
   // Real-time enhanced budgets
@@ -359,67 +359,53 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     return `${keyMetrics}\n\n${healthIndicators}\n\n${expenseBreakdown}\n\n${incomeBreakdown}\n\n${budgetAnalysis}\n\n${recentActivity}`.trim();
   };
 
-  // UPDATED: AWS status check with model detection
-  const checkAWSStatus = async () => {
+  // UPDATED: OpenRouter status check with model detection
+  const checkOpenRouterStatus = async () => {
     try {
-      console.log('🔄 Checking AWS Bedrock for smart models...');
+      console.log('🔄 Checking OpenRouter for AI models...');
       setAiStatus('checking');
       setCurrentModel('Checking availability...');
       
       // First check if API is accessible
-      const response = await fetch('/api/aws/health');
+      const response = await fetch('/api/chat', { method: 'GET' });
       if (!response.ok) {
         throw new Error(`Health check failed: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('📊 AWS Health Status:', data);
+      console.log('📊 OpenRouter Status:', data);
       
-      if (data.status === 'healthy' && data.awsConfigured) {
-        setAwsAvailable(true);
-        setAiStatus('aws');
+      if (data.status === 'ok') {
+        setOpenRouterAvailable(true);
+        setAiStatus('openrouter');
         
-        if (data.bestModel) {
-          setCurrentModel(data.bestModel.name);
-          setModelIntelligence(data.bestModel.intelligence);
-          
-          // Show success message for smart models
-          if (data.bestModel.intelligence === 'High' || data.bestModel.intelligence === 'Highest') {
-            toast.success(`✅ Smart AI Enabled: ${data.bestModel.name}`, {
-              duration: 3000,
-              icon: '🚀'
-            });
-          } else if (data.bestModel.intelligence.includes('Medium')) {
-            toast.success(`✅ AI Ready: ${data.bestModel.name}`, {
-              duration: 3000
-            });
-          }
-        } else {
-          setCurrentModel('Titan Text Express');
-          setModelIntelligence('Medium');
-          toast('Using basic AI model. Enable Claude for smarter responses.', {
-            duration: 4000,
-            icon: 'ℹ️'
-          });
-        }
+        // Set default model
+        const defaultModel = 'amazon/nova-2-lite-v1:free';
+        setCurrentModel('Amazon Nova Lite');
+        setModelIntelligence('Medium');
         
-        console.log(`✅ AWS Bedrock ready. Best model: ${currentModel}`);
+        toast.success(`✅ OpenRouter AI Enabled: Amazon Nova Lite`, {
+          duration: 3000,
+          icon: '🚀'
+        });
+        
+        console.log(`✅ OpenRouter ready. Free model: Amazon Nova Lite`);
       } else {
-        setAwsAvailable(false);
+        setOpenRouterAvailable(false);
         setAiStatus('standard');
         setCurrentModel('Not Available');
         setModelIntelligence('Basic');
         
-        console.warn('⚠️ AWS not properly configured:', data.message);
-        toast.error('Smart AI not available. Check AWS setup.', {
+        console.warn('⚠️ OpenRouter not properly configured:', data.message);
+        toast.error('OpenRouter AI not available. Check API setup.', {
           duration: 4000
         });
       }
       
     } catch (error: any) {
-      console.error('❌ AWS Health check failed:', error);
+      console.error('❌ OpenRouter Health check failed:', error);
       setAiStatus('standard');
-      setAwsAvailable(false);
+      setOpenRouterAvailable(false);
       setCurrentModel('Offline');
       setModelIntelligence('Basic');
       
@@ -429,118 +415,28 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     }
   };
 
-  // UPDATED: AI Chat handler with model tracking
-  const handleSendMessage = async (message: string): Promise<string> => {
-    try {
-      console.log('=== AI REQUEST START ===');
-      console.log('💭 User question:', message);
-      
-      // Check if we have data to analyze
-      const hasFinancialData = financialData.transactions.length > 0 || (financialData.budgets && financialData.budgets.length > 0);
-      
-      if (!hasFinancialData) {
-        console.log('⚠️ No financial data available');
-        return `I notice you haven't added any financial data to your dashboard yet. 
-
-To get **personalized financial advice**, please:
-
-1. **Add transactions** - Track your income and expenses
-2. **Set up budgets** - Create spending limits for categories  
-3. **Connect accounts** - For automatic tracking (optional)
-
-Once you have data, I can:
-• Analyze your spending patterns
-• Calculate savings rates  
-• Recommend specific budget adjustments
-• Project future financial growth
-
-For now, here's general advice: **Start tracking every naira you earn and spend. Awareness is the first step to financial control.**`;
-      }
-
-      // Generate context with actual data
-      const financialContext = generateFinancialContext();
-      
-      console.log('📊 Financial Context Generated');
-      console.log('First 300 chars:', financialContext.substring(0, 300) + '...');
-      console.log('=== AI REQUEST END ===');
-
-      // Send to API
-      const startTime = Date.now();
-      const response = await fetch('/api/aws/chat', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          message: message,
-          context: financialContext
-        })
-      });
-
-      const responseTime = Date.now() - startTime;
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ API Error:', response.status, errorText);
-        throw new Error(`AI service error (${response.status})`);
-      }
-
-      const data = await response.json();
-      
-      if (!data.success) {
-        console.error('❌ API returned error:', data);
-        throw new Error(data.error || 'AI service error');
-      }
-      
-      // Update model info from response
-      if (data.modelName) {
-        setCurrentModel(data.modelName);
-        setModelIntelligence(data.modelIntelligence || 'Medium');
-        setEstimatedCost(data.estimatedCost || 'FREE');
-        
-        console.log(`✅ Using ${data.modelName} (${data.modelIntelligence})`);
-        console.log(`💰 Cost: ${data.estimatedCost}`);
-        console.log(`⚡ Response time: ${responseTime}ms`);
-        console.log(`📝 Response length: ${data.response?.length || 0} chars`);
-        
-        // Log if response references user data
-        if (data.usesUserData) {
-          console.log('🎯 Response references user data ✓');
-        }
-      }
-      
-      return data.response || "I analyzed your data but didn't receive a complete response. Please try again.";
-      
-    } catch (error: any) {
-      console.error('❌ AI request failed:', error);
-      console.error('Error details:', error.message);
-      
-      // Smart fallback with user's actual data
-      const hasData = financialData.transactions.length > 0;
-      
-      if (hasData) {
-        const savingsRecommendation = financialData.profit > 0 
-          ? `Save ${Math.min(30, Math.max(10, Math.floor((financialData.profit / financialData.income) * 100)))}% of your ₦${formatCurrencyForAI(financialData.profit).replace('₦', '')} monthly profit.`
-          : `Reduce expenses by ${Math.min(20, Math.floor((Math.abs(financialData.profit) / financialData.expenses) * 100))}% to reach positive cash flow.`;
-        
-        return `**AI Service Temporarily Unavailable**
-
-Based on your dashboard data:
-
-**Current Financial Position:**
-• Income: ${formatCurrencyForAI(financialData.income)}
-• Expenses: ${formatCurrencyForAI(financialData.expenses)}  
-• ${financialData.profit >= 0 ? 'Profit' : 'Loss'}: ${formatCurrencyForAI(Math.abs(financialData.profit))}
-• Transactions: ${financialData.transactions.length}
-
-**Immediate Recommendation:**
-${savingsRecommendation}
-
-**Regarding "${message.substring(0, 50)}..."** - Track expenses closely and consider setting specific financial goals in your dashboard.`;
-      } else {
-        return "I'm having trouble accessing AI services right now. Please check your internet connection and try again. In the meantime, consider adding some transactions to your dashboard for future analysis.";
-      }
+  // Updated AI Chat handler for OpenRouter
+  const handleSendMessage = async (message: string, files?: File[]): Promise<string> => {
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('style', 'balanced');
+    
+    if (files) {
+      files.forEach(file => formData.append('files', file));
     }
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to get response');
+    }
+
+    return data.response;
   };
 
   const loadData = async () => {
@@ -853,14 +749,14 @@ ${savingsRecommendation}
                 darkMode={darkMode}
                 onUpgradeClick={() => setShowTokenModal(true)}
               />
-              {awsAvailable && (
+              {openRouterAvailable && (
                 <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-900/30 border border-emerald-700/50">
                   <div className={`w-2 h-2 rounded-full ${
                     modelIntelligence === 'High' || modelIntelligence === 'Highest' ? 'bg-purple-500' :
                     modelIntelligence.includes('Medium') ? 'bg-blue-500' : 'bg-green-500'
                   }`} />
                   <span className="text-xs font-medium text-emerald-300">
-                    {currentModel.replace('Claude 3 ', '').replace('Amazon ', '')}
+                    {currentModel.replace('Claude 3 ', '').replace('Amazon ', '').replace('Gemini ', '')}
                   </span>
                 </div>
               )}
@@ -1058,7 +954,7 @@ ${savingsRecommendation}
         title="Smart AI Assistant"
       >
         <Bot className="w-7 h-7 text-white" />
-        {awsAvailable && (
+        {openRouterAvailable && (
           <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
             <span className="text-xs font-bold text-white">AI</span>
           </div>
@@ -1068,11 +964,15 @@ ${savingsRecommendation}
       <AIChatModal
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
-        onSendMessage={handleSendMessage}
-        awsAvailable={awsAvailable}
-        currentModel={currentModel}
-        modelIntelligence={modelIntelligence}
-        estimatedCost={estimatedCost}
+        openRouterAvailable={openRouterAvailable} // Added this prop
+        currentModel="amazon/nova-2-lite-v1:free"
+        usageStats={{
+          dailyRequests: 5,
+          dailyLimit: 50,
+          monthlyTokens: 15000,
+          monthlyLimit: 1000000,
+          responseTime: 1200
+        }}
       />
 
       <TokenModal
