@@ -1,4 +1,6 @@
 // app/api/usage/route.ts
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 
 // Simple in-memory store (use Redis/DB in production)

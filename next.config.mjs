@@ -1,15 +1,12 @@
-/** @type {import('next').NextConfig} */
+import { withPWA } from 'next-pwa';
+
 const nextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com',
-        port: '',
-        pathname: '/dzibfknxq/image/upload/**',
-      },
-    ],
-  },
+  // your config
 };
 
-export default nextConfig; // Use ES module export syntax
+export default withPWA({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  register: true,
+  skipWaiting: true,
+})(nextConfig);
