@@ -51,7 +51,8 @@ interface SettingsPageProps {
   currencies: any[];
   currency:string;
   language:string;
-
+  encryptionEnabled?: boolean;
+  onEnableEncryption?: () => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({

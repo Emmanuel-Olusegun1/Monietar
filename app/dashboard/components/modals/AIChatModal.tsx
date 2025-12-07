@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
-  X, Send, Bot, Clock, Plus,
+  X, Send, Plus,
   Copy, Check, MessageSquare, Trash2,
   Volume2, VolumeX, User,
   Calculator, TrendingUp, Wallet,
@@ -10,28 +10,18 @@ import {
   Sun, Moon, Brain,
   Loader2, AlertTriangle,
   Search, ChevronLeft, ChevronRight,
-  Maximize2, Minimize2, Zap, PieChart, CreditCard, ArrowUp, Edit3,
+  Maximize2, Minimize2, Zap, PieChart, CreditCard, Edit3,
   Play, Pause, MoreHorizontal,
-  Mic, MicOff, Paperclip, FileText, Download, Image as ImageIcon,
-  ChevronDown, Upload, FileUp,
-  Sparkles, Slash, Star,
-  Settings, Key,
+  Mic, MicOff, Paperclip, FileText, Image as ImageIcon,
+  ChevronDown,
+  Sparkles,
   Globe, Cpu,
-  Shield as ShieldIcon,
-  Zap as ZapIcon,
   BrainCircuit,
   BarChart3,
-  TrendingUp as TrendingUpIcon,
-  DollarSign,
-  Users,
-  Target as TargetIcon,
-  Coins,
-  LineChart,
   PieChart as PieChartIcon,
-  FileBarChart,
   Download as DownloadIcon,
-  Eye,
-  EyeOff
+  Key,
+  Menu
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast, Toaster } from 'react-hot-toast';
@@ -294,6 +284,12 @@ async function queryOpenRouterAPI(
   }
 }
 
+// Mobile detection utilities
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth <= 768;
+};
+
 export default function AIChatModal({
   isOpen,
   onClose,
@@ -319,7 +315,7 @@ export default function AIChatModal({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [textToSpeech, setTextToSpeech] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(!isMobileDevice());
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [aiModel, setAiModel] = useState<string>(currentModel);
   const [aiCost, setAiCost] = useState(estimatedCost);
@@ -328,6 +324,13 @@ export default function AIChatModal({
   const [responseStyle, setResponseStyle] = useState<'simple' | 'balanced' | 'professional'>('balanced');
   const [showModelSelector, setShowModelSelector] = useState(false);
   
+  // Mobile-specific states
+  const [isMobile, setIsMobile] = useState(isMobileDevice());
+  const [inputHeight, setInputHeight] = useState('auto');
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
   // OpenRouter specific states
   const [openRouterUsage, setOpenRouterUsage] = useState(usageStats);
   const [modelPerformance, setModelPerformance] = useState<Record<string, { avgResponseTime: number; successRate: number }>>({});
@@ -365,6 +368,91 @@ export default function AIChatModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const modelSelectorRef = useRef<HTMLDivElement>(null);
+
+  // Mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      setShowSidebar(!mobile);
+      setShowMobileMenu(false);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Keyboard visibility detection for mobile
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleFocus = () => setIsKeyboardVisible(true);
+    const handleBlur = () => setIsKeyboardVisible(false);
+
+    const input = inputRef.current;
+    if (input) {
+      input.addEventListener('focus', handleFocus);
+      input.addEventListener('blur', handleBlur);
+    }
+
+    return () => {
+      if (input) {
+        input.removeEventListener('focus', handleFocus);
+        input.removeEventListener('blur', handleBlur);
+      }
+    };
+  }, [isMobile, inputRef.current]);
+
+  // Touch swipe for mobile - FIXED TYPE HANDLING
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      setTouchStart({
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      });
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!touchStart) return;
+
+      const touchEnd = {
+        x: e.changedTouches[0].clientX,
+        y: e.changedTouches[0].clientY,
+      };
+
+      const dx = touchEnd.x - touchStart.x;
+      const dy = touchEnd.y - touchStart.y;
+
+      // Horizontal swipe (left/right)
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+        if (dx > 0) {
+          // Swipe right - show sidebar
+          setShowSidebar(true);
+        } else {
+          // Swipe left - hide sidebar
+          setShowSidebar(false);
+        }
+      }
+
+      // Vertical swipe down from top to close
+      if (touchStart.y < 50 && dy > 100) {
+        onClose();
+      }
+
+      setTouchStart(null);
+    };
+
+    document.addEventListener('touchstart', handleTouchStart);
+    document.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isMobile, touchStart, onClose]);
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -427,9 +515,9 @@ export default function AIChatModal({
     return () => clearInterval(interval);
   }, []);
 
-  // Handle click outside
+  // Handle click outside for mobile - FIXED TYPE HANDLING
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: Event) => {
       if (showSessionMenu) {
         const menuElement = sessionMenuRefs.current[showSessionMenu];
         if (menuElement && !menuElement.contains(event.target as Node)) {
@@ -444,8 +532,12 @@ export default function AIChatModal({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside as EventListener);
+    document.addEventListener('touchstart', handleClickOutside as EventListener);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside as EventListener);
+      document.removeEventListener('touchstart', handleClickOutside as EventListener);
+    };
   }, [showSessionMenu, showExportMenu, showModelSelector]);
 
   // Fullscreen functionality
@@ -475,7 +567,14 @@ export default function AIChatModal({
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      setShowSidebar(window.innerWidth >= 768);
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setShowSidebar(true);
+        setShowMobileMenu(false);
+      } else {
+        setShowSidebar(false);
+      }
     };
 
     window.addEventListener('resize', handleResize);
@@ -570,19 +669,29 @@ export default function AIChatModal({
     }
   }, []);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom with mobile optimization
   useEffect(() => {
     if (messagesEndRef.current && isOpen) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      const scrollOptions: ScrollIntoViewOptions = {
+        behavior: 'smooth',
+        block: 'end',
+      };
+      
+      // On mobile with keyboard visible, scroll more
+      if (isMobile && isKeyboardVisible) {
+        scrollOptions.block = 'start';
+      }
+      
+      messagesEndRef.current.scrollIntoView(scrollOptions);
     }
-  }, [currentSession?.messages, isOpen, streamedResponse]);
+  }, [currentSession?.messages, isOpen, streamedResponse, isMobile, isKeyboardVisible]);
 
   // Focus input when modal opens
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isOpen && inputRef.current && !isMobile) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
 
   // Stop speech when modal closes
   useEffect(() => {
@@ -613,11 +722,11 @@ export default function AIChatModal({
     }
   };
 
-  // File Upload Functions
+  // File Upload Functions with mobile optimization
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const validFiles = files.filter(file => {
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      const maxSize = 5 * 1024 * 1024; // 5MB for mobile
       const allowedTypes = [
         'image/jpeg', 'image/png', 'image/jpg', 'image/gif',
         'application/pdf',
@@ -627,7 +736,7 @@ export default function AIChatModal({
       ];
 
       if (file.size > maxSize) {
-        toast.error(`${file.name} exceeds 10MB limit`);
+        toast.error(`${file.name} exceeds ${isMobile ? '5MB' : '10MB'} limit`);
         return false;
       }
 
@@ -762,7 +871,10 @@ export default function AIChatModal({
     
     toast.success('New conversation created!');
     
-    if (window.innerWidth < 768) setShowSidebar(false);
+    if (isMobile) {
+      setShowSidebar(false);
+      setShowMobileMenu(false);
+    }
   };
 
   const switchChatSession = (sessionId: string) => {
@@ -778,7 +890,10 @@ export default function AIChatModal({
         : session
     ));
     
-    if (window.innerWidth < 768) setShowSidebar(false);
+    if (isMobile) {
+      setShowSidebar(false);
+      setShowMobileMenu(false);
+    }
     setShowSessionMenu(null);
   };
 
@@ -969,7 +1084,7 @@ export default function AIChatModal({
         errorMessage = `## ⚠️ Free Tier Limit Reached\n\n### Usage Status:\n📊 **Requests:** ${openRouterUsage.dailyRequests}/${openRouterUsage.dailyLimit} daily\n💾 **Tokens:** ${(openRouterUsage.monthlyTokens/1000).toFixed(0)}K/${(openRouterUsage.monthlyLimit/1000).toFixed(0)}K monthly\n\n### Options:\n1. **Wait** for daily reset\n2. **Upgrade** for more capacity\n3. **Use shorter messages**\n\n**💡 Tip:** Free tier resets daily at midnight UTC`;
         toast.error('Free tier limit reached for today');
       } else if (error.message?.includes('API key')) {
-        errorMessage = `## 🔑 OpenRouter API Key Required\n\n### Setup Steps:\n1. Visit **https://openrouter.ai**\n2. Sign up for free account\n3. Get your API key\n4. Add to environment:\n\n\`\`\`env\nOPENROUTER_API_KEY=your_key_here\n\`\`\`\n\n**Current Mode:** Using built-in financial knowledge`;
+        errorMessage = `## 🔑 OpenRouter API Key Required\n\n### Setup Steps:\n1. Visit **https://openrouter.ai**\n2. Sign up for free account\nn3. Get your API key\n4. Add to environment:\n\n\`\`\`env\nOPENROUTER_API_KEY=your_key_here\n\`\`\`\n\n**Current Mode:** Using built-in financial knowledge`;
         toast.error('OpenRouter API key not configured');
       } else {
         errorMessage = `## ⚠️ Service Temporary Unavailable\n\n### Details:\n**Error:** ${error.message || 'Unknown error'}\n\n### What to do:\n1. Try again in a few moments\n2. Check your internet connection\n3. Use simpler questions\n\n**⚠️ Using built-in financial guidance**`;
@@ -1136,25 +1251,25 @@ export default function AIChatModal({
     session.messages.some(msg => msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  // Custom markdown components with clean black/white theme
+  // Custom markdown components with mobile optimization
   const markdownComponents = {
     h1: ({ children }: any) => (
-      <h1 className="text-xl font-bold mb-3 mt-4 text-gray-900 dark:text-gray-100">
+      <h1 className="text-lg md:text-xl font-bold mb-3 mt-4 text-gray-900 dark:text-gray-100">
         {children}
       </h1>
     ),
     h2: ({ children }: any) => (
-      <h2 className="text-lg font-semibold mb-2 mt-3 text-gray-800 dark:text-gray-200">
+      <h2 className="text-base md:text-lg font-semibold mb-2 mt-3 text-gray-800 dark:text-gray-200">
         {children}
       </h2>
     ),
     h3: ({ children }: any) => (
-      <h3 className="text-base font-medium mb-2 mt-2 text-gray-700 dark:text-gray-300">
+      <h3 className="text-sm md:text-base font-medium mb-2 mt-2 text-gray-700 dark:text-gray-300">
         {children}
       </h3>
     ),
     p: ({ children }: any) => (
-      <p className="mb-3 text-gray-700 dark:text-gray-300 leading-relaxed">
+      <p className="mb-3 text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base">
         {children}
       </p>
     ),
@@ -1171,7 +1286,7 @@ export default function AIChatModal({
     li: ({ children }: any) => (
       <li className="flex items-start">
         <span className="mr-2 text-gray-800 dark:text-gray-300 mt-1">•</span>
-        <span className="text-gray-700 dark:text-gray-300">{children}</span>
+        <span className="text-gray-700 dark:text-gray-300 text-sm md:text-base">{children}</span>
       </li>
     ),
     strong: ({ children }: any) => (
@@ -1185,36 +1300,36 @@ export default function AIChatModal({
       </em>
     ),
     code: ({ children }: any) => (
-      <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono text-gray-800 dark:text-gray-200">
+      <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs md:text-sm font-mono text-gray-800 dark:text-gray-200">
         {children}
       </code>
     ),
     pre: ({ children }: any) => (
-      <pre className="p-3 bg-gray-100 dark:bg-gray-800 rounded overflow-x-auto mb-4">
-        <code className="text-sm font-mono text-gray-800 dark:text-gray-200">
+      <pre className="p-2 md:p-3 bg-gray-100 dark:bg-gray-800 rounded overflow-x-auto mb-4 text-xs md:text-sm">
+        <code className="font-mono text-gray-800 dark:text-gray-200">
           {children}
         </code>
       </pre>
     ),
     blockquote: ({ children }: any) => (
-      <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-400 my-4">
+      <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-3 md:pl-4 italic text-gray-600 dark:text-gray-400 my-4 text-sm md:text-base">
         {children}
       </blockquote>
     ),
     table: ({ children }: any) => (
-      <div className="overflow-x-auto my-4">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <div className="overflow-x-auto my-4 -mx-2 md:mx-0">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
           {children}
         </table>
       </div>
     ),
     th: ({ children }: any) => (
-      <th className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
+      <th className="px-2 md:px-4 py-2 bg-gray-100 dark:bg-gray-800 text-left text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300">
         {children}
       </th>
     ),
     td: ({ children }: any) => (
-      <td className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
+      <td className="px-2 md:px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-xs md:text-sm text-gray-600 dark:text-gray-400">
         {children}
       </td>
     ),
@@ -1223,11 +1338,20 @@ export default function AIChatModal({
         href={href} 
         target="_blank" 
         rel="noopener noreferrer"
-        className="text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 underline underline-offset-2"
+        className="text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 underline underline-offset-2 break-words"
       >
         {children}
       </a>
     ),
+  };
+
+  // Handle textarea input for mobile
+  const handleTextareaInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    target.style.height = 'auto';
+    const newHeight = Math.min(target.scrollHeight, isMobile ? 100 : 200);
+    target.style.height = `${newHeight}px`;
+    setInputHeight(`${newHeight}px`);
   };
 
   if (!isOpen) return null;
@@ -1235,89 +1359,134 @@ export default function AIChatModal({
   return (
     <>
       <style jsx global>{`
-        * {
-          scroll-behavior: smooth;
-        }
-        
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        
-        .chat-container::-webkit-scrollbar {
-          width: 4px;
-        }
-        
-        .chat-container::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        
-        .chat-container::-webkit-scrollbar-thumb {
-          background: rgba(0, 0, 0, 0.1);
-          border-radius: 2px;
-        }
-        
-        .chat-container::-webkit-scrollbar-thumb:hover {
-          background: rgba(0, 0, 0, 0.2);
-        }
-        
-        .dark .chat-container::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .dark .chat-container::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.2);
-        }
-        
-        .message-enter {
-          animation: slideIn 0.3s ease-out;
-        }
-        
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
+        /* Mobile-optimized styles */
+        @media (max-width: 768px) {
+          .chat-modal {
+            font-size: 14px;
           }
-          to {
-            opacity: 1;
-            transform: translateY(0);
+          
+          .message-text {
+            font-size: 15px;
+            line-height: 1.5;
+          }
+          
+          .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            animation: fadeIn 0.2s ease;
+          }
+          
+          .sidebar-slide {
+            animation: slideIn 0.3s ease-out;
+          }
+          
+          .touch-button {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          
+          .mobile-scrollbar-hide {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          
+          .mobile-scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+          
+          @keyframes slideIn {
+            from {
+              transform: translateX(-100%);
+            }
+            to {
+              transform: translateX(0);
+            }
+          }
+          
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
+          }
+          
+          /* Typing indicator */
+          .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+          }
+          
+          .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #9ca3af;
+            animation: typing 1.4s infinite ease-in-out both;
+          }
+          
+          .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+          .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+          
+          @keyframes typing {
+            0%, 80%, 100% { 
+              transform: scale(0.8);
+              opacity: 0.5;
+            }
+            40% { 
+              transform: scale(1);
+              opacity: 1;
+            }
+          }
+          
+          /* Message entrance animation */
+          .message-enter {
+            animation: messageEnter 0.3s ease-out;
+          }
+          
+          @keyframes messageEnter {
+            from {
+              opacity: 0;
+              transform: translateY(10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
           }
         }
         
-        .typing-indicator {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        
-        .typing-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #6b7280;
-          animation: typing 1.4s infinite ease-in-out;
-        }
-        
-        .dark .typing-dot {
-          background: #9ca3af;
-        }
-        
-        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        .typing-dot:nth-child(3) { animation-delay: 0s; }
-        
-        @keyframes typing {
-          0%, 60%, 100% { transform: translateY(0); }
-          30% { transform: translateY(-6px); }
+        /* Prevent body scroll when modal is open */
+        body.modal-open {
+          overflow: hidden !important;
+          position: fixed !important;
+          width: 100% !important;
+          height: 100% !important;
         }
       `}</style>
-      <div className="fixed inset-0 z-[100] overflow-hidden" ref={modalRef}>
+      
+      {/* Add modal-open class to body - SINGLE global style tag
+      {isOpen && (
+        <style jsx global>{`
+          body {
+            overflow: hidden;
+          }
+        `}</style>
+      )} */}
+      
+      <div className="fixed inset-0 z-[9999] overflow-hidden" ref={modalRef}>
         <Toaster 
-          position="top-right"
+          position={isMobile ? "top-center" : "top-right"}
           toastOptions={{
             style: {
               background: darkMode ? '#1f2937' : '#ffffff',
@@ -1325,44 +1494,59 @@ export default function AIChatModal({
               border: darkMode ? '1px solid #374151' : '1px solid #e5e7eb',
               borderRadius: '8px',
               fontSize: '14px',
+              maxWidth: isMobile ? '90vw' : '400px',
+              margin: isMobile ? '0 auto' : undefined,
             },
             duration: 3000,
           }}
         />
         
-        {/* Clean backdrop */}
-        <div className={`absolute inset-0 ${darkMode ? 'bg-gray-900/95' : 'bg-black/60'}`} onClick={onClose} />
+        {/* Clean backdrop with touch-friendly close */}
+        <div 
+          className={`absolute inset-0 ${darkMode ? 'bg-gray-900/95' : 'bg-black/60'}`} 
+          onClick={isMobile ? undefined : onClose}
+        />
         
-        {/* Main Modal - Clean Black/White Design */}
-        <div className={`absolute inset-0 flex ${darkMode ? 'bg-gray-900' : 'bg-white'} ${isFullscreen ? '' : 'md:inset-4 md:rounded-lg overflow-hidden'}`}>
-          {/* Left Sidebar - Clean Design */}
-          {showSidebar && (
-            <div className={`w-64 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex flex-col`}>
+        {/* Main Modal - Mobile Optimized */}
+        <div className={`absolute inset-0 flex ${darkMode ? 'bg-gray-900' : 'bg-white'} ${isFullscreen ? '' : 'md:inset-4 md:rounded-lg overflow-hidden'} chat-modal ${isKeyboardVisible ? 'keyboard-aware' : ''}`}>
+          {/* Mobile Sidebar Overlay */}
+          {isMobile && showSidebar && (
+            <div 
+              className="sidebar-overlay"
+              onClick={() => setShowSidebar(false)}
+            />
+          )}
+          
+          {/* Left Sidebar - Mobile Optimized */}
+          {(showSidebar || !isMobile) && (
+            <div className={`${isMobile ? 'fixed left-0 top-0 bottom-0 w-72 z-50 sidebar-slide' : 'w-64'} ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} border-r ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex flex-col`}>
               {/* Sidebar Header */}
-              <div className="p-4 border-b border-gray-700/50 dark:border-gray-200/20">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
+              <div className="p-3 md:p-4 border-b border-gray-700/50 dark:border-gray-200/20">
+                <div className="flex items-center justify-between mb-3 md:mb-4">
+                  <div className="flex items-center gap-2 md:gap-3">
                     <div className={`p-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded`}>
-                      <Brain className="w-5 h-5 text-gray-800 dark:text-gray-200" />
+                      <Brain className="w-4 h-4 md:w-5 md:h-5 text-gray-800 dark:text-gray-200" />
                     </div>
                     <div>
-                      <h1 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Monietar AI</h1>
+                      <h1 className="font-semibold text-xs md:text-sm text-gray-900 dark:text-gray-100">Monietar AI</h1>
                       <p className="text-xs text-gray-500 dark:text-gray-400">Financial Assistant</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setShowSidebar(false)}
-                    className="p-1.5 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded md:hidden"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                  </button>
+                  {isMobile && (
+                    <button
+                      onClick={() => setShowSidebar(false)}
+                      className="p-2 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded touch-button"
+                    >
+                      <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    </button>
+                  )}
                 </div>
                 
-                {/* New Chat Button */}
+                {/* New Chat Button - Mobile Optimized */}
                 <button 
                   onClick={createNewChat}
                   disabled={!openRouterAvailable}
-                  className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded text-sm font-medium ${
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-3 md:py-2.5 rounded text-sm font-medium touch-button ${
                     openRouterAvailable 
                       ? `${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} text-gray-900 dark:text-gray-100`
                       : 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-400'
@@ -1372,15 +1556,15 @@ export default function AIChatModal({
                   <span>New Chat</span>
                 </button>
                 
-                {/* Search */}
-                <div className="mt-3 relative">
+                {/* Search - Mobile Optimized */}
+                <div className="mt-2 md:mt-3 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Search chats..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full pl-9 pr-3 py-2 rounded text-sm ${
+                    className={`w-full pl-9 pr-3 py-2.5 md:py-2 rounded text-sm touch-button ${
                       darkMode 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
@@ -1388,11 +1572,11 @@ export default function AIChatModal({
                   />
                 </div>
 
-                {/* Export Button */}
-                <div className="mt-3 relative" ref={exportRef}>
+                {/* Export Button - Mobile Optimized */}
+                <div className="mt-2 md:mt-3 relative" ref={exportRef}>
                   <button
                     onClick={() => setShowExportMenu(!showExportMenu)}
-                    className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded text-sm font-medium ${
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-3 md:py-2.5 rounded text-sm font-medium touch-button ${
                       darkMode 
                         ? 'bg-gray-700 hover:bg-gray-600' 
                         : 'bg-gray-100 hover:bg-gray-200'
@@ -1403,7 +1587,7 @@ export default function AIChatModal({
                   </button>
 
                   {showExportMenu && (
-                    <div className={`absolute left-0 right-0 top-12 z-20 rounded shadow-lg border ${
+                    <div className={`absolute left-0 right-0 top-full mt-1 z-20 rounded shadow-lg border ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-700' 
                         : 'bg-white border-gray-200'
@@ -1414,7 +1598,7 @@ export default function AIChatModal({
                           <button
                             key={format}
                             onClick={() => setExportFormat(format)}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded text-sm mb-1 ${
+                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded text-sm mb-1 touch-button ${
                               exportFormat === format
                                 ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                                 : darkMode
@@ -1433,7 +1617,7 @@ export default function AIChatModal({
                         ))}
                         <button
                           onClick={handleExport}
-                          className="w-full mt-2 px-3 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white rounded text-sm font-medium"
+                          className="w-full mt-2 px-3 py-2.5 bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white rounded text-sm font-medium touch-button"
                         >
                           Export Now
                         </button>
@@ -1443,11 +1627,11 @@ export default function AIChatModal({
                 </div>
               </div>
 
-              {/* Chat History */}
-              <div className="flex-1 overflow-y-auto no-scrollbar p-2">
+              {/* Chat History - Mobile Optimized */}
+              <div className="flex-1 overflow-y-auto mobile-scrollbar-hide p-2">
                 <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-2 py-2 mb-2">Recent</div>
                 <div className="space-y-1">
-                  {filteredSessions.slice(0, 8).map((session) => (
+                  {filteredSessions.slice(0, isMobile ? 6 : 8).map((session) => (
                     <div key={session.id} className="relative message-enter">
                       {editingSessionId === session.id ? (
                         <div className="p-2 rounded bg-gray-700/30 dark:bg-gray-200/20">
@@ -1455,7 +1639,7 @@ export default function AIChatModal({
                             type="text"
                             value={sessionEditTitle}
                             onChange={(e) => setSessionEditTitle(e.target.value)}
-                            className={`w-full px-2 py-1.5 rounded text-sm ${
+                            className={`w-full px-2 py-2.5 rounded text-sm touch-button ${
                               darkMode 
                                 ? 'bg-gray-600 text-white' 
                                 : 'bg-gray-200 text-gray-900'
@@ -1469,13 +1653,13 @@ export default function AIChatModal({
                           <div className="flex gap-1 mt-2">
                             <button
                               onClick={() => saveRenameSession(session.id)}
-                              className="flex-1 px-2 py-1 text-xs bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white rounded"
+                              className="flex-1 px-2 py-2 text-xs bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white rounded touch-button"
                             >
                               Save
                             </button>
                             <button
                               onClick={cancelRenameSession}
-                              className="flex-1 px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded"
+                              className="flex-1 px-2 py-2 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded touch-button"
                             >
                               Cancel
                             </button>
@@ -1484,7 +1668,7 @@ export default function AIChatModal({
                       ) : (
                         <button
                           onClick={() => switchChatSession(session.id)}
-                          className={`w-full flex items-center justify-between p-2 rounded ${
+                          className={`w-full flex items-center justify-between p-2.5 rounded touch-button ${
                             currentSessionId === session.id 
                               ? `${darkMode ? 'bg-gray-700' : 'bg-gray-100'} text-gray-900 dark:text-gray-100`
                               : `${darkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-100'} text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100`
@@ -1501,7 +1685,7 @@ export default function AIChatModal({
                           </div>
                           <button
                             onClick={(e) => toggleSessionMenu(session.id, e)}
-                            className="p-1 hover:bg-gray-700/30 dark:hover:bg-gray-200/20 rounded"
+                            className="p-1 hover:bg-gray-700/30 dark:hover:bg-gray-200/20 rounded touch-button"
                           >
                             <MoreHorizontal className="w-3.5 h-3.5" />
                           </button>
@@ -1514,7 +1698,7 @@ export default function AIChatModal({
                           ref={el => {
                             if (el) sessionMenuRefs.current[session.id] = el;
                           }}
-                          className={`absolute right-2 top-10 z-20 w-48 rounded shadow-lg border ${
+                          className={`absolute right-2 top-12 z-20 ${isMobile ? 'w-56' : 'w-48'} rounded shadow-lg border ${
                             darkMode 
                               ? 'bg-gray-800 border-gray-700' 
                               : 'bg-white border-gray-200'
@@ -1523,7 +1707,7 @@ export default function AIChatModal({
                           <div className="p-1">
                             <button
                               onClick={() => startRenameSession(session.id)}
-                              className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
+                              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded text-sm touch-button ${
                                 darkMode 
                                   ? 'hover:bg-gray-700 text-gray-300' 
                                   : 'hover:bg-gray-100 text-gray-700'
@@ -1534,7 +1718,7 @@ export default function AIChatModal({
                             </button>
                             <button
                               onClick={() => duplicateSession(session.id)}
-                              className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
+                              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded text-sm touch-button ${
                                 darkMode 
                                   ? 'hover:bg-gray-700 text-gray-300' 
                                   : 'hover:bg-gray-100 text-gray-700'
@@ -1546,7 +1730,7 @@ export default function AIChatModal({
                             <div className="h-px my-1 bg-gray-700/30 dark:bg-gray-200/20" />
                             <button
                               onClick={() => deleteChatSession(session.id)}
-                              className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
+                              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded text-sm touch-button ${
                                 darkMode 
                                   ? 'hover:bg-red-500/20 text-red-400' 
                                   : 'hover:bg-red-50 text-red-600'
@@ -1563,7 +1747,7 @@ export default function AIChatModal({
                 </div>
               </div>
 
-              {/* Sidebar Footer */}
+              {/* Sidebar Footer - Mobile Optimized */}
               <div className={`p-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1573,16 +1757,18 @@ export default function AIChatModal({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setDarkMode(!darkMode)}
-                      className="p-1.5 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded"
+                      className="p-2 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded touch-button"
                     >
                       {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                     </button>
-                    <button
-                      onClick={toggleFullscreen}
-                      className="p-1.5 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded"
-                    >
-                      {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                    </button>
+                    {!isMobile && (
+                      <button
+                        onClick={toggleFullscreen}
+                        className="p-2 hover:bg-gray-700/50 dark:hover:bg-gray-200/20 rounded touch-button"
+                      >
+                        {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
                   </div>
                 </div>
                 {!openRouterAvailable && (
@@ -1595,14 +1781,21 @@ export default function AIChatModal({
             </div>
           )}
           
-          {/* Main Chat Area - Clean Design */}
-          <div className={`flex-1 flex flex-col ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
-            {/* Chat Header */}
-            <div className={`px-4 md:px-6 h-16 flex items-center justify-between border-b ${
+          {/* Main Chat Area - Mobile Optimized */}
+          <div className={`flex-1 flex flex-col ${darkMode ? 'bg-gray-900' : 'bg-white'} ${isMobile && showSidebar ? 'hidden' : ''}`}>
+            {/* Chat Header - Mobile Optimized */}
+            <div className={`px-3 md:px-6 h-14 md:h-16 flex items-center justify-between border-b ${
               darkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
-              <div className="flex items-center gap-4">
-                {!showSidebar && (
+              <div className="flex items-center gap-2 md:gap-4">
+                {isMobile ? (
+                  <button
+                    onClick={() => setShowSidebar(true)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded touch-button"
+                  >
+                    <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </button>
+                ) : !showSidebar && (
                   <button
                     onClick={() => setShowSidebar(true)}
                     className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
@@ -1611,26 +1804,28 @@ export default function AIChatModal({
                   </button>
                 )}
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                   <div className={`p-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                    <Brain className="w-5 h-5 text-gray-800 dark:text-gray-200" />
+                    <Brain className="w-4 h-4 md:w-5 md:h-5 text-gray-800 dark:text-gray-200" />
                   </div>
-                  <div>
-                    <h1 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{currentSession?.title || 'Financial Analysis'}</h1>
-                    <div className="flex items-center gap-2">
-                      {/* Model Selector */}
+                  <div className="max-w-[150px] md:max-w-none">
+                    <h1 className="font-semibold text-xs md:text-sm text-gray-900 dark:text-gray-100 truncate">{currentSession?.title || 'Financial Analysis'}</h1>
+                    <div className="flex items-center gap-1 md:gap-2">
+                      {/* Model Selector - Mobile Optimized */}
                       <div className="relative" ref={modelSelectorRef}>
                         <button
                           onClick={() => setShowModelSelector(!showModelSelector)}
-                          className={`text-xs px-2.5 py-1 rounded flex items-center gap-1.5 ${getModelColor(aiModel)}`}
+                          className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${getModelColor(aiModel)} touch-button`}
                         >
                           {getCurrentModelInfo().icon}
-                          <span className="font-medium">{getCurrentModelInfo().name}</span>
+                          {!isMobile && (
+                            <span className="font-medium">{getCurrentModelInfo().name}</span>
+                          )}
                           <ChevronDown className="w-3 h-3" />
                         </button>
                         
                         {showModelSelector && (
-                          <div className={`absolute top-10 left-0 z-20 w-64 rounded shadow-lg border ${
+                          <div className={`absolute ${isMobile ? 'left-0' : 'left-0'} top-10 z-20 ${isMobile ? 'w-64' : 'w-64'} rounded shadow-lg border ${
                             darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
                           }`}>
                             <div className="p-2">
@@ -1644,7 +1839,7 @@ export default function AIChatModal({
                                       setShowModelSelector(false);
                                       toast.success(`Switched to ${model.name}`);
                                     }}
-                                    className={`w-full flex items-center justify-between p-2 rounded text-sm ${
+                                    className={`w-full flex items-center justify-between p-2.5 rounded text-sm touch-button ${
                                       aiModel === model.id
                                         ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                                         : darkMode
@@ -1655,7 +1850,7 @@ export default function AIChatModal({
                                     <div className="flex items-center gap-2">
                                       {model.icon}
                                       <div className="text-left">
-                                        <div className="font-medium">{model.name}</div>
+                                        <div className="font-medium text-sm">{model.name}</div>
                                         <div className="text-xs text-gray-500">{model.description}</div>
                                       </div>
                                     </div>
@@ -1668,32 +1863,34 @@ export default function AIChatModal({
                         )}
                       </div>
                       
-                      {/* Response Style */}
-                      <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded p-0.5">
-                        {(['simple', 'balanced', 'professional'] as const).map((style) => (
-                          <button
-                            key={style}
-                            onClick={() => setResponseStyle(style)}
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              responseStyle === style
-                                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-                                : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-100'
-                            }`}
-                          >
-                            {style.charAt(0).toUpperCase()}
-                          </button>
-                        ))}
-                      </div>
+                      {/* Response Style - Mobile Optimized */}
+                      {!isMobile && (
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded p-0.5">
+                          {(['simple', 'balanced', 'professional'] as const).map((style) => (
+                            <button
+                              key={style}
+                              onClick={() => setResponseStyle(style)}
+                              className={`text-xs px-2 py-0.5 rounded touch-button ${
+                                responseStyle === style
+                                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-100'
+                              }`}
+                            >
+                              {style.charAt(0).toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
               
               <div className="flex items-center gap-1">
-                {/* Voice Input Button */}
+                {/* Voice Input Button - Mobile Optimized */}
                 <button
                   onClick={toggleVoiceInput}
-                  className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded ${
+                  className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded touch-button ${
                     isListening
                       ? 'text-red-600 animate-pulse'
                       : 'text-gray-600 dark:text-gray-400'
@@ -1708,61 +1905,63 @@ export default function AIChatModal({
                   )}
                 </button>
 
-                <button
-                  onClick={toggleTextToSpeech}
-                  className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded ${
-                    textToSpeech 
-                      ? 'text-gray-900 dark:text-gray-100' 
-                      : 'text-gray-600 dark:text-gray-400'
-                  }`}
-                  title="Text-to-speech"
-                >
-                  {textToSpeech ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                </button>
+                {!isMobile && (
+                  <button
+                    onClick={toggleTextToSpeech}
+                    className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded ${
+                      textToSpeech 
+                        ? 'text-gray-900 dark:text-gray-100' 
+                        : 'text-gray-600 dark:text-gray-400'
+                    }`}
+                    title="Text-to-speech"
+                  >
+                    {textToSpeech ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                  </button>
+                )}
                 <button
                   onClick={onClose}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded touch-button"
                 >
-                  <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  <X className="w-4 h-4 md:w-5 md:h-5 text-gray-600 dark:text-gray-400" />
                 </button>
               </div>
             </div>
 
-            {/* Dashboard Insights Panel */}
+            {/* Dashboard Insights Panel - Mobile Optimized */}
             {showDashboardInsights && financialData && (
               <div className={`border-b ${darkMode ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Your Financial Snapshot</h3>
+                <div className="p-3 md:p-4">
+                  <div className="flex items-center justify-between mb-2 md:mb-3">
+                    <h3 className="font-semibold text-xs md:text-sm text-gray-900 dark:text-gray-100">Your Financial Snapshot</h3>
                     <button
                       onClick={() => setShowDashboardInsights(false)}
-                      className="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
+                      className="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 touch-button"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3 md:w-4 md:h-4" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className={`p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+                    <div className={`p-2 md:p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Income</div>
-                      <div className="font-semibold text-gray-900 dark:text-gray-100">
+                      <div className="font-semibold text-sm md:text-base text-gray-900 dark:text-gray-100">
                         {formatCurrency ? formatCurrency(financialData.income) : `$${financialData.income}`}
                       </div>
                     </div>
-                    <div className={`p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
+                    <div className={`p-2 md:p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Expenses</div>
-                      <div className="font-semibold text-gray-900 dark:text-gray-100">
+                      <div className="font-semibold text-sm md:text-base text-gray-900 dark:text-gray-100">
                         {formatCurrency ? formatCurrency(financialData.expenses) : `$${financialData.expenses}`}
                       </div>
                     </div>
-                    <div className={`p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
+                    <div className={`p-2 md:p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Profit</div>
-                      <div className={`font-semibold ${financialData.profit >= 0 ? 'text-gray-900 dark:text-gray-100' : 'text-red-600'}`}>
+                      <div className={`font-semibold text-sm md:text-base ${financialData.profit >= 0 ? 'text-gray-900 dark:text-gray-100' : 'text-red-600'}`}>
                         {formatCurrency ? formatCurrency(financialData.profit) : `$${financialData.profit}`}
                       </div>
                     </div>
-                    <div className={`p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
+                    <div className={`p-2 md:p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Transactions</div>
-                      <div className="font-semibold text-gray-900 dark:text-gray-100">
+                      <div className="font-semibold text-sm md:text-base text-gray-900 dark:text-gray-100">
                         {financialData.transactions?.length || 0}
                       </div>
                     </div>
@@ -1771,45 +1970,45 @@ export default function AIChatModal({
               </div>
             )}
 
-            {/* Messages Container */}
-            <div ref={chatContainerRef} className="flex-1 overflow-y-auto chat-container">
-              <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
+            {/* Messages Container - Mobile Optimized */}
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto mobile-scrollbar-hide">
+              <div className="max-w-3xl mx-auto p-3 md:p-6 space-y-4 md:space-y-6">
                 {connectionError && (
-                  <div className={`p-4 rounded ${
+                  <div className={`p-3 md:p-4 rounded ${
                     darkMode
                       ? 'bg-red-900/20 border border-red-800/30'
                       : 'bg-red-50 border border-red-200'
                   }`}>
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-semibold text-red-600 dark:text-red-400">Connection Error</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{connectionError}</p>
+                    <div className="flex items-start gap-2 md:gap-3">
+                      <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm md:text-base text-red-600 dark:text-red-400">Connection Error</p>
+                        <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">{connectionError}</p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Voice Input Indicator */}
+                {/* Voice Input Indicator - Mobile Optimized */}
                 {isListening && (
-                  <div className={`p-4 rounded ${
+                  <div className={`p-3 md:p-4 rounded ${
                     darkMode
                       ? 'bg-blue-900/20 border border-blue-800/30'
                       : 'bg-blue-50 border border-blue-200'
                   }`}>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 md:gap-3">
                       <div className="relative">
-                        <Mic className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-pulse" />
+                        <Mic className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400 animate-pulse" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-blue-600 dark:text-blue-400">Listening...</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <p className="font-semibold text-sm md:text-base text-blue-600 dark:text-blue-400">Listening...</p>
+                        <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">
                           {transcript || "Speak now..."}
                         </p>
                       </div>
                       <button
                         onClick={toggleVoiceInput}
-                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm touch-button"
                       >
                         Stop
                       </button>
@@ -1817,36 +2016,36 @@ export default function AIChatModal({
                   </div>
                 )}
 
-                {/* Messages */}
+                {/* Messages - Mobile Optimized */}
                 {currentSession?.messages.map((message, index) => (
                   <div 
                     key={message.id} 
-                    className={`flex gap-3 message-enter ${message.sender === 'user' ? 'justify-end' : ''}`}
+                    className={`flex gap-2 md:gap-3 message-enter ${message.sender === 'user' ? 'justify-end' : ''}`}
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
                     {message.sender === 'ai' && (
-                      <div className={`w-8 h-8 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
-                        <Brain className="w-4 h-4 text-gray-800 dark:text-gray-200" />
+                      <div className={`w-7 h-7 md:w-8 md:h-8 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
+                        <Brain className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-800 dark:text-gray-200" />
                       </div>
                     )}
                     
                     <div className={`flex-1 ${message.sender === 'user' ? 'flex flex-col items-end' : ''}`}>
                       <div className={`flex items-center justify-between mb-1 px-1 ${message.sender === 'user' ? 'text-gray-700 dark:text-gray-300' : 'text-gray-600 dark:text-gray-400'}`}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
+                        <div className="flex items-center gap-1 md:gap-2">
+                          <span className="text-xs md:text-sm font-medium">
                             {message.sender === 'ai' ? 'Monietar AI' : 'You'}
                           </span>
-                          {message.model && (
+                          {!isMobile && message.model && (
                             <span className={`text-xs px-1.5 py-0.5 rounded ${getModelColor(message.model || '')}`}>
                               {message.model.split('/')[0]}
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 md:gap-2">
                           <span className="text-xs">{formatTime(message.timestamp)}</span>
                           <button
                             onClick={() => copyMessage(message.text, message.id)}
-                            className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                            className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded touch-button"
                           >
                             {copiedMessageId === message.id ? (
                               <Check className="w-3 h-3 text-gray-900 dark:text-gray-100" />
@@ -1857,32 +2056,32 @@ export default function AIChatModal({
                         </div>
                       </div>
                       
-                      <div className={`rounded-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} ${message.sender === 'user' ? 'bg-gray-900 text-gray-100 dark:bg-gray-700' : ''}`}>
+                      <div className={`rounded-lg p-3 md:p-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} ${message.sender === 'user' ? 'bg-gray-900 text-gray-100 dark:bg-gray-700' : ''} message-text`}>
                         <ReactMarkdown components={markdownComponents}>
                           {message.text}
                         </ReactMarkdown>
                         
-                        {/* Message Actions */}
-                        <div className={`flex items-center justify-between mt-3 pt-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                          <div className="flex items-center gap-2">
+                        {/* Message Actions - Mobile Optimized */}
+                        <div className={`flex items-center justify-between mt-2 md:mt-3 pt-2 md:pt-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                          <div className="flex items-center gap-1 md:gap-2">
                             {message.sender === 'ai' && (
                               <>
                                 <button
                                   onClick={() => togglePlayPause(message.text, message.id)}
-                                  className={`p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded ${
+                                  className={`p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded touch-button ${
                                     currentlyPlayingId === message.id
                                       ? 'text-gray-900 dark:text-gray-100'
                                       : 'text-gray-500 dark:text-gray-400'
                                   }`}
                                 >
                                   {currentlyPlayingId === message.id ? (
-                                    <Pause className="w-3.5 h-3.5" />
+                                    <Pause className="w-3 h-3 md:w-3.5 md:h-3.5" />
                                   ) : (
-                                    <Play className="w-3.5 h-3.5" />
+                                    <Play className="w-3 h-3 md:w-3.5 md:h-3.5" />
                                   )}
                                 </button>
                                 {speechProgress[message.id] !== undefined && (
-                                  <div className="w-16 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                  <div className="w-12 md:w-16 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                     <div 
                                       className="h-full bg-gray-900 dark:bg-gray-100 transition-all duration-300"
                                       style={{ width: `${speechProgress[message.id]}%` }}
@@ -1892,36 +2091,38 @@ export default function AIChatModal({
                               </>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            {message.tokensUsed && message.tokensUsed > 0 && (
-                              <span>Tokens: {message.tokensUsed}</span>
-                            )}
-                            {message.estimatedCost && message.estimatedCost !== '$0.000000' && (
-                              <span>Cost: {message.estimatedCost}</span>
-                            )}
-                          </div>
+                          {!isMobile && (
+                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                              {message.tokensUsed && message.tokensUsed > 0 && (
+                                <span>Tokens: {message.tokensUsed}</span>
+                              )}
+                              {message.estimatedCost && message.estimatedCost !== '$0.000000' && (
+                                <span>Cost: {message.estimatedCost}</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                     
                     {message.sender === 'user' && (
-                      <div className={`w-8 h-8 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
-                        <User className="w-4 h-4 text-gray-800 dark:text-gray-200" />
+                      <div className={`w-7 h-7 md:w-8 md:h-8 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
+                        <User className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-800 dark:text-gray-200" />
                       </div>
                     )}
                   </div>
                 ))}
                 
-                {/* Loading Indicator */}
+                {/* Loading Indicator - Mobile Optimized */}
                 {isLoading && (
-                  <div className="flex gap-3 message-enter">
-                    <div className={`w-8 h-8 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
-                      <Brain className="w-4 h-4 text-gray-800 dark:text-gray-200" />
+                  <div className="flex gap-2 md:gap-3 message-enter">
+                    <div className={`w-7 h-7 md:w-8 md:h-8 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0`}>
+                      <Brain className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-800 dark:text-gray-200" />
                     </div>
                     <div className="flex-1">
-                      <div className={`rounded-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Monietar AI</span>
+                      <div className={`rounded-lg p-3 md:p-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                        <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
+                          <span className="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100">Monietar AI</span>
                           <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                             <div className="typing-indicator">
                               <div className="typing-dot"></div>
@@ -1931,43 +2132,43 @@ export default function AIChatModal({
                             <span>Thinking...</span>
                           </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <div className={`h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '85%' }} />
-                          <div className={`h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '70%' }} />
-                          <div className={`h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '60%' }} />
+                        <div className="space-y-1 md:space-y-1.5">
+                          <div className={`h-1.5 md:h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '85%' }} />
+                          <div className={`h-1.5 md:h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '70%' }} />
+                          <div className={`h-1.5 md:h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`} style={{ width: '60%' }} />
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
                 
-                {/* Welcome Screen */}
+                {/* Welcome Screen - Mobile Optimized */}
                 {currentSession?.messages.length === 1 && !connectionError && (
-                  <div className="text-center py-8 px-4">
-                    <div className="inline-flex items-center justify-center p-3 rounded-lg bg-gray-100 dark:bg-gray-800 mb-6">
-                      <Brain className="w-12 h-12 text-gray-800 dark:text-gray-200" />
+                  <div className="text-center py-4 md:py-8 px-3 md:px-4">
+                    <div className="inline-flex items-center justify-center p-2 md:p-3 rounded-lg bg-gray-100 dark:bg-gray-800 mb-4 md:mb-6">
+                      <Brain className="w-8 h-8 md:w-12 md:h-12 text-gray-800 dark:text-gray-200" />
                     </div>
-                    <h1 className="text-2xl font-bold mb-3 text-gray-900 dark:text-gray-100">
+                    <h1 className="text-lg md:text-2xl font-bold mb-2 md:mb-3 text-gray-900 dark:text-gray-100">
                       Monietar Financial AI
                     </h1>
-                    <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                    <p className="text-gray-600 dark:text-gray-400 mb-4 md:mb-6 max-w-md mx-auto text-sm md:text-base">
                       Your personal financial analyst powered by AI
                     </p>
                     
-                    {/* Quick Actions */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto mb-6">
+                    {/* Quick Actions - Mobile Optimized */}
+                    <div className="grid grid-cols-2 gap-2 md:gap-3 max-w-2xl mx-auto mb-4 md:mb-6">
                       {financialTopics.map((topic, index) => (
                         <button
                           key={index}
                           onClick={() => handleSuggestedQuestion(topic.text)}
-                          className={`group p-3 rounded-lg text-left ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'} transition`}
+                          className={`group p-2 md:p-3 rounded-lg text-left touch-button ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'} transition`}
                         >
-                          <div className="flex flex-col items-start gap-2">
-                            <div className={`p-2 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                          <div className="flex flex-col items-start gap-1 md:gap-2">
+                            <div className={`p-1.5 md:p-2 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                               {topic.icon}
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{topic.text}</div>
+                              <div className="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100">{topic.text}</div>
                               <div className="text-xs text-gray-500">{topic.desc}</div>
                             </div>
                           </div>
@@ -1975,17 +2176,17 @@ export default function AIChatModal({
                       ))}
                     </div>
                     
-                    {/* Suggested Questions */}
+                    {/* Suggested Questions - Mobile Optimized */}
                     <div className="max-w-2xl mx-auto">
-                      <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-4">
+                      <h3 className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 mb-3 md:mb-4">
                         Try asking...
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 md:gap-2">
                         {suggestedQuestions.map((question, index) => (
                           <button
                             key={index}
                             onClick={() => handleSuggestedQuestion(question)}
-                            className={`text-left p-3 rounded-lg ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'} transition text-sm text-gray-900 dark:text-gray-100`}
+                            className={`text-left p-2.5 md:p-3 rounded-lg touch-button ${darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'} transition text-xs md:text-sm text-gray-900 dark:text-gray-100`}
                           >
                             {question}
                           </button>
@@ -1999,30 +2200,30 @@ export default function AIChatModal({
               </div>
             </div>
 
-            {/* File Upload Preview */}
+            {/* File Upload Preview - Mobile Optimized */}
             {uploadedFiles.length > 0 && (
-              <div className={`px-4 md:px-6 py-3 border-t ${darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+              <div className={`px-3 md:px-6 py-2 md:py-3 border-t ${darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                 <div className="max-w-3xl mx-auto">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1 md:mb-2">
                     <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       Files to upload ({uploadedFiles.length})
                     </div>
                     <button
                       onClick={() => setUploadedFiles([])}
-                      className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
+                      className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 touch-button"
                     >
                       Clear all
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 md:gap-2">
                     {uploadedFiles.map((file, index) => (
                       <div
                         key={index}
-                        className={`flex items-center gap-2 px-3 py-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}
+                        className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} max-w-[200px]`}
                       >
                         {getFileIcon(file)}
-                        <div className="text-sm">
-                          <div className="font-medium truncate max-w-[150px] text-gray-900 dark:text-gray-100">
+                        <div className="text-xs md:text-sm overflow-hidden">
+                          <div className="font-medium truncate max-w-[100px] md:max-w-[150px] text-gray-900 dark:text-gray-100">
                             {file.name}
                           </div>
                           <div className="text-xs text-gray-500">
@@ -2031,7 +2232,7 @@ export default function AIChatModal({
                         </div>
                         <button
                           onClick={() => removeFile(index)}
-                          className="ml-2 p-1 hover:bg-gray-700/30 rounded"
+                          className="ml-1 p-0.5 md:p-1 hover:bg-gray-700/30 rounded touch-button"
                         >
                           <X className="w-3 h-3 text-gray-500" />
                         </button>
@@ -2042,16 +2243,16 @@ export default function AIChatModal({
               </div>
             )}
 
-            {/* Input Area */}
+            {/* Input Area - Mobile Optimized */}
             <div className={`border-t ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-              <div className="max-w-3xl mx-auto p-4 md:p-6">
+              <div className="max-w-3xl mx-auto p-3 md:p-4 md:p-6">
                 <div className={`rounded-lg border ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-50'}`}>
-                  <div className="flex items-start gap-2 px-4 py-3">
+                  <div className="flex items-start gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-3">
                     {/* File Upload Button */}
                     <div className="relative">
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className={`p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded`}
+                        className={`p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded touch-button`}
                         title="Upload files"
                       >
                         <Paperclip className="w-4 h-4 text-gray-600 dark:text-gray-400" />
@@ -2066,30 +2267,27 @@ export default function AIChatModal({
                       />
                     </div>
 
-                    {/* Text Area */}
+                    {/* Text Area - Mobile Optimized */}
                     <textarea
                       ref={inputRef}
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
+                      onInput={handleTextareaInput}
                       onKeyDown={handleKeyPress}
                       placeholder={openRouterAvailable ? "Ask about your finances..." : "Configure OpenRouter API key to start..."}
                       className={`flex-1 px-2 py-2 bg-transparent outline-none resize-none ${
                         darkMode ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'
-                      } min-h-[60px] max-h-[200px]`}
+                      } min-h-[44px] max-h-[100px] md:max-h-[200px] text-sm md:text-base`}
                       rows={1}
                       disabled={isLoading || !openRouterAvailable}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        target.style.height = Math.min(target.scrollHeight, 200) + 'px';
-                      }}
+                      style={{ height: inputHeight }}
                     />
                     
-                    {/* Send Button */}
+                    {/* Send Button - Mobile Optimized */}
                     <button
                       onClick={handleSend}
                       disabled={(!newMessage.trim() && uploadedFiles.length === 0) || isLoading || !openRouterAvailable}
-                      className={`p-2 rounded ${
+                      className={`p-2 rounded touch-button ${
                         (newMessage.trim() || uploadedFiles.length > 0) && !isLoading && openRouterAvailable
                           ? 'bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white'
                           : 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-400 dark:text-gray-600'
@@ -2103,19 +2301,21 @@ export default function AIChatModal({
                     </button>
                   </div>
                   
-                  <div className={`flex items-center justify-between px-4 py-2 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={toggleTextToSpeech}
-                        className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded ${
-                          textToSpeech 
-                            ? 'text-gray-900 dark:text-gray-100' 
-                            : 'text-gray-500 dark:text-gray-400'
-                        }`}
-                        title="Text-to-speech"
-                      >
-                        {textToSpeech ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-                      </button>
+                  <div className={`flex items-center justify-between px-3 md:px-4 py-1.5 md:py-2 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <div className="flex items-center gap-1 md:gap-2">
+                      {isMobile && (
+                        <button
+                          onClick={toggleTextToSpeech}
+                          className={`p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded touch-button ${
+                            textToSpeech 
+                              ? 'text-gray-900 dark:text-gray-100' 
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}
+                          title="Text-to-speech"
+                        >
+                          {textToSpeech ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
                       <div className="text-xs text-gray-500">
                         {openRouterAvailable 
                           ? `${getCurrentModelInfo().name} • ${responseStyle} style • Enter to send`
@@ -2129,7 +2329,7 @@ export default function AIChatModal({
                   </div>
                 </div>
                 
-                <div className="text-xs text-center text-gray-500 mt-3">
+                <div className="text-xs text-center text-gray-500 mt-2 md:mt-3">
                   Powered by OpenRouter • Secured
                 </div>
               </div>

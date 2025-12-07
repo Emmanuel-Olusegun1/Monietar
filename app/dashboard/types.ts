@@ -141,4 +141,10 @@ export interface PasswordData {
   confirmPassword: string;
 }
 
-
+export interface EncryptedTransactionData {
+  encrypted_payload: string;
+  encryption_key: string;
+  is_encrypted: boolean;
+  amount?: number | null;
+  description?: string | null;
+}

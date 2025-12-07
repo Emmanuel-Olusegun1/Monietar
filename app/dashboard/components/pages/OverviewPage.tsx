@@ -46,6 +46,7 @@ interface OverviewPageProps {
     spent: number;
     period: string;
   }>;
+  encryptionEnabled?: boolean;
 }
 
 // Professional Empty State (unchanged)

@@ -6,242 +6,203 @@ import { useState, useEffect } from 'react';
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      setIsScrolled(scrollTop > 50);
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      
+      setIsScrolled(currentScrollY > 20);
+      setLastScrollY(currentScrollY);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [lastScrollY]);
+
+  const navItems = [
+    { label: 'Features', href: '#features' },
+    { label: 'Pricing', href: '#pricing' },
+    { label: 'Faqs', href: '#faqs' },
+      { label: 'Contact', href: '#contact' },
+    { label: 'Documentations', href: 'https://monietardoc.hashnode.space/' },
+  ];
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      isScrolled 
-        ? 'bg-white/95 backdrop-blur-lg border-b border-gray-200/50 shadow-sm' 
-        : 'bg-transparent backdrop-blur-none border-transparent'
-    }`}>
-      {/* Remove the md:z-50 and just use z-50 consistently */}
-      
-      <div className="container mx-auto max-w-7xl px-4 flex items-center justify-between">
-        <motion.div 
-          className="flex items-center space-x-3"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <img 
-            src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
-            alt="Monietar Logo"
-            className="w-30 h-20 object-contain"
-          />
-          <span className={`text-xl font-bold transition-colors duration-300 ${
-            isScrolled ? 'text-gray-900' : 'text-white'
-          }`}></span>
-        </motion.div>
+    <motion.header 
+      className={`fixed top-0 left-0 right-0 z-50 transition-all h-12 duration-300 ${
+        isScrolled 
+          ? 'border-b border-gray-200 shadow-sm py-2  ' 
+          : 'border-b border-transparent py-4 md:py-6'
+      } ${!isVisible ? '-translate-y-full' : 'translate-y-0'}`}
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="container sm:mx-3 md:mx-7 max-w-7xl bg-white py-1  rounded-full px-4 sm:px-10 lg:px-8">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <motion.a 
+            href="/"
+            className="flex items-center gap-3"
+            whileHover={{ scale: 1.01 }}
+          >
+            <img 
+              src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
+              alt="Monietar Logo"
+              className="h-12 object-contain"
+            />
+          </motion.a>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center space-x-8">
-          {['Features', 'Pricing', 'FAQ', 'Contact'].map((item) => (
-            <a 
-              key={item}
-              href={`#${item.toLowerCase()}`}
-              className={`transition-colors duration-200 font-medium hover:text-emerald-500 ${
-                isScrolled ? 'text-gray-600' : 'text-white/90 hover:text-white'
-              }`}
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {navItems.map((item) => (
+              <motion.a 
+                key={item.label}
+                href={item.href}
+                className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-emerald-800 transition-colors duration-200 rounded-lg hover:bg-gray-50"
+                whileHover={{ y: -1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+              >
+                {item.label}
+              </motion.a>
+            ))}
+          </nav>
+
+          {/* Desktop Actions */}
+          <div className="hidden lg:flex items-center gap-3">
+            <motion.a
+              href="/auth/signin"
+              className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-emerald-800 transition-colors duration-200 rounded-lg hover:bg-gray-50"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              {item}
-            </a>
-          ))}
-        </nav>
+              Sign In
+            </motion.a>
+            
+            <motion.a
+              href="/auth/signup"
+              className="px-5 py-2.5 bg-emerald-600 text-white font-medium text-sm rounded-full hover:bg-gray-800 transition-all duration-200 shadow-sm hover:shadow"
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Get Started
+            </motion.a>
+          </div>
 
-        {/* Desktop Sign In Button */}
-        <motion.a
-          href="/auth/signin"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className={`hidden lg:block font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow ${
-            isScrolled 
-              ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
-              : 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/20 hover:border-white/30'
-          }`}
-        >
-          Sign In
-        </motion.a>
-
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setIsMenuOpen(true)}
-          className={`lg:hidden p-2 rounded-md transition-colors ${
-            isScrolled 
-              ? 'text-gray-600 hover:text-emerald-500 hover:bg-gray-100' 
-              : 'text-white/90 hover:text-white hover:bg-white/10'
-          }`}
-          aria-label="Open menu"
-        >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+          {/* Mobile Menu Button */}
+          <motion.button
+            onClick={() => setIsMenuOpen(true)}
+            className={`lg:hidden p-2.5 rounded-lg transition-colors ${
+              isScrolled 
+                ? 'hover:bg-gray-100 text-gray-600' 
+                : 'hover:bg-gray-100 text-gray-600'
+            }`}
+            aria-label="Open menu"
+            whileTap={{ scale: 0.95 }}
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </motion.button>
+        </div>
       </div>
 
-      {/* Mobile Sidebar Menu */}
+      {/* Mobile Menu */}
       <AnimatePresence>
         {isMenuOpen && (
           <>
-            {/* Backdrop - Increase z-index */}
+            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
               onClick={() => setIsMenuOpen(false)}
             />
             
-            {/* Sidebar - Ensure higher z-index than backdrop */}
+            {/* Menu Panel */}
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="fixed top-0 right-0 h-full w-80 max-w-full bg-white shadow-2xl z-50 lg:hidden"
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed top-0 right-0 h-full w-80 max-w-full bg-white shadow-xl border-l border-gray-200 z-50 lg:hidden"
             >
               <div className="p-6 h-full flex flex-col">
-                {/* Header */}
+                {/* Menu Header */}
                 <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center gap-3">
                     <img 
                       src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
                       alt="Monietar Logo"
-                      className="w-24 h-16 object-contain"
+                      className="h-7 object-contain"
                     />
                   </div>
-                  <button
+                  <motion.button
                     onClick={() => setIsMenuOpen(false)}
-                    className="p-2 rounded-md text-gray-600 hover:text-emerald-500 hover:bg-gray-100 transition-colors"
+                    className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
                     aria-label="Close menu"
+                    whileTap={{ scale: 0.9 }}
                   >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                  </button>
+                  </motion.button>
                 </div>
 
-                {/* Navigation Links */}
-                <nav className="flex-1 space-y-4">
-                  {['Features', 'Pricing', 'FAQ', 'Contact'].map((item) => (
-                    <a
-                      key={item}
-                      href={`#${item.toLowerCase()}`}
-                      className="block py-3 px-4 text-gray-600 hover:text-emerald-500 hover:bg-emerald-50 rounded-md transition-colors duration-200 font-medium"
+                {/* Menu Items */}
+                <nav className="flex-1 space-y-1">
+                  {navItems.map((item, index) => (
+                    <motion.a
+                      key={item.label}
+                      href={item.href}
+                      className="block py-3 px-4 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200 font-medium"
                       onClick={() => setIsMenuOpen(false)}
+                      initial={{ x: 20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                      whileHover={{ x: 2 }}
                     >
-                      {item}
-                    </a>
+                      {item.label}
+                    </motion.a>
                   ))}
                 </nav>
 
-                {/* Sign In Button */}
-                <div className="pt-8 border-t border-gray-200 mt-8">
-                  <a 
+                {/* Mobile Actions */}
+                <div className="space-y-3 pt-8 border-t border-gray-200 mt-6">
+                  <motion.a 
                     href="/auth/signin" 
-                    className="block w-full text-center bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 rounded-md transition-all duration-200 shadow-sm hover:shadow"
+                    className="block w-full py-3 text-center text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200"
                     onClick={() => setIsMenuOpen(false)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
                     Sign In
-                  </a>
+                  </motion.a>
+                  
+                  <motion.a 
+                    href="/auth/signup" 
+                    className="block w-full py-3 text-center bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-all duration-200 shadow-sm"
+                    onClick={() => setIsMenuOpen(false)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Get Started
+                  </motion.a>
                 </div>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
-    </header>
+    </motion.header>
   );
 }
-
-
-
-// 'use client';
-
-// import { motion } from 'framer-motion';
-// import { useState, useEffect } from 'react';
-
-// export default function WaitlistHeader() {
-//   const [isScrolled, setIsScrolled] = useState(false);
-
-//   useEffect(() => {
-//     const handleScroll = () => {
-//       const scrollTop = window.scrollY;
-//       setIsScrolled(scrollTop > 50);
-//     };
-
-//     window.addEventListener('scroll', handleScroll);
-//     return () => window.removeEventListener('scroll', handleScroll);
-//   }, []);
-
-//   return (
-//     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-//       isScrolled 
-//         ? 'bg-white/95 backdrop-blur-lg border-b border-gray-200/50 shadow-sm' 
-//         : 'bg-transparent backdrop-blur-none border-transparent'
-//     }`}>
-//       <div className="container mx-auto max-w-7xl px-4 flex items-center justify-between">
-//         <motion.div 
-//           className="flex items-center space-x-3"
-//           initial={{ opacity: 0 }}
-//           animate={{ opacity: 1 }}
-//           transition={{ duration: 0.5 }}
-//         >
-//           <img 
-//             src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
-//             alt="Monietar Logo"
-//             className="w-30 h-20 object-contain"
-//           />
-//           <span className={`text-xl font-bold transition-colors duration-300 ${
-//             isScrolled ? 'text-gray-900' : 'text-white'
-//           }`}></span>
-//         </motion.div>
-
-//         {/* Desktop Navigation */}
-//         <nav className="hidden lg:flex items-center space-x-8">
-//           {['Features', 'Benefits', 'FAQ', 'Contact'].map((item) => (
-//             <a 
-//               key={item}
-//               href={`#${item.toLowerCase()}`}
-//               className={`transition-colors duration-200 font-medium hover:text-emerald-500 ${
-//                 isScrolled ? 'text-gray-600' : 'text-white/90 hover:text-white'
-//               }`}
-//             >
-//               {item}
-//             </a>
-//           ))}
-//         </nav>
-
-//         {/* Desktop Waitlist Button */}
-//         <motion.a
-//           href="#waitlist"
-//           initial={{ opacity: 0, x: 20 }}
-//           animate={{ opacity: 1, x: 0 }}
-//           transition={{ duration: 0.5, delay: 0.1 }}
-//           className={`hidden lg:block font-medium px-6 py-2 rounded-md transition-all duration-200 shadow-sm hover:shadow ${
-//             isScrolled 
-//               ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
-//               : 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/20 hover:border-white/30'
-//           }`}
-//         >
-//           Join Waitlist
-//         </motion.a>
-
-//         {/* Mobile - Only logo, no menu button */}
-//         <div className="lg:hidden">
-//           {/* Empty div to maintain flex layout balance */}
-//         </div>
-//       </div>
-//     </header>
-//   );
-// }

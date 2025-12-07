@@ -38,6 +38,7 @@ interface TransactionsPageProps {
   darkMode: boolean;
   themeClasses: any;
   EmptyState: any;
+  encryptionEnabled?: boolean;
 }
 
 const categoryIcons: { [key: string]: any } = {

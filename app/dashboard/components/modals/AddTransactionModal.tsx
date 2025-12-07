@@ -14,6 +14,7 @@ interface AddTransactionModalProps {
     category: string
     description: string
     date: string
+  encryptionEnabled?: boolean;
   }
   onFormDataChange: (data: any) => void
   onSubmit: () => void

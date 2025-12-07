@@ -58,6 +58,8 @@ interface SidebarProps {
   currencies: Array<{ value: string; label: string }>
   languagesList: Array<{ value: string; label: string }>
   realTimeAlerts: Array<any>
+  isDecrypting?: boolean;
+  encryptionEnabled?: boolean;
 }
 
 const navigationItems: NavigationItem[] = [

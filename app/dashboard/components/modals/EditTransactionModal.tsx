@@ -21,6 +21,7 @@ interface EditTransactionModalProps {
   categories: string[]
   darkMode: boolean
   isLoading?: boolean // Add loading prop
+  encryptionEnabled?: boolean;
 }
 
 type Step = 'amount' | 'category' | 'details' | 'review'
