@@ -10,8 +10,7 @@ export default function Header() {
     { label: 'Features', href: '#features' },
     { label: 'Pricing', href: '#pricing' },
     { label: 'Faqs', href: '#faqs' },
-      { label: 'Contact', href: '#contact' },
-    { label: 'Documentations', href: 'https://monietardoc.hashnode.space/' },
+    { label: 'Contact', href: '#contact' },
   ];
 
   return (
