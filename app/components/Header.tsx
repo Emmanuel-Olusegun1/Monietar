@@ -5,27 +5,6 @@ import { useState, useEffect } from 'react';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
-      }
-      
-      setIsScrolled(currentScrollY > 20);
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
 
   const navItems = [
     { label: 'Features', href: '#features' },
@@ -37,11 +16,7 @@ export default function Header() {
 
   return (
     <motion.header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all h-12 duration-300 ${
-        isScrolled 
-          ? 'border-b border-gray-200 shadow-sm py-2  ' 
-          : 'border-b border-transparent py-4 md:py-6'
-      } ${!isVisible ? '-translate-y-full' : 'translate-y-0'}`}
+      className='fixed top-0 left-0 right-0 z-50 transition-all h-12 duration-300 mt-5'
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
@@ -67,7 +42,7 @@ export default function Header() {
               <motion.a 
                 key={item.label}
                 href={item.href}
-                className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-emerald-800 transition-colors duration-200 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors duration-200 rounded-lg hover:bg-gray-50"
                 whileHover={{ y: -1 }}
                 transition={{ type: "spring", stiffness: 400 }}
               >
@@ -89,7 +64,7 @@ export default function Header() {
             
             <motion.a
               href="/auth/signup"
-              className="px-5 py-2.5 bg-emerald-600 text-white font-medium text-sm rounded-full hover:bg-gray-800 transition-all duration-200 shadow-sm hover:shadow"
+              className="px-5 py-2.5 bg-emerald-600 text-white font-medium text-sm rounded-full hover:bg-emerald-800 transition-all duration-200 shadow-sm hover:shadow"
               whileHover={{ scale: 1.02, y: -1 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -100,11 +75,7 @@ export default function Header() {
           {/* Mobile Menu Button */}
           <motion.button
             onClick={() => setIsMenuOpen(true)}
-            className={`lg:hidden p-2.5 rounded-lg transition-colors ${
-              isScrolled 
-                ? 'hover:bg-gray-100 text-gray-600' 
-                : 'hover:bg-gray-100 text-gray-600'
-            }`}
+            className='lg:hidden p-2.5 rounded-lg transition-colors'
             aria-label="Open menu"
             whileTap={{ scale: 0.95 }}
           >
@@ -119,14 +90,6 @@ export default function Header() {
       <AnimatePresence>
         {isMenuOpen && (
           <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
-              onClick={() => setIsMenuOpen(false)}
-            />
             
             {/* Menu Panel */}
             <motion.div
@@ -134,7 +97,7 @@ export default function Header() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-80 max-w-full bg-white shadow-xl border-l border-gray-200 z-50 lg:hidden"
+              className="fixed top-0 bottom-0 right-0 h-screen  w-80 max-w-full bg-white backdrop-blur-sm shadow-xl border-l border-gray-200 z-50 lg:hidden"
             >
               <div className="p-6 h-full flex flex-col">
                 {/* Menu Header */}
@@ -143,7 +106,7 @@ export default function Header() {
                     <img 
                       src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
                       alt="Monietar Logo"
-                      className="h-7 object-contain"
+                      className="h-7 object-contain hidden"
                     />
                   </div>
                   <motion.button
@@ -164,7 +127,7 @@ export default function Header() {
                     <motion.a
                       key={item.label}
                       href={item.href}
-                      className="block py-3 px-4 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200 font-medium"
+                      className="block py-3 px-4 text-gray-600 hover:text-emerald-800 hover:bg-gray-50 rounded-lg transition-colors duration-200 font-medium"
                       onClick={() => setIsMenuOpen(false)}
                       initial={{ x: 20, opacity: 0 }}
                       animate={{ x: 0, opacity: 1 }}
@@ -180,7 +143,7 @@ export default function Header() {
                 <div className="space-y-3 pt-8 border-t border-gray-200 mt-6">
                   <motion.a 
                     href="/auth/signin" 
-                    className="block w-full py-3 text-center text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    className="block w-full py-3 text-center text-gray-600 hover:text-emerald-800 font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200"
                     onClick={() => setIsMenuOpen(false)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -190,7 +153,7 @@ export default function Header() {
                   
                   <motion.a 
                     href="/auth/signup" 
-                    className="block w-full py-3 text-center bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-all duration-200 shadow-sm"
+                    className="block w-full py-3 text-center bg-emerald-600 hover:bg-emerald-800 text-white font-medium rounded-lg transition-all duration-200 shadow-sm"
                     onClick={() => setIsMenuOpen(false)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}

@@ -11,7 +11,7 @@ import { OverviewPage } from './components/pages/OverviewPage';
 import { TransactionsPage } from './components/pages/TransactionsPage';
 import { BudgetsPage } from './components/pages/BudgetsPage';
 import AccountsPage from './components/pages/AccountsPage';
-import { SettingsPage } from './components/pages/SettingsPage';
+import SettingsPage from './components/pages/SettingsPage';
 import { ComingSoonPage } from './components/pages/ComingSoonPage';
 import AIChatModal from './components/modals/AIChatModal';
 import { TokenModal } from './components/modals/TokenModal';
@@ -103,6 +103,12 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   const [showEditBudgetModal, setShowEditBudgetModal] = useState(false);
   const [showDeleteBudgetModal, setShowDeleteBudgetModal] = useState(false);
 
+  // Settings dialog states
+  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+  const [showClearDataDialog, setShowClearDataDialog] = useState(false);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+
+  // Transaction form data
   const [transactionFormData, setTransactionFormData] = useState({
     amount: '',
     category: '',
@@ -110,6 +116,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     date: ''
   });
 
+  // Budget form data
   const [budgetFormData, setBudgetFormData] = useState<{
     category: string;
     budget_limit: string;
@@ -120,6 +127,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     period: 'Monthly'
   });
 
+  // Edit budget form data
   const [editBudgetFormData, setEditBudgetFormData] = useState<{
     category: string;
     budget_limit: string;
@@ -130,6 +138,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     period: 'Monthly'
   });
 
+  // Edit transaction form data
   const [editFormData, setEditFormData] = useState({
     amount: '',
     category: '',
@@ -137,12 +146,28 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     date: ''
   });
 
+  // User settings state
+  const [userSettings, setUserSettings] = useState({
+    notifications: true,
+    twoFactorAuth: false,
+    autoBackup: true,
+    emailReports: true,
+    pushNotifications: true,
+    currency: 'NGN',
+    language: 'en',
+    dateFormat: 'DD/MM/YYYY',
+    timeZone: 'Africa/Lagos',
+    theme: 'dark'
+  });
+
+  // Editing and deletion states
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [editingBudget, setEditingBudget] = useState<EnhancedBudget | null>(null);
   const [deleteTransactionId, setDeleteTransactionId] = useState<string | null>(null);
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // User info
   const [user, setUser] = useState<UserInfo>({
     name: 'User',
     email: '',
@@ -152,6 +177,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     joinedDate: new Date().toISOString().split('T')[0]
   });
 
+  // Financial data
   const [financialData, setFinancialData] = useState<FinancialData>({
     income: 0,
     expenses: 0,
@@ -163,6 +189,10 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     cashFlowForecast: []
   });
 
+  // Alias for delete account dialog to use existing delete modal
+  const setShowDeleteAccountDialog = setShowDeleteModal;
+
+  // Language and currency options
   const languagesList = [
     { value: 'en', label: 'English' },
     { value: 'fr', label: 'French' },
@@ -182,6 +212,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [realTimeAlerts, setRealTimeAlerts] = useState<any[]>([]);
 
+  // Income categories
   const incomeCategories = [
     'Sales Money', 'Service Income', 'Bank Interest', 'Share Dividends', 'Rent from Property',
     'Consulting Fees', 'Subscription Money', 'Commission Earned',
@@ -202,6 +233,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     'Clothing Business', 'Handicraft Sales', 'Other Income'
   ];
 
+  // Expense categories
   const expenseCategories = [
     'Food & Eating Out', 'Transport Costs', 'Bills (Water/Light)', 'Rent Payment', 'Fun/Entertainment',
     'Medical Costs', 'School Fees', 'Shopping', 'Travel Costs', 'Miscellaneous',
@@ -386,6 +418,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     });
   }, [financialData.budgets, financialData.transactions, session?.user?.id]);
 
+  // Format currency for display
   const formatCurrency = (amount: number): string => {
     if (!showBalance && amount !== 0) return '••••••';
     return new Intl.NumberFormat('en-NG', {
@@ -394,6 +427,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     }).format(amount);
   };
 
+  // Format currency for AI context
   const formatCurrencyForAI = (amount: number): string => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -403,7 +437,11 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     }).format(amount);
   };
 
+<<<<<<< HEAD
   // Context generation for AI
+=======
+  // Generate financial context for AI
+>>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
   const generateFinancialContext = (): string => {
     const hasTransactions = financialData.transactions && financialData.transactions.length > 0;
     const hasBudgets = financialData.budgets && financialData.budgets.length > 0;
@@ -500,7 +538,11 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     return `${keyMetrics}\n\n${healthIndicators}\n\n${expenseBreakdown}\n\n${incomeBreakdown}\n\n${budgetAnalysis}\n\n${recentActivity}`.trim();
   };
 
+<<<<<<< HEAD
   // OpenRouter status check
+=======
+  // Check OpenRouter status
+>>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
   const checkOpenRouterStatus = async () => {
     try {
       console.log('🔄 Checking OpenRouter for AI models...');
@@ -552,8 +594,37 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     }
   };
 
+<<<<<<< HEAD
   // Load data with decryption support
   const loadData = async (): Promise<void> => {
+=======
+  // AI Chat handler for OpenRouter
+  const handleSendMessage = async (message: string, files?: File[]): Promise<string> => {
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('style', 'balanced');
+    
+    if (files) {
+      files.forEach(file => formData.append('files', file));
+    }
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to get response');
+    }
+
+    return data.response;
+  };
+
+  // Load user data
+  const loadData = async () => {
+>>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
     if (!session?.user) {
       setLoading(false);
       return;
@@ -646,10 +717,12 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     }
   };
 
+  // Load data on component mount
   useEffect(() => {
     loadData();
   }, [session?.user?.id, encryption]);
 
+<<<<<<< HEAD
   // Transaction handlers with encryption support
   const handleSubmitTransaction = async (): Promise<void> => {
     if (!session?.user) {
@@ -657,6 +730,143 @@ export default function DashboardClient({ initialSession }: { initialSession: an
       return;
     }
     
+=======
+  // Handle saving user settings
+  const handleSaveSettings = async () => {
+    try {
+      if (!session?.user?.id) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      setIsSubmitting(true);
+      
+      // Update user settings in Supabase
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: session.user.id,
+          settings: userSettings,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      toast.success('Settings saved successfully!');
+    } catch (error: any) {
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle exporting data
+  const handleExportData = async () => {
+    try {
+      if (!session?.user?.id) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      // Fetch all user data
+      const [
+        { data: transactions },
+        { data: budgets },
+        { data: accounts },
+        { data: settings }
+      ] = await Promise.all([
+        supabase.from('transactions').select('*').eq('user_id', session.user.id),
+        supabase.from('budgets').select('*').eq('user_id', session.user.id),
+        supabase.from('accounts').select('*').eq('user_id', session.user.id),
+        supabase.from('user_settings').select('*').eq('user_id', session.user.id)
+      ]);
+
+      // Create export object
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        user: {
+          email: user.email,
+          businessName: user.businessName,
+          plan: user.plan
+        },
+        transactions: transactions || [],
+        budgets: budgets || [],
+        accounts: accounts || [],
+        settings: settings?.[0]?.settings || {},
+        financialSummary: {
+          totalIncome: financialData.income,
+          totalExpenses: financialData.expenses,
+          netProfit: financialData.profit,
+          totalTransactions: financialData.transactions.length,
+          activeBudgets: financialData.budgets.length
+        }
+      };
+
+      // Convert to JSON string
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+      // Create download link
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `monietar-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success('Data exported successfully!');
+    } catch (error: any) {
+      console.error('Error exporting data:', error);
+      toast.error('Failed to export data');
+    }
+  };
+
+  // Handle data backup
+  const handleBackupData = async () => {
+    try {
+      if (!session?.user?.id) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      setIsSubmitting(true);
+      
+      // Create backup record
+      const { error } = await supabase
+        .from('backups')
+        .insert({
+          user_id: session.user.id,
+          backup_data: {
+            transactions: financialData.transactions,
+            budgets: financialData.budgets,
+            settings: userSettings,
+            financialSummary: {
+              income: financialData.income,
+              expenses: financialData.expenses,
+              profit: financialData.profit
+            }
+          },
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      toast.success('Backup created successfully!');
+    } catch (error: any) {
+      console.error('Error creating backup:', error);
+      toast.error('Failed to create backup');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Transaction handlers
+  const handleSubmitTransaction = async () => {
+    if (!session?.user) return toast.error('Please sign in');
+>>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
     setIsSubmitting(true);
     
     try {
@@ -903,6 +1113,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     }
   };
 
+<<<<<<< HEAD
   const handleLogout = async (): Promise<void> => {
     // Clear encryption keys
     if (encryption) {
@@ -910,10 +1121,15 @@ export default function DashboardClient({ initialSession }: { initialSession: an
       setEncryption(null);
     }
     
+=======
+  // Logout handler
+  const handleLogout = async () => {
+>>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
     await supabase.auth.signOut();
     window.location.href = '/auth/signin';
   };
 
+  // Theme classes
   const themeClasses = {
     container: darkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900',
     card: darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
@@ -926,6 +1142,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     input: darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
@@ -1096,31 +1313,27 @@ export default function DashboardClient({ initialSession }: { initialSession: an
 
           {activeTab === 'settings' && (
             <SettingsPage
-              userSettings={{}}
-              setUserSettings={() => {}}
-              handleSaveSettings={async () => {}}
-              handleExportData={() => {}}
-              handleChangePassword={() => {}}
-              handleDeleteAccount={() => {}}
-              themeClasses={themeClasses}
+              userSettings={userSettings}
+              setUserSettings={setUserSettings}
+              handleSaveSettings={handleSaveSettings}
+              handleExportData={handleExportData}
+              setShowChangePasswordDialog={setShowChangePasswordDialog}
+              setShowClearDataDialog={setShowClearDataDialog}
+              setShowDeleteAccountDialog={setShowDeleteAccountDialog}
+              setShowRestoreDialog={setShowRestoreDialog}
+              handleBackupData={handleBackupData}
               darkMode={darkMode}
-              currency={currency}
-              setCurrency={setCurrency}
-              language={language}
-              setLanguage={setLanguage}
-              setShowChangePasswordDialog={() => {}}
-              setShowClearDataDialog={() => {}}
-              setShowDeleteAccountDialog={() => {}}
-              setShowRestoreDialog={() => {}}
-              setShowExportDialog={() => {}}
-              setShowImportDialog={() => {}}
-              setShowLanguageDialog={() => {}}
-              setShowCurrencyDialog={() => {}}
-              handleBackupData={() => toast.success('Backup started')}
-              setActiveTab={setActiveTab}
+              themeClasses={themeClasses}
               languagesList={languagesList}
               currencies={currencies}
+<<<<<<< HEAD
               onEnableEncryption={() => setShowEncryptionModal(true)}
+=======
+              currency={userSettings.currency}
+              language={userSettings.language}
+              setCurrency={setCurrency}
+              setLanguage={setLanguage}
+>>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
             />
           )}
 

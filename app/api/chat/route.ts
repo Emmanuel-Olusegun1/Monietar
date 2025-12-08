@@ -1,4 +1,6 @@
 // app/api/chat/route.ts - USING OPENROUTER SDK WITH FINANCIAL CONTEXT
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { OpenRouter } from "@openrouter/sdk";
 

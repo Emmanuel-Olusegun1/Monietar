@@ -1,4 +1,6 @@
-// components/pages/SettingsPage.tsx
+// app/dashboard/components/pages/SettingsPage.tsx
+'use client'
+
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -10,15 +12,12 @@ import {
   LogOut, 
   ChevronRight, 
   User,
-  Globe,
   Shield,
   Database,
   MessageSquare,
   Mail,
   Send,
   CreditCard,
-  Eye,
-  EyeOff,
   Settings,
   Building,
   FileText,
@@ -35,27 +34,25 @@ interface SettingsPageProps {
   setShowClearDataDialog: (show: boolean) => void;
   setShowDeleteAccountDialog: (show: boolean) => void;
   setShowRestoreDialog: (show: boolean) => void;
-  setShowExportDialog: (show: boolean) => void;
-  setShowImportDialog: (show: boolean) => void;
-  setShowLanguageDialog: (show: boolean) => void;
-  setShowCurrencyDialog: (show: boolean) => void;
-  setCurrency: (currency: string) => void;
-  setLanguage: (language: string) => void;
   handleBackupData: () => void;
-  setActiveTab: (tab: string) => void;
-  handleChangePassword: () => void;
-  handleDeleteAccount: () => void
   darkMode: boolean;
   themeClasses: any;
   languagesList: any[];
   currencies: any[];
+<<<<<<< HEAD
   currency:string;
   language:string;
   encryptionEnabled?: boolean;
   onEnableEncryption?: () => void;
+=======
+  currency: string;
+  language: string;
+  setCurrency: (curr: string) => void;
+  setLanguage: (lang: string) => void;
+>>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({
+export default function SettingsPage({
   userSettings,
   setUserSettings,
   handleSaveSettings,
@@ -65,15 +62,44 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   setShowDeleteAccountDialog,
   setShowRestoreDialog,
   handleBackupData,
-  setActiveTab,
   darkMode,
   themeClasses,
   languagesList,
-  currencies
-}) => {
+  currencies,
+  currency,
+  language,
+  setCurrency,
+  setLanguage
+}: SettingsPageProps) {
   const [activeSection, setActiveSection] = useState('profile');
   const [feedback, setFeedback] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Initialize userSettings with defaults if not provided
+  const settings = {
+    fullName: userSettings?.fullName || '',
+    email: userSettings?.email || '',
+    businessName: userSettings?.businessName || '',
+    phoneNumber: userSettings?.phoneNumber || '',
+    currency: userSettings?.currency || 'USD',
+    language: userSettings?.language || 'en',
+    dateFormat: userSettings?.dateFormat || 'MM/DD/YYYY',
+    timezone: userSettings?.timezone || 'UTC',
+    compactView: userSettings?.compactView || false,
+    autoRefresh: userSettings?.autoRefresh || false,
+    showCharts: userSettings?.showCharts || true,
+    notifications: userSettings?.notifications || {
+      budgetAlerts: true,
+      weeklyReports: false,
+      transactionAlerts: true,
+      aiRecommendations: true,
+      securityAlerts: true
+    },
+    dataSharing: userSettings?.dataSharing || false,
+    marketingEmails: userSettings?.marketingEmails || true,
+    // Add other settings with defaults
+    ...userSettings
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -83,6 +109,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const handleSendFeedback = () => {
     console.log('Feedback:', feedback);
+    // In a real app, you would send this to your backend
+    alert('Thank you for your feedback!');
     setFeedback('');
   };
 
@@ -111,8 +139,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={userSettings.fullName}
-                    onChange={(e) => setUserSettings({...userSettings, fullName: e.target.value})}
+                    value={settings.fullName}
+                    onChange={(e) => setUserSettings({...settings, fullName: e.target.value})}
                     className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-700 text-white' 
@@ -127,8 +155,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </label>
                   <input
                     type="email"
-                    value={userSettings.email}
-                    onChange={(e) => setUserSettings({...userSettings, email: e.target.value})}
+                    value={settings.email}
+                    onChange={(e) => setUserSettings({...settings, email: e.target.value})}
                     className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-700 text-white' 
@@ -152,8 +180,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={userSettings.businessName}
-                      onChange={(e) => setUserSettings({...userSettings, businessName: e.target.value})}
+                      value={settings.businessName}
+                      onChange={(e) => setUserSettings({...settings, businessName: e.target.value})}
                       className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                         darkMode 
                           ? 'bg-gray-800 border-gray-700 text-white' 
@@ -168,8 +196,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     </label>
                     <input
                       type="tel"
-                      value={userSettings.phoneNumber}
-                      onChange={(e) => setUserSettings({...userSettings, phoneNumber: e.target.value})}
+                      value={settings.phoneNumber}
+                      onChange={(e) => setUserSettings({...settings, phoneNumber: e.target.value})}
                       className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                         darkMode 
                           ? 'bg-gray-800 border-gray-700 text-white' 
@@ -197,8 +225,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     Primary Currency *
                   </label>
                   <select 
-                    value={userSettings.currency}
-                    onChange={(e) => setUserSettings({...userSettings, currency: e.target.value})}
+                    value={settings.currency}
+                    onChange={(e) => {
+                      setUserSettings({...settings, currency: e.target.value});
+                      setCurrency(e.target.value);
+                    }}
                     className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-700 text-white' 
@@ -215,8 +246,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     Language
                   </label>
                   <select 
-                    value={userSettings.language}
-                    onChange={(e) => setUserSettings({...userSettings, language: e.target.value})}
+                    value={settings.language}
+                    onChange={(e) => {
+                      setUserSettings({...settings, language: e.target.value});
+                      setLanguage(e.target.value);
+                    }}
                     className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-700 text-white' 
@@ -233,8 +267,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     Date Format
                   </label>
                   <select 
-                    value={userSettings.dateFormat}
-                    onChange={(e) => setUserSettings({...userSettings, dateFormat: e.target.value})}
+                    value={settings.dateFormat}
+                    onChange={(e) => setUserSettings({...settings, dateFormat: e.target.value})}
                     className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-700 text-white' 
@@ -251,8 +285,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     Time Zone
                   </label>
                   <select 
-                    value={userSettings.timezone}
-                    onChange={(e) => setUserSettings({...userSettings, timezone: e.target.value})}
+                    value={settings.timezone}
+                    onChange={(e) => setUserSettings({...settings, timezone: e.target.value})}
                     className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                       darkMode 
                         ? 'bg-gray-800 border-gray-700 text-white' 
@@ -276,19 +310,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     key: 'compactView',
                     title: 'Compact View',
                     description: 'Show more data in less space',
-                    enabled: userSettings.compactView
+                    enabled: settings.compactView
                   },
                   {
                     key: 'autoRefresh',
                     title: 'Auto-refresh Data',
                     description: 'Automatically update data every 5 minutes',
-                    enabled: userSettings.autoRefresh
+                    enabled: settings.autoRefresh
                   },
                   {
                     key: 'showCharts',
                     title: 'Show Charts',
                     description: 'Display visual charts and graphs',
-                    enabled: userSettings.showCharts
+                    enabled: settings.showCharts
                   }
                 ].map((item) => (
                   <div key={item.key} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 ${
@@ -304,7 +338,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         className="sr-only peer" 
                         checked={item.enabled}
                         onChange={(e) => setUserSettings({
-                          ...userSettings, 
+                          ...settings, 
                           [item.key]: e.target.checked
                         })}
                       />
@@ -381,10 +415,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       <input 
                         type="checkbox" 
                         className="sr-only peer" 
-                        checked={userSettings.notifications[item.key]}
+                        checked={settings.notifications[item.key]}
                         onChange={(e) => setUserSettings({
-                          ...userSettings, 
-                          notifications: {...userSettings.notifications, [item.key]: e.target.checked}
+                          ...settings, 
+                          notifications: {...settings.notifications, [item.key]: e.target.checked}
                         })}
                       />
                       <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
@@ -431,7 +465,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </button>
 
                 <button 
-                  onClick={() => {/* Implement 2FA dialog */}}
+                  onClick={() => alert('Two-Factor Authentication dialog would open here')}
                   className={`w-full hover:cursor-pointer flex items-center justify-between p-6 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
                     darkMode ? 'bg-gray-800/50 border-gray-700 hover:bg-gray-700/50' : 'bg-white border-gray-200 hover:bg-gray-50'
                   }`}
@@ -580,13 +614,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       key: 'dataSharing',
                       title: 'Anonymous Data Sharing',
                       description: 'Help us improve by sharing anonymous usage data',
-                      enabled: userSettings.dataSharing
+                      enabled: settings.dataSharing
                     },
                     {
                       key: 'marketingEmails',
                       title: 'Marketing Communications',
                       description: 'Receive emails about new features and tips',
-                      enabled: userSettings.marketingEmails
+                      enabled: settings.marketingEmails
                     }
                   ].map((item) => (
                     <div key={item.key} className="flex items-center justify-between">
@@ -600,7 +634,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           className="sr-only peer" 
                           checked={item.enabled}
                           onChange={(e) => setUserSettings({
-                            ...userSettings, 
+                            ...settings, 
                             [item.key]: e.target.checked
                           })}
                         />
@@ -638,7 +672,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </div>
                   <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Documentation</h4>
                   <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Browse our help center and guides</p>
-                  <button className="w-full hover:cursor-pointer px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">
+                  <button 
+                    onClick={() => window.open('https://docs.monietar.com', '_blank')}
+                    className="w-full hover:cursor-pointer px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+                  >
                     View Docs
                   </button>
                 </div>
@@ -655,7 +692,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </div>
                   <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Contact Support</h4>
                   <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Get help from our support team</p>
-                  <button className="w-full hover:cursor-pointer px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">
+                  <button 
+                    onClick={() => window.location.href = 'mailto:support@monietar.com'}
+                    className="w-full hover:cursor-pointer px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+                  >
                     Contact Us
                   </button>
                 </div>
@@ -731,7 +771,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8 pt-6">
           <div>
-<h1 className={`text-2xl font-bold ${themeClasses.text.primary}`}>
+            <h1 className={`text-2xl font-bold ${themeClasses.text.primary}`}>
               Settings
             </h1>
             <p className={`mt-2 text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -808,4 +848,4 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </motion.div>
     </div>
   );
-};
+}
