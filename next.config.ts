@@ -7,9 +7,6 @@ const serwistOptions = {
   swDest: 'public/sw.js',
   disable: false,
   scope: '/',
-  registration: {
-    strategy: 'registerWhenReady',  // ← THIS IS THE FIX
-  },
   // disable: process.env.NODE_ENV === 'development',
 }
 
