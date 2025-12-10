@@ -26,7 +26,7 @@ const productLinks: LinkProps[] = [
 
 const resourceLinks: LinkProps[] = [
   { title: 'Blog', link: '#blog' },
-  { title: 'Guides', link: '#guides' },
+  { title: 'Doc', link: 'https://monietardoc.hashnode.space/' },
   { title: 'Webinars', link: '#webinars' },
   { title: 'Help Center', link: '#help' },
   { title: 'Community', link: '#community' },
@@ -81,7 +81,7 @@ export default function Footer() {
             <ul className="space-y-2">
               {resourceLinks.map((link) => (
                 <li key={link.title}>
-                  <a href={link.link} className="hover:text-white transition-colors duration-300">
+                  <a href={link.link} target='_blank' className="hover:text-white transition-colors duration-300">
                     {link.title}
                   </a>
                 </li>
