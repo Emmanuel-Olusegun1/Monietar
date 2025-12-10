@@ -39,17 +39,10 @@ interface SettingsPageProps {
   themeClasses: any;
   languagesList: any[];
   currencies: any[];
-<<<<<<< HEAD
-  currency:string;
-  language:string;
-  encryptionEnabled?: boolean;
-  onEnableEncryption?: () => void;
-=======
   currency: string;
   language: string;
   setCurrency: (curr: string) => void;
   setLanguage: (lang: string) => void;
->>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
 }
 
 export default function SettingsPage({

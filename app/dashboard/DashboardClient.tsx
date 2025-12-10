@@ -23,7 +23,6 @@ import { EditBudgetModal } from './components/modals/EditBudgetModal';
 
 import type { EnhancedBudget } from '@/app/dashboard/types';
 import { supabase } from '@/utils/supabase/client';
-import { TransactionEncryption, type SensitiveTransactionData } from '@/utils/encryption';
 
 type AllowedPeriodDisplay = 'Monthly' | 'Yearly' | 'Quarterly';
 
@@ -73,14 +72,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  // Encryption states
-  const [encryption, setEncryption] = useState<TransactionEncryption | null>(null);
-  const [needsEncryptionSetup, setNeedsEncryptionSetup] = useState(false);
-  const [encryptionPassword, setEncryptionPassword] = useState('');
-  const [showEncryptionModal, setShowEncryptionModal] = useState(false);
-  const [isEncrypting, setIsEncrypting] = useState(false);
-  const [isDecrypting, setIsDecrypting] = useState(false);
 
   // AI Chat States
   const [aiStatus, setAiStatus] = useState<'openrouter' | 'standard' | 'checking'>('checking');
@@ -252,142 +243,10 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     'Customer Phone Credit', 'Staff Generator Fuel', 'Other Expenses'
   ];
 
-  // Check encryption status on component mount
+  // Check OpenRouter status on component mount
   useEffect(() => {
-    checkEncryptionStatus();
     checkOpenRouterStatus();
   }, []);
-
-  // Check encryption status for the user
-  const checkEncryptionStatus = async () => {
-    if (!session?.user?.id) return;
-    
-    try {
-      // Check if user has any encrypted transactions
-      const { data: transactions, error } = await supabase
-        .from('transactions')
-        .select('is_encrypted')
-        .eq('user_id', session.user.id)
-        .limit(1);
-      
-      if (error) throw error;
-      
-      const hasTransactions = transactions && transactions.length > 0;
-      const hasEncrypted = transactions?.some(t => t.is_encrypted);
-      
-      // If user has transactions but none are encrypted, show setup
-      if (hasTransactions && !hasEncrypted) {
-        setNeedsEncryptionSetup(true);
-      }
-      
-      // Check if user already has encryption setup in profiles table
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('encryption_setup_at')
-        .eq('id', session.user.id)
-        .single();
-      
-      if (profile?.encryption_setup_at && !hasEncrypted) {
-        // User has encryption setup but needs to enter password
-        setShowEncryptionModal(true);
-      }
-    } catch (error) {
-      console.error('Error checking encryption status:', error);
-    }
-  };
-
-  // Handle encryption setup
-  const handleEncryptionSetup = async (): Promise<void> => {
-    if (!encryptionPassword.trim() || !session?.user?.id) {
-      toast.error('Password is required');
-      return;
-    }
-    
-    setIsEncrypting(true);
-    try {
-      const enc = new TransactionEncryption();
-      await enc.initialize(session.user.id, encryptionPassword);
-      setEncryption(enc);
-      
-      // Encrypt existing transactions
-      await migrateTransactionsToEncryption(enc);
-      
-      // Mark encryption as setup in user profile
-      await supabase
-        .from('profiles')
-        .upsert({
-          id: session.user.id,
-          encryption_setup_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      
-      setNeedsEncryptionSetup(false);
-      setShowEncryptionModal(false);
-      setEncryptionPassword('');
-      
-      toast.success('Encryption enabled! Your data is now secure.');
-      
-      // Reload data to show decrypted transactions
-      await loadData();
-      
-    } catch (error: any) {
-      console.error('Encryption setup failed:', error);
-      toast.error(error.message || 'Failed to setup encryption');
-    } finally {
-      setIsEncrypting(false);
-    }
-  };
-
-  // Migrate existing transactions to encrypted format
-  const migrateTransactionsToEncryption = async (encryptionService: TransactionEncryption): Promise<void> => {
-    if (!session?.user?.id) return;
-    
-    try {
-      const { data: transactions, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('is_encrypted', false)
-        .not('amount', 'is', null);
-      
-      if (error) throw error;
-      if (!transactions || transactions.length === 0) return;
-      
-      toast.loading(`Encrypting ${transactions.length} transactions...`, {
-        duration: 3000
-      });
-      
-      for (const tx of transactions) {
-        try {
-          const sensitiveData: SensitiveTransactionData = {
-            amount: tx.amount || 0,
-            description: tx.description || ''
-          };
-          
-          const encryptedPayload = await encryptionService.encryptTransaction(sensitiveData);
-          
-          await supabase
-            .from('transactions')
-            .update({
-              encrypted_payload: encryptedPayload,
-              encryption_key: 'user-password-key',
-              is_encrypted: true,
-              amount: null,
-              description: null,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', tx.id);
-          
-        } catch (txError) {
-          console.error(`Failed to encrypt transaction ${tx.id}:`, txError);
-        }
-      }
-      
-    } catch (error) {
-      console.error('Migration failed:', error);
-      throw error;
-    }
-  };
 
   // Real-time enhanced budgets
   const budgetsWithRealTimeTracking: EnhancedBudget[] = useMemo(() => {
@@ -437,11 +296,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     }).format(amount);
   };
 
-<<<<<<< HEAD
-  // Context generation for AI
-=======
   // Generate financial context for AI
->>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
   const generateFinancialContext = (): string => {
     const hasTransactions = financialData.transactions && financialData.transactions.length > 0;
     const hasBudgets = financialData.budgets && financialData.budgets.length > 0;
@@ -538,11 +393,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     return `${keyMetrics}\n\n${healthIndicators}\n\n${expenseBreakdown}\n\n${incomeBreakdown}\n\n${budgetAnalysis}\n\n${recentActivity}`.trim();
   };
 
-<<<<<<< HEAD
-  // OpenRouter status check
-=======
   // Check OpenRouter status
->>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
   const checkOpenRouterStatus = async () => {
     try {
       console.log('🔄 Checking OpenRouter for AI models...');
@@ -594,10 +445,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     }
   };
 
-<<<<<<< HEAD
-  // Load data with decryption support
-  const loadData = async (): Promise<void> => {
-=======
   // AI Chat handler for OpenRouter
   const handleSendMessage = async (message: string, files?: File[]): Promise<string> => {
     const formData = new FormData();
@@ -624,7 +471,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
 
   // Load user data
   const loadData = async () => {
->>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
     if (!session?.user) {
       setLoading(false);
       return;
@@ -638,37 +484,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
       ]);
 
       let transactions = txs || [];
-      
-      // Decrypt encrypted transactions if we have encryption key
-      if (encryption && encryption.isInitialized()) {
-        setIsDecrypting(true);
-        const decryptedTransactions = await Promise.all(
-          transactions.map(async (tx: any) => {
-            if (tx.is_encrypted && tx.encrypted_payload) {
-              try {
-                const decrypted = await encryption.decryptTransaction(tx.encrypted_payload);
-                return {
-                  ...tx,
-                  amount: decrypted.amount,
-                  description: decrypted.description
-                };
-              } catch (decryptError) {
-                console.error(`Failed to decrypt transaction ${tx.id}:`, decryptError);
-                // Return transaction with masked data
-                return {
-                  ...tx,
-                  amount: null,
-                  description: encryption ? '[Encrypted - Requires Password]' : '[Encrypted]'
-                };
-              }
-            }
-            return tx;
-          })
-        );
-        
-        transactions = decryptedTransactions;
-        setIsDecrypting(false);
-      }
       
       const budgetsArray = budgets || [];
       
@@ -720,17 +535,8 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   // Load data on component mount
   useEffect(() => {
     loadData();
-  }, [session?.user?.id, encryption]);
+  }, [session?.user?.id]);
 
-<<<<<<< HEAD
-  // Transaction handlers with encryption support
-  const handleSubmitTransaction = async (): Promise<void> => {
-    if (!session?.user) {
-      toast.error('Please sign in');
-      return;
-    }
-    
-=======
   // Handle saving user settings
   const handleSaveSettings = async () => {
     try {
@@ -866,7 +672,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   // Transaction handlers
   const handleSubmitTransaction = async () => {
     if (!session?.user) return toast.error('Please sign in');
->>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
     setIsSubmitting(true);
     
     try {
@@ -888,31 +693,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      
-      // If encryption is available, encrypt sensitive data
-      if (encryption && encryption.isInitialized()) {
-        try {
-          const sensitiveData: SensitiveTransactionData = {
-            amount,
-            description: transactionFormData.description || ''
-          };
-          
-          const encryptedPayload = await encryption.encryptTransaction(sensitiveData);
-          
-          // Add encrypted data
-          transactionData.encrypted_payload = encryptedPayload;
-          transactionData.encryption_key = 'user-password-key';
-          transactionData.is_encrypted = true;
-          
-          // Clear plaintext sensitive fields
-          transactionData.amount = null;
-          transactionData.description = null;
-          
-        } catch (encryptError) {
-          console.error('Encryption failed:', encryptError);
-          toast.error('Failed to encrypt transaction. Using plaintext.');
-        }
-      }
       
       const { error } = await supabase
         .from('transactions')
@@ -953,35 +733,12 @@ export default function DashboardClient({ initialSession }: { initialSession: an
       const amount = parseFloat(editFormData.amount);
       
       const updateData: any = {
+        amount: amount,
         category: editFormData.category,
         description: editFormData.description,
         date: editFormData.date,
         updated_at: new Date().toISOString()
       };
-      
-      // If encryption is available and transaction is encrypted
-      if (encryption && encryption.isInitialized() && editingTransaction.is_encrypted) {
-        try {
-          const sensitiveData: SensitiveTransactionData = {
-            amount,
-            description: editFormData.description || ''
-          };
-          
-          const encryptedPayload = await encryption.encryptTransaction(sensitiveData);
-          
-          // Update encrypted data
-          updateData.encrypted_payload = encryptedPayload;
-          updateData.amount = null;
-          updateData.description = null;
-          
-        } catch (encryptError) {
-          console.error('Encryption failed:', encryptError);
-          toast.error('Failed to encrypt update. Using plaintext.');
-          updateData.amount = amount;
-        }
-      } else {
-        updateData.amount = amount;
-      }
       
       const { error } = await supabase
         .from('transactions')
@@ -1113,18 +870,8 @@ export default function DashboardClient({ initialSession }: { initialSession: an
     }
   };
 
-<<<<<<< HEAD
-  const handleLogout = async (): Promise<void> => {
-    // Clear encryption keys
-    if (encryption) {
-      encryption.clear();
-      setEncryption(null);
-    }
-    
-=======
   // Logout handler
   const handleLogout = async () => {
->>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
     await supabase.auth.signOut();
     window.location.href = '/auth/signin';
   };
@@ -1180,8 +927,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
         currencies={currencies}
         languagesList={languagesList}
         realTimeAlerts={realTimeAlerts}
-        isDecrypting={isDecrypting}
-        encryptionEnabled={!!encryption}
       />
 
       <div className="flex-1 flex flex-col md:ml-64">
@@ -1198,14 +943,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
                 darkMode={darkMode}
                 onUpgradeClick={() => setShowTokenModal(true)}
               />
-              {encryption && (
-                <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-900/30 border border-emerald-700/50">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-medium text-emerald-300">
-                    🔒 Encrypted
-                  </span>
-                </div>
-              )}
               {openRouterAvailable && (
                 <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-purple-900/30 border border-purple-700/50">
                   <div className={`w-2 h-2 rounded-full ${
@@ -1219,17 +956,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
               )}
             </div>
             <div className="flex items-center gap-2">
-              {!encryption && needsEncryptionSetup && (
-                <button
-                  onClick={() => setShowEncryptionModal(true)}
-                  className="px-3 py-1.5 text-sm bg-gradient-to-r from-emerald-600 to-green-500 text-white rounded-lg hover:opacity-90 transition flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Enable Encryption
-                </button>
-              )}
               <button onClick={() => setDarkMode(d => !d)} className="p-2 rounded-lg hover:bg-gray-800 transition">
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
@@ -1238,16 +964,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
         </header>
 
         <main className="flex-1 p-6 overflow-y-auto">
-          {isDecrypting && (
-            <div className="fixed top-20 right-6 z-40 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-pulse">
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Decrypting data...
-            </div>
-          )}
-
           {activeTab === 'overview' && (
             <OverviewPage
               financialData={financialData}
@@ -1272,7 +988,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
               setShowExpenseForm={setShowExpenseForm}
               setShowBudgetForm={() => setShowBudgetForm(true)}
               CustomTooltip={() => null}
-              encryptionEnabled={!!encryption}
             />
           )}
 
@@ -1289,7 +1004,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
               darkMode={darkMode}
               themeClasses={themeClasses}
               EmptyState={() => <div className="text-center py-12 text-gray-500">No transactions yet</div>}
-              encryptionEnabled={!!encryption}
             />
           )}
 
@@ -1326,14 +1040,10 @@ export default function DashboardClient({ initialSession }: { initialSession: an
               themeClasses={themeClasses}
               languagesList={languagesList}
               currencies={currencies}
-<<<<<<< HEAD
-              onEnableEncryption={() => setShowEncryptionModal(true)}
-=======
               currency={userSettings.currency}
               language={userSettings.language}
               setCurrency={setCurrency}
               setLanguage={setLanguage}
->>>>>>> f8343ef38d85349a0f3b5962d29afd30beee73d2
             />
           )}
 
@@ -1389,7 +1099,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
         categories={editingTransaction?.type === 'income' ? incomeCategories : expenseCategories}
         darkMode={darkMode}
         isLoading={isSubmitting}
-        encryptionEnabled={!!encryption}
       />
 
       <EditBudgetModal
@@ -1427,120 +1136,6 @@ export default function DashboardClient({ initialSession }: { initialSession: an
         isLoading={isSubmitting}
         type="delete"
       />
-
-      {/* Encryption Setup Modal */}
-      {showEncryptionModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-md w-full shadow-2xl border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <svg className="w-7 h-7 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {encryption ? 'Enter Password' : 'Enable Data Encryption'}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {encryption ? 'Decrypt your financial data' : 'Protect your financial data'}
-                </p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {encryption ? 'Enter your password to decrypt data' : 'Enter your account password'}
-                </label>
-                <input
-                  type="password"
-                  value={encryptionPassword}
-                  onChange={(e) => setEncryptionPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={`w-full px-4 py-3 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition`}
-                  autoFocus
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  {encryption 
-                    ? 'This password is used to decrypt your encrypted transaction data.'
-                    : 'This password will be used to encrypt your data. We don\'t store it.'
-                  }
-                </p>
-              </div>
-              
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <div className="text-sm text-yellow-700 dark:text-yellow-300">
-                    <strong>Important:</strong> {encryption 
-                      ? 'You need this password to access your encrypted transaction data.'
-                      : 'You\'ll need this password to access your data. Make sure to remember it!'
-                    }
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowEncryptionModal(false);
-                    setEncryptionPassword('');
-                  }}
-                  disabled={isEncrypting}
-                  className={`flex-1 px-4 py-3 rounded-lg border ${darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'} transition font-medium disabled:opacity-50`}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleEncryptionSetup}
-                  disabled={!encryptionPassword.trim() || isEncrypting}
-                  className={`flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-600 to-green-500 text-white font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
-                >
-                  {isEncrypting ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      {encryption ? 'Decrypting...' : 'Encrypting...'}
-                    </>
-                  ) : (
-                    encryption ? 'Decrypt Data' : 'Enable Encryption'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Encryption Banner (if needed) */}
-      {needsEncryptionSetup && !showEncryptionModal && !encryption && (
-        <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-6 md:w-96 bg-gradient-to-r from-emerald-600 to-green-500 text-white rounded-xl p-4 shadow-2xl z-40 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-semibold">Secure your data</p>
-                <p className="text-sm opacity-90">Encrypt your transactions for privacy</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowEncryptionModal(true)}
-              className="px-4 py-2 bg-white text-emerald-700 rounded-lg font-semibold hover:bg-gray-100 transition"
-            >
-              Enable
-            </button>
-          </div>
-        </div>
-      )}
 
       <button
         onClick={() => setIsChatOpen(true)}
