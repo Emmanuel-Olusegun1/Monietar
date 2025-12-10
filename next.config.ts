@@ -6,6 +6,7 @@ const serwistOptions = {
   swSrc: 'app/sw.ts',
   swDest: 'public/sw.js',
   disable: false,
+  scope: '/',
   // disable: process.env.NODE_ENV === 'development',
 }
 
