@@ -78,6 +78,7 @@ export default function DashboardClient({ initialSession }: DashboardClientProps
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   // AI Chat States
   const [aiStatus, setAiStatus] = useState<'openrouter' | 'standard' | 'checking'>('checking');
@@ -533,51 +534,53 @@ export default function DashboardClient({ initialSession }: DashboardClientProps
   };
 
   // Load user data
-  const loadData = async (userId: string) => {
-    try {
-      console.log('🔄 Loading user data for:', userId);
-      const [{ data: txs }, { data: budgets }] = await Promise.all([
-        supabase.from('transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('budgets').select('*').eq('user_id', userId)
-      ]);
+const loadData = async (userId: string) => {
+  try {
+    console.log('🔄 Loading user data for:', userId);
+    const [{ data: txs }, { data: budgets }] = await Promise.all([
+      supabase.from('transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('budgets').select('*').eq('user_id', userId)
+    ]);
 
-      let transactions = txs || [];
-      
-      const budgetsArray = budgets || [];
-      
-      const income = transactions
-        .filter((t: any) => t.type === 'income')
-        .reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
-      
-      const expenses = transactions
-        .filter((t: any) => t.type === 'expense')
-        .reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
-      
-      const profit = income - expenses;
+    let transactions = txs || [];
+    
+    const budgetsArray = budgets || [];
+    
+    const income = transactions
+      .filter((t: any) => t.type === 'income')
+      .reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
+    
+    const expenses = transactions
+      .filter((t: any) => t.type === 'expense')
+      .reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
+    
+    const profit = income - expenses;
 
-      setFinancialData({
-        income,
-        expenses,
-        profit,
-        transactions,
-        budgets: budgetsArray,
-        alerts: [],
-        aiRecommendations: transactions.length > 3
-          ? [
-              profit >= 0 ? `Great! You're saving ${((profit / income) * 100).toFixed(1)}% of income` : `Reduce expenses by ${((Math.abs(profit) / expenses) * 100).toFixed(1)}%`,
-              budgetsArray.length > 0 ? `${budgetsArray.length} active budgets tracking` : 'Set up budgets to control spending'
-            ]
-          : ['Add transactions to unlock smart AI insights'],
-        cashFlowForecast: []
-      });
-      
-      console.log('✅ Data loaded successfully');
-      
-    } catch (err: any) {
-      console.error('❌ Error loading data:', err);
-      toast.error('Failed to load your data');
-    }
-  };
+    setFinancialData({
+      income,
+      expenses,
+      profit,
+      transactions,
+      budgets: budgetsArray,
+      alerts: [],
+      aiRecommendations: transactions.length > 3
+        ? [
+            profit >= 0 ? `Great! You're saving ${((profit / income) * 100).toFixed(1)}% of income` : `Reduce expenses by ${((Math.abs(profit) / expenses) * 100).toFixed(1)}%`,
+            budgetsArray.length > 0 ? `${budgetsArray.length} active budgets tracking` : 'Set up budgets to control spending'
+          ]
+        : ['Add transactions to unlock smart AI insights'],
+      cashFlowForecast: []
+    });
+    
+    setDataLoaded(true); // Add this line
+    console.log('✅ Data loaded successfully');
+    
+  } catch (err: any) {
+    console.error('❌ Error loading data:', err);
+    toast.error('Failed to load your data');
+    setDataLoaded(true); // Still set to true even on error
+  }
+};
 
   // Handle saving user settings
   const handleSaveSettings = async () => {
@@ -930,21 +933,23 @@ export default function DashboardClient({ initialSession }: DashboardClientProps
     input: darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+ // Update the loading check:
+if (loading || !user.id || !dataLoaded) {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+      <div className="flex flex-col items-center gap-4">
         <Image
           src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png"
           alt="Monietar"
           width={220}
           height={50}
-          className="mb-8 animate-ping"
+          className="animate-ping"
           priority
         />
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} flex`}>
