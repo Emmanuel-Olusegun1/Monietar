@@ -30,14 +30,14 @@ export default function Signin() {
 
   // Auto redirect if already logged in
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        router.replace('/dashboard');
-      }
-    };
-    checkSession();
-  }, [router]);
+  const checkSession = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      router.replace('/dashboard');
+    }
+  };
+  checkSession();
+}, [router]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });

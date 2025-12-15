@@ -25,18 +25,18 @@ interface Account {
 interface AccountsPageProps {
   darkMode: boolean;
   themeClasses: any;
-  session: any;
+  user: any;
   showToast: (message: string) => void;
 }
 
-export default function AccountsPage({ darkMode, themeClasses, session, showToast }: AccountsPageProps) {
+export default function AccountsPage({ darkMode, themeClasses, user, showToast }: AccountsPageProps) {
   const [connectedAccounts, setConnectedAccounts] = useState<Account[]>([]);
   const [showMonoConnect, setShowMonoConnect] = useState(false);
   const [syncingAccounts, setSyncingAccounts] = useState<string[]>([]);
 
   // Fetch connected accounts
   const fetchConnectedAccounts = async () => {
-    if (!session) {
+    if (!user) {
       setConnectedAccounts([]);
       return;
     }
@@ -45,7 +45,7 @@ export default function AccountsPage({ darkMode, themeClasses, session, showToas
       const { data, error } = await supabase
         .from('user_accounts')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.user.id)
         .order('connected_at', { ascending: false });
 
       if (error) throw error;
@@ -58,16 +58,16 @@ export default function AccountsPage({ darkMode, themeClasses, session, showToas
   };
 
   useEffect(() => {
-    if (session) {
+    if (user) {
       fetchConnectedAccounts();
     } else {
       setConnectedAccounts([]);
     }
-  }, [session]);
+  }, [user]);
 
   // Handle Mono connection success
   const handleMonoSuccess = async (authCode: string) => {
-    if (!session) return;
+    if (!user) return;
 
     try {
       const response = await fetch('/api/mono/connect', {
@@ -77,7 +77,7 @@ export default function AccountsPage({ darkMode, themeClasses, session, showToas
         },
         body: JSON.stringify({
           code: authCode,
-          userId: session.user.id,
+          userId: user.user.id,
         }),
       });
 
@@ -113,7 +113,7 @@ export default function AccountsPage({ darkMode, themeClasses, session, showToas
         },
         body: JSON.stringify({
           accountId,
-          userId: session.user.id,
+          userId: user.user.id,
         }),
       });
 
@@ -146,7 +146,7 @@ export default function AccountsPage({ darkMode, themeClasses, session, showToas
         body: JSON.stringify({ 
           accountId,
           monoAccountId,
-          userId: session.user.id 
+          userId: user.user.id 
         }),
       });
 
