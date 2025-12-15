@@ -181,14 +181,23 @@ export default function Signup() {
     }
   };
 
+// In app/auth/signup/page.tsx - Replace your signUpWithGoogle function with this:
+
 const signUpWithGoogle = async () => {
   setIsSigningup(true);
   try {
+    // Important: Clear any existing session first
+    await supabase.auth.signOut();
+    
+    const redirectUrl = `${window.location.origin}/auth/callback?source=signup&next=/dashboard`;
+    
+    console.log('🔄 Starting Google Signup, redirecting to:', redirectUrl);
+    console.log('Current URL:', window.location.href);
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        // Optional: Request specific scopes
+        redirectTo: redirectUrl,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent'
@@ -196,13 +205,16 @@ const signUpWithGoogle = async () => {
       },
     });
 
-    if (error) throw error;
-    
-    // If successful, Supabase will handle the redirect automatically
-    // No need for toast.success here - user will be redirected
+    if (error) {
+      console.error('❌ Google OAuth error:', error);
+      toast.error(error.message || 'Failed to sign up with Google');
+    } else {
+      console.log('✅ Google OAuth initiated:', data);
+      // Don't set isSigningup to false here - let the redirect handle it
+    }
   } catch (error: any) {
-    console.error('Google OAuth error:', error);
-    toast.error('Failed to sign in with Google. Please try again.');
+    console.error('❌ Unexpected error:', error);
+    toast.error('Something went wrong. Please try again.');
     setIsSigningup(false);
   }
 };
