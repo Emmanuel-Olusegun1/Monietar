@@ -1,12 +1,13 @@
-// app/auth/callback/page.tsx - Complete fix
+// app/auth/callback/page.tsx - Fixed with Suspense
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/utils/supabase/client';
 import { Loader2, CheckCircle, XCircle, UserPlus, LogIn, MailCheck } from 'lucide-react';
 
-export default function AuthCallbackPage() {
+// Separate component that uses useSearchParams
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'processing' | 'success' | 'error' | 'checking_user'>('processing');
@@ -302,5 +303,22 @@ export default function AuthCallbackPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+// Main export with Suspense boundary
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
+        <div className="text-center">
+          <Loader2 className="h-16 w-16 animate-spin text-emerald-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Loading authentication...</h2>
+          <p className="text-gray-400">Please wait while we prepare your session.</p>
+        </div>
+      </div>
+    }>
+      <CallbackContent />
+    </Suspense>
   );
 }

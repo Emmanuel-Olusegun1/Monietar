@@ -2,7 +2,7 @@
   "name": "Monietar",
   "short_name": "Monietar",
   "description": "All Your Transaction in one place",
-  "start_url": "/",
+  "start_url": "/auth/signin",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
