@@ -96,33 +96,38 @@ export default function Signin() {
     }
   };
 
-  // FIXED: Google Sign-in function using your existing supabase instance
-  const signInWithGoogle = async () => {
-    setIsGoogleLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
+//Signin with google function
+const signInWithGoogle = async () => {
+  setIsGoogleLoading(true);
+  try {
+    console.log('Starting Google sign-in flow...');
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?source=signin&next=/dashboard`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
         }
-      });
-
-      if (error) {
-        console.error('Google sign in error:', error);
-        toast.error(error.message || 'Failed to sign in with Google');
       }
-      // If successful, the user will be redirected to the callback route
-    } catch (error: any) {
-      console.error('Unexpected error:', error);
-      toast.error('Something went wrong. Please try again.');
-    } finally {
+    });
+
+    if (error) {
+      console.error('Google sign in error:', error);
+      toast.error(error.message || 'Failed to sign in with Google');
       setIsGoogleLoading(false);
+    } else {
+      console.log('Google OAuth initiated successfully');
+      // Don't set loading to false - let redirect handle it
+      // The callback route will check if user exists and redirect appropriately
     }
-  };
+  } catch (error: any) {
+    console.error('Unexpected error:', error);
+    toast.error('Something went wrong. Please try again.');
+    setIsGoogleLoading(false);
+  }
+};
 
   // UPDATED: Redirect to forgot password page instead of handling it here
   const handleForgotPassword = () => {

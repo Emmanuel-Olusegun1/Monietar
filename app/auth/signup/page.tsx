@@ -181,23 +181,16 @@ export default function Signup() {
     }
   };
 
-// In app/auth/signup/page.tsx - Replace your signUpWithGoogle function with this:
-
+// Google sign-up function
 const signUpWithGoogle = async () => {
   setIsSigningup(true);
   try {
-    // Important: Clear any existing session first
-    await supabase.auth.signOut();
-    
-    const redirectUrl = `${window.location.origin}/auth/callback?source=signup&next=/dashboard`;
-    
-    console.log('🔄 Starting Google Signup, redirecting to:', redirectUrl);
-    console.log('Current URL:', window.location.href);
+    console.log('Starting Google sign-up flow...');
     
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: redirectUrl,
+        redirectTo: `${window.location.origin}/auth/callback?source=signup&next=/dashboard`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent'
@@ -206,15 +199,17 @@ const signUpWithGoogle = async () => {
     });
 
     if (error) {
-      console.error('❌ Google OAuth error:', error);
+      console.error('Google OAuth error:', error);
       toast.error(error.message || 'Failed to sign up with Google');
+      setIsSigningup(false);
     } else {
-      console.log('✅ Google OAuth initiated:', data);
-      // Don't set isSigningup to false here - let the redirect handle it
+      console.log('Google OAuth initiated successfully for signup');
+      // Don't set loading to false - let redirect handle it
+      // The callback route will check if user is new and redirect appropriately
     }
   } catch (error: any) {
-    console.error('❌ Unexpected error:', error);
-    toast.error('Something went wrong. Please try again.');
+    console.error('Unexpected error:', error);
+    toast.error('Something went wrong');
     setIsSigningup(false);
   }
 };
