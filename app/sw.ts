@@ -1,7 +1,23 @@
-/// <reference lib="webworker" />
+// app/sw.ts
+import { defaultCache } from "@serwist/next/worker";
+import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import { Serwist } from "serwist";
 
-declare const self: ServiceWorkerGlobalScope & {
-  __SW_MANIFEST: Array<{ url: string; revision: string | null }>
+declare global {
+  interface WorkerGlobalScope extends SerwistGlobalConfig {
+    __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
+  }
 }
 
-export const manifest = self.__SW_MANIFEST = []
+declare const self: WorkerGlobalScope;
+
+// Remove the fallbacks from here if you have it in next.config.js
+const serwist = new Serwist({
+  precacheEntries: self.__SW_MANIFEST,
+  skipWaiting: true,
+  clientsClaim: true,
+  navigationPreload: true,
+  runtimeCaching: defaultCache,
+});
+
+serwist.addEventListeners();

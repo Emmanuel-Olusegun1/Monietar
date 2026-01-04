@@ -1,19 +1,15 @@
 import type { NextConfig } from 'next'
-import withSerwist from '@serwist/next'
+import createSerwistConfig from '@serwist/next';
 
-// 1. Serwist configuration
-const serwistOptions = {
-  swSrc: 'app/sw.ts',
-  swDest: 'public/sw.js',
-  disable: false,
-  scope: '/',
-  // disable: process.env.NODE_ENV === 'development',
-}
+// Minimal v9 configuration - using import() instead of await
+const serwistPromise = import('@serwist/next').then((module) => {
+  return module.default({
+    swSrc: 'app/sw.ts',
+    swDest: '../public/sw.js',
+    disable: process.env.NODE_ENV === 'development',
+  });
+});
 
-// 2. Get the Serwist wrapper function
-const serwistWrapper = withSerwist(serwistOptions)
-
-// 3. Your Next.js configuration
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: { unoptimized: true },
@@ -38,5 +34,5 @@ const nextConfig: NextConfig = {
   },
 }
 
-// 4. Apply the wrapper to your config
-export default serwistWrapper(nextConfig)
+// Export a promise for Next.js to handle
+export default serwistPromise.then((withSerwist) => withSerwist(nextConfig));
