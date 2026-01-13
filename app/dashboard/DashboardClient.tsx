@@ -79,6 +79,7 @@ export default function DashboardClient({ initialSession }: DashboardClientProps
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
 
   // AI Chat States
   const [aiStatus, setAiStatus] = useState<'openrouter' | 'standard' | 'checking'>('checking');
@@ -676,43 +677,21 @@ const loadData = async (userId: string) => {
   };
 
   // Handle data backup
-  const handleBackupData = async () => {
+const handleBackup = async () => {
+  if (handleBackup) {
+    setIsBackingUp(true);
     try {
-      if (!user.id) {
-        toast.error('Not authenticated');
-        return;
-      }
-
-      setIsSubmitting(true);
-      
-      // Create backup record
-      const { error } = await supabase
-        .from('backups')
-        .insert({
-          user_id: user.id,
-          backup_data: {
-            transactions: financialData.transactions,
-            budgets: financialData.budgets,
-            settings: userSettings,
-            financialSummary: {
-              income: financialData.income,
-              expenses: financialData.expenses,
-              profit: financialData.profit
-            }
-          },
-          created_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
-
+      await handleBackup();
       toast.success('Backup created successfully!');
-    } catch (error: any) {
-      console.error('Error creating backup:', error);
+    } catch (err) {
       toast.error('Failed to create backup');
     } finally {
-      setIsSubmitting(false);
+      setIsBackingUp(false);
     }
-  };
+  } else {
+    toast.error('Backup functionality not available');
+  }
+};
 
   // Transaction handlers
   const handleSubmitTransaction = async () => {
@@ -1086,7 +1065,7 @@ if (loading || !user.id || !dataLoaded) {
               setShowClearDataDialog={setShowClearDataDialog}
               setShowDeleteAccountDialog={setShowDeleteAccountDialog}
               setShowRestoreDialog={setShowRestoreDialog}
-              handleBackupData={handleBackupData}
+              handleBackupData={handleBackup}
               darkMode={darkMode}
               themeClasses={themeClasses}
               languagesList={languagesList}
