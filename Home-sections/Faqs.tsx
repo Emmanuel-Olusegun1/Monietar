@@ -78,7 +78,7 @@ export default function FAQ() {
                     transition={{ duration: 0.6 }}
                 >
                     <motion.div
-                        className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-gray-100 border border-gray-200 mb-6"
+                        className="inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 border border-gray-200 mb-6"
                         initial={{ opacity: 0, scale: 0.9 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
@@ -88,7 +88,7 @@ export default function FAQ() {
                             {[1, 2, 3].map((dot) => (
                                 <motion.div
                                     key={dot}
-                                    className="w-1.5 h-1.5 bg-gray-600 rounded-full"
+                                    className="w-1.5 h-1.5 bg-gray-600 rounded-lg"
                                     animate={{ scale: [1, 1.2, 1] }}
                                     transition={{ duration: 1.5, repeat: Infinity, delay: dot * 0.2 }}
                                 />
@@ -165,7 +165,7 @@ export default function FAQ() {
                     {filteredFaqs.map((faq, index) => (
                         <motion.div
                             key={index}
-                            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group"
+                            className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group"
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
@@ -194,7 +194,7 @@ export default function FAQ() {
                                 <motion.div
                                     animate={{ rotate: activeFaq === index ? 180 : 0 }}
                                     transition={{ duration: 0.3 }}
-                                    className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors duration-200 ml-4"
+                                    className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors duration-200 ml-4 cursor-pointer"
                                 >
                                     <ChevronDown className="w-4 h-4 text-gray-600" />
                                 </motion.div>
@@ -229,7 +229,7 @@ export default function FAQ() {
                         animate={{ opacity: 1, y: 0 }}
                         className="text-center py-12"
                     >
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                             <Search className="w-8 h-8 text-gray-400" />
                         </div>
                         <h3 className="text-xl font-semibold text-gray-900 mb-2">No results found</h3>
@@ -262,7 +262,7 @@ export default function FAQ() {
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: 0.6 }}
                         >
-                            Join 1,247+ forward-thinking SMEs already benefiting from Monietar's AI-powered cash flow management.
+                            Join forward-thinking SMEs already benefiting from Monietar's AI-powered cash flow management.
                         </motion.p>
                         
                         <motion.div 
@@ -274,7 +274,7 @@ export default function FAQ() {
                         >
                             <motion.a
                                 href="/auth/signup"
-                                className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-white text-gray-900 font-bold hover:bg-gray-50 transition-all duration-200 group shadow-lg"
+                                className="inline-flex items-center gap-3 px-8 py-4 rounded-lg bg-white text-gray-900 font-bold hover:bg-gray-50 transition-all duration-200 group shadow-lg"
                                 whileHover={{ scale: 1.05, y: -2 }}
                                 whileTap={{ scale: 0.98 }}
                             >
@@ -290,7 +290,7 @@ export default function FAQ() {
                             
                             <motion.a
                                 href="mailto:info@algoritic.com.ng"
-                                className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-white/10 text-white font-semibold hover:bg-white/20 transition-all duration-200 group border border-white/20"
+                                className="inline-flex items-center gap-3 px-6 py-3 rounded-lg bg-white/10 text-white font-semibold hover:bg-white/20 transition-all duration-200 group border border-white/20"
                                 whileHover={{ scale: 1.05, y: -2 }}
                                 whileTap={{ scale: 0.98 }}
                             >

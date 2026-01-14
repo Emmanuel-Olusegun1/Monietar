@@ -258,7 +258,7 @@ export default function Premium() {
                 <input
                   type="email"
                   placeholder="Enter your corporate email"
-                  className="w-full px-6 py-4 rounded-xl border border-white/20 bg-white/5 text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none transition-all duration-300 backdrop-blur-sm tracking-wide"
+                  className="w-full px-6 py-4 rounded-lg border border-white/20 bg-white/5 text-white placeholder-slate-400 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none transition-all duration-300 backdrop-blur-sm tracking-wide"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -267,7 +267,7 @@ export default function Premium() {
               <motion.button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold px-8 py-4 rounded-xl transition-all duration-300 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px] border border-emerald-400/30 tracking-wide"
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold px-8 py-4 rounded-lg transition-all duration-300 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px] border border-emerald-400/30 tracking-wide"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >

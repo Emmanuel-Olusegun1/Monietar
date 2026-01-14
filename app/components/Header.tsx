@@ -47,12 +47,11 @@ export default function Header() {
             damping: 20
           }}
         >
-          <div className="container px-4 md:mx-7 max-w-7xl bg-white py-1 rounded-full sm:px-10 lg:px-8">
-            <div className="flex items-center justify-between">
+            <div className="flex mx-12 items-center justify-between bg-[#f1f1f1] shadow-lg py-1 mx-5 md:mx-7 rounded-lg">
               {/* Logo */}
               <motion.a 
                 href="/"
-                className="flex items-center gap-3"
+                className="flex items-center gap-3 mx-2"
                 whileHover={{ scale: 1.01 }}
               >
                 <img 
@@ -63,7 +62,7 @@ export default function Header() {
               </motion.a>
 
               {/* Desktop Navigation */}
-              <nav className="hidden lg:flex items-center gap-1">
+              <nav className="hidden md:flex items-center gap-1">
                 {navItems.map((item) => (
                   <motion.a 
                     key={item.label}
@@ -90,7 +89,7 @@ export default function Header() {
                 
                 <motion.a
                   href="/auth/signup"
-                  className="px-5 py-2.5 bg-emerald-600 text-white font-medium text-sm rounded-full hover:bg-emerald-800 transition-all duration-200 shadow-sm hover:shadow"
+                  className="px-5 py-2.5 bg-emerald-600 text-white font-medium text-sm rounded-lg hover:bg-emerald-800 transition-all duration-200 shadow-sm hover:shadow mx-2"
                   whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -101,7 +100,7 @@ export default function Header() {
               {/* Mobile Menu Button */}
               <motion.button
                 onClick={() => setIsMenuOpen(true)}
-                className='lg:hidden p-2.5 rounded-lg transition-colors'
+                className='lg:hidden p-2.5 rounded-lg text-emerald-800 transition-colors cursor-pointer'
                 aria-label="Open menu"
                 whileTap={{ scale: 0.95 }}
               >
@@ -110,7 +109,7 @@ export default function Header() {
                 </svg>
               </motion.button>
             </div>
-          </div>
+          
 
           {/* Mobile Menu */}
           <AnimatePresence>

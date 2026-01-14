@@ -44,9 +44,9 @@ export default function Footer() {
 
       {/* Main Footer Content */}
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 lg:py-20 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-16 mb-6">
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-8 lg:gap-16 mb-6">
           {/* Company Info */}
-          <div>
+          <div className='col-span-3'>
             <h3 className="text-2xl font-bold text-white mb-4">Monietar</h3>
             <p className="text-gray-400">
               Empowering African SMEs with AI-driven cash flow management. Track, analyze, and optimize your finances effortlessly.
