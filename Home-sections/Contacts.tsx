@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { useState, FormEvent } from 'react';
 import { Mail, MessageCircle, Clock, Calendar, Send, Shield } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
 
 export default function Contact() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -13,6 +14,9 @@ export default function Contact() {
     subject: '',
     message: ''
   });
+
+  // REMOVE THIS LINE: const supabase = createClient();
+  // supabase is already imported above
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
@@ -28,27 +32,69 @@ export default function Contact() {
     setSubmitMessage('');
 
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSubmitMessage('Thank you! Your message has been sent successfully. We\'ll get back to you within 24 hours.');
-        setFormData({ name: '', email: '', subject: '', message: '' });
-      } else {
-        setSubmitMessage(data.error || 'Sorry, something went wrong. Please try again.');
+      // Validate form data
+      if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+        setSubmitMessage('Please fill in all required fields.');
+        setIsSubmitting(false);
+        return;
       }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setSubmitMessage('Please enter a valid email address.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .insert([
+          {
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            subject: formData.subject,
+            message: formData.message.trim(),
+            status: 'unread'
+          }
+        ])
+        .select();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        setSubmitMessage('Sorry, something went wrong. Please try again.');
+        return;
+      }
+
+      // Success
+      setSubmitMessage('Thank you! Your message has been sent successfully. We\'ll get back to you within 24 hours.');
+      setFormData({ name: '', email: '', subject: '', message: '' });
+
+      // Optional: Send email notification
+      await sendEmailNotification(formData);
+
     } catch (error) {
       console.error('Submission error:', error);
       setSubmitMessage('Network error. Please try again later.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Optional: Function to send email notification
+  const sendEmailNotification = async (data: typeof formData) => {
+    try {
+      await fetch('/api/send-contact-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      console.error('Failed to send email notification:', error);
+      // Don't show error to user - Supabase insert was successful
     }
   };
 
@@ -317,8 +363,10 @@ export default function Contact() {
                     animate={{ opacity: 1, y: 0 }}
                     className={`p-4 rounded-lg text-center border ${
                       submitMessage.includes('Thank you') 
-                        ? 'bg-gray-50 text-gray-700 border-gray-200' 
-                        : 'bg-gray-50 text-gray-700 border-gray-200'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                        : submitMessage.includes('Please')
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-red-50 text-red-700 border-red-200'
                     }`}
                   >
                     {submitMessage}
