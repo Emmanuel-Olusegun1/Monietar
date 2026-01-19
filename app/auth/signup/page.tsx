@@ -182,37 +182,37 @@ export default function Signup() {
   };
 
 // Google sign-up function
-const signUpWithGoogle = async () => {
-  setIsSigningup(true);
-  try {
-    console.log('Starting Google sign-up flow...');
+// const signUpWithGoogle = async () => {
+//   setIsSigningup(true);
+//   try {
+//     console.log('Starting Google sign-up flow...');
     
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?source=signup&next=/dashboard`,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent'
-        }
-      },
-    });
+//     const { data, error } = await supabase.auth.signInWithOAuth({
+//       provider: 'google',
+//       options: {
+//         redirectTo: `${window.location.origin}/auth/callback?source=signup&next=/dashboard`,
+//         queryParams: {
+//           access_type: 'offline',
+//           prompt: 'consent'
+//         }
+//       },
+//     });
 
-    if (error) {
-      console.error('Google OAuth error:', error);
-      toast.error(error.message || 'Failed to sign up with Google');
-      setIsSigningup(false);
-    } else {
-      console.log('Google OAuth initiated successfully for signup');
-      // Don't set loading to false - let redirect handle it
-      // The callback route will check if user is new and redirect appropriately
-    }
-  } catch (error: any) {
-    console.error('Unexpected error:', error);
-    toast.error('Something went wrong');
-    setIsSigningup(false);
-  }
-};
+//     if (error) {
+//       console.error('Google OAuth error:', error);
+//       toast.error(error.message || 'Failed to sign up with Google');
+//       setIsSigningup(false);
+//     } else {
+//       console.log('Google OAuth initiated successfully for signup');
+//       // Don't set loading to false - let redirect handle it
+//       // The callback route will check if user is new and redirect appropriately
+//     }
+//   } catch (error: any) {
+//     console.error('Unexpected error:', error);
+//     toast.error('Something went wrong');
+//     setIsSigningup(false);
+//   }
+// };
 
   const selectLanguage = (languageName: string) => {
     setCurrentLanguage(languageName);
@@ -470,16 +470,16 @@ const signUpWithGoogle = async () => {
                 )}
               </button>
 
-              <div className="relative">
+              {/* <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-600"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
                   <span className="px-2 bg-gray-900 text-gray-400">{t.orContinue}</span>
                 </div>
-              </div>
+              </div> */}
 
-              <button
+              {/* <button
                 type="button"
                 onClick={signUpWithGoogle}
                 disabled={isSigningup}
@@ -493,7 +493,7 @@ const signUpWithGoogle = async () => {
                   <path fill="#1976d2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
                 </svg>
                 {t.signUpWithGoogle}
-              </button>
+              </button> */}
 
               <div className="text-center text-sm text-gray-400 pt-2">
                 {t.haveAccount}{' '}

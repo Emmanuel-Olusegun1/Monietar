@@ -15,7 +15,7 @@ import { supabase } from '@/utils/supabase/client';
 
 export default function Signin() {
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  // const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('English');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -97,37 +97,37 @@ export default function Signin() {
   };
 
 //Signin with google function
-const signInWithGoogle = async () => {
-  setIsGoogleLoading(true);
-  try {
-    console.log('Starting Google sign-in flow...');
+// const signInWithGoogle = async () => {
+//   setIsGoogleLoading(true);
+//   try {
+//     console.log('Starting Google sign-in flow...');
     
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?source=signin&next=/dashboard`,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent'
-        }
-      }
-    });
+//     const { data, error } = await supabase.auth.signInWithOAuth({
+//       provider: 'google',
+//       options: {
+//         redirectTo: `${window.location.origin}/auth/callback?source=signin&next=/dashboard`,
+//         queryParams: {
+//           access_type: 'offline',
+//           prompt: 'consent'
+//         }
+//       }
+//     });
 
-    if (error) {
-      console.error('Google sign in error:', error);
-      toast.error(error.message || 'Failed to sign in with Google');
-      setIsGoogleLoading(false);
-    } else {
-      console.log('Google OAuth initiated successfully');
-      // Don't set loading to false - let redirect handle it
-      // The callback route will check if user exists and redirect appropriately
-    }
-  } catch (error: any) {
-    console.error('Unexpected error:', error);
-    toast.error('Something went wrong. Please try again.');
-    setIsGoogleLoading(false);
-  }
-};
+//     if (error) {
+//       console.error('Google sign in error:', error);
+//       toast.error(error.message || 'Failed to sign in with Google');
+//       setIsGoogleLoading(false);
+//     } else {
+//       console.log('Google OAuth initiated successfully');
+//       // Don't set loading to false - let redirect handle it
+//       // The callback route will check if user exists and redirect appropriately
+//     }
+//   } catch (error: any) {
+//     console.error('Unexpected error:', error);
+//     toast.error('Something went wrong. Please try again.');
+//     setIsGoogleLoading(false);
+//   }
+// };
 
   // UPDATED: Redirect to forgot password page instead of handling it here
   const handleForgotPassword = () => {
@@ -344,17 +344,17 @@ const signInWithGoogle = async () => {
               </button>
 
               {/* Divider */}
-              <div className="relative">
+              {/* <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-600"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
                   <span className="px-2 bg-gray-900 text-gray-400">{t.orContinue}</span>
                 </div>
-              </div>
+              </div> */}
 
               {/* Google Button */}
-              <button
+              {/* <button
                 type="button"
                 onClick={signInWithGoogle}
                 disabled={isSigningIn || isGoogleLoading}
@@ -377,7 +377,7 @@ const signInWithGoogle = async () => {
                     {t.signInWithGoogle || 'Continue with Google'}
                   </>
                 )}
-              </button>
+              </button> */}
 
               {/* Sign Up Link */}
               <div className="text-center text-sm text-gray-400 pt-2">

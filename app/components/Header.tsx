@@ -55,7 +55,7 @@ export default function Header() {
                 whileHover={{ scale: 1.01 }}
               >
                 <img 
-                  src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
+                  src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png" 
                   alt="Monietar Logo"
                   className="h-12 object-contain"
                 />
@@ -129,7 +129,7 @@ export default function Header() {
                     <div className="flex items-center justify-between mb-8">
                       <div className="flex items-center gap-3">
                         <img 
-                          src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png" 
+                          src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png" 
                           alt="Monietar Logo"
                           className="h-7 object-contain hidden"
                         />
