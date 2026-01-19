@@ -65,7 +65,7 @@ const NewUserWelcome = ({
       <div className="flex items-center justify-center flex-shrink-0 px-6 pb-8">
         <div className="w-[180px] flex items-center justify-center relative">
           <Image
-            src="https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png"
+            src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
             alt="Monietar Logo"
             width={260}
             height={60}
