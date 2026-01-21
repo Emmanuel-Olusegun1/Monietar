@@ -1,1 +1,146 @@
-(()=>{"use strict";var e={};e.d=(r,t)=>{for(var o in t)e.o(t,o)&&!e.o(r,o)&&Object.defineProperty(r,o,{enumerable:!0,get:t[o]})},e.o=(e,r)=>Object.prototype.hasOwnProperty.call(e,r),[{'revision':'bb2f07780776c1ea3c84939526d9b4f7','url':'/Logo.png'},{'revision':'12811ad70655cd2e3cb9083251b0fe77','url':'/_next/static/3u6xudRT4ec9pkLpDRJxM/_buildManifest.js'},{'revision':'b6652df95db52feb4daf4eca35380933','url':'/_next/static/3u6xudRT4ec9pkLpDRJxM/_ssgManifest.js'},{'revision':null,'url':'/_next/static/chunks/120-93ac06da3624ce82.js'},{'revision':null,'url':'/_next/static/chunks/139.7a5a8e93a21948c1.js'},{'revision':null,'url':'/_next/static/chunks/239-c2117d3ee033cea8.js'},{'revision':null,'url':'/_next/static/chunks/251-71c6b7a826e4847e.js'},{'revision':null,'url':'/_next/static/chunks/469-2c667428bd4a2e38.js'},{'revision':null,'url':'/_next/static/chunks/4bd1b696-c023c6e3521b1417.js'},{'revision':null,'url':'/_next/static/chunks/572-f3d7eb00649d027d.js'},{'revision':null,'url':'/_next/static/chunks/61-6094599591743ca9.js'},{'revision':null,'url':'/_next/static/chunks/619-9168df9c2a29b74b.js'},{'revision':null,'url':'/_next/static/chunks/646.f342b7cffc01feb0.js'},{'revision':null,'url':'/_next/static/chunks/696-2736eed5bf2e5d4e.js'},{'revision':null,'url':'/_next/static/chunks/760-372463b8119e21b6.js'},{'revision':null,'url':'/_next/static/chunks/794-0725da404ed182c2.js'},{'revision':null,'url':'/_next/static/chunks/818.6df587d21ada80da.js'},{'revision':null,'url':'/_next/static/chunks/945-e74d80bde418e878.js'},{'revision':null,'url':'/_next/static/chunks/app/_not-found/page-558b5f0fb30754fa.js'},{'revision':null,'url':'/_next/static/chunks/app/api/chat/route-558b5f0fb30754fa.js'},{'revision':null,'url':'/_next/static/chunks/app/api/health/route-558b5f0fb30754fa.js'},{'revision':null,'url':'/_next/static/chunks/app/api/usage/route-558b5f0fb30754fa.js'},{'revision':null,'url':'/_next/static/chunks/app/auth/callback/route-558b5f0fb30754fa.js'},{'revision':null,'url':'/_next/static/chunks/app/auth/change-password/page-5c64f7a233932110.js'},{'revision':null,'url':'/_next/static/chunks/app/auth/complete-profile/page-4ec5523a06acc962.js'},{'revision':null,'url':'/_next/static/chunks/app/auth/forgot-password/page-c66a8bff673595ca.js'},{'revision':null,'url':'/_next/static/chunks/app/auth/reset-password/page-c06b526e32973784.js'},{'revision':null,'url':'/_next/static/chunks/app/auth/signin/page-70b7822fd45e552e.js'},{'revision':null,'url':'/_next/static/chunks/app/auth/signup/page-6246dfdc4daca4d4.js'},{'revision':null,'url':'/_next/static/chunks/app/auth/verify-phone/page-7500f3a6fcc7f591.js'},{'revision':null,'url':'/_next/static/chunks/app/dashboard/page-f98544e0e8852dec.js'},{'revision':null,'url':'/_next/static/chunks/app/layout-4aab042cfa92e215.js'},{'revision':null,'url':'/_next/static/chunks/app/not-found-3a3cf8aea4632877.js'},{'revision':null,'url':'/_next/static/chunks/app/page-78b480d8e688c331.js'},{'revision':null,'url':'/_next/static/chunks/framework-acd67e14855de5a2.js'},{'revision':null,'url':'/_next/static/chunks/main-7d2370d4e3f5e3d2.js'},{'revision':null,'url':'/_next/static/chunks/main-app-1fa8099eba9bd0b0.js'},{'revision':null,'url':'/_next/static/chunks/pages/_app-82835f42865034fa.js'},{'revision':null,'url':'/_next/static/chunks/pages/_error-013f4188946cdd04.js'},{'revision':'846118c33b2c0e922d7b3a7676f81f6f','url':'/_next/static/chunks/polyfills-42372ed130431b0a.js'},{'revision':null,'url':'/_next/static/chunks/webpack-28084dd74871e3e8.js'},{'revision':null,'url':'/_next/static/css/78cbcae190737fd3.css'},{'revision':null,'url':'/_next/static/css/840490a8d57ceea7.css'},{'revision':'9dda5cfc9a46f256d0e131bb535e46f8','url':'/_next/static/media/19cfc7226ec3afaa-s.woff2'},{'revision':'4e2553027f1d60eff32898367dd4d541','url':'/_next/static/media/21350d82a1f187e9-s.woff2'},{'revision':'01ba6c2a184b8cba08b0d57167664d75','url':'/_next/static/media/8e9860b6e62d6359-s.woff2'},{'revision':null,'url':'/_next/static/media/ajax-loader.0b80f665.gif'},{'revision':'9e494903d6b0ffec1a1e14d34427d44d','url':'/_next/static/media/ba9851c3c22cd980-s.woff2'},{'revision':'027a89e9ab733a145db70f09b8a18b42','url':'/_next/static/media/c5fe6dc8356a8c31-s.woff2'},{'revision':'d54db44de5ccb18886ece2fda72bdfe0','url':'/_next/static/media/df0a9ae256c0569c-s.woff2'},{'revision':'65850a373e258f1c897a2b3d75eb74de','url':'/_next/static/media/e4af272ccee01ff0-s.p.woff2'},{'revision':null,'url':'/_next/static/media/slick.25572f22.eot'},{'revision':null,'url':'/_next/static/media/slick.653a4cbb.woff'},{'revision':null,'url':'/_next/static/media/slick.6aa1ee46.ttf'},{'revision':null,'url':'/_next/static/media/slick.f895cfdf.svg'},{'revision':'52976a69b3007231ad8d6219edeb9ab8','url':'/icons\\favicon-196.png'},{'revision':'0705de8bb2161aec25a45f0df18d51db','url':'/icons\\manifest-icon-192.maskable.png'},{'revision':'26e7ac0218aa92291a4861d67fc289e7','url':'/icons\\manifest-icon-512.maskable.png'},{'revision':'ab9dbee0bd2d8066d6db17b5a24882af','url':'/icons\\mstile-icon-128.png'},{'revision':'71f2898a247e54c315b517a83dc168ec','url':'/icons\\mstile-icon-270.png'},{'revision':'468acf9ef99b05d5ace36e32a958e957','url':'/icons\\mstile-icon-558-270.png'},{'revision':'04b26787a3107c3b5be6af7d2c6fcf80','url':'/icons\\mstile-icon-558.png'},{'revision':'669ceffa0fa70821fb61fda245ee3ecb','url':'/index.html'},{'revision':'cd484a8777938b65f3f2c7186c2e5e20','url':'/manifest-icon-192.maskable.png'},{'revision':'a9904e42e3283cb5cf1e70520bb2c891','url':'/manifest-icon-512.maskable.png'},{'revision':'4478ed754074a3bef3d5151116f572b8','url':'/manifest.json'},{'revision':'8e061864f388b47f33a1c3780831193e','url':'/next.svg'},{'revision':'c0af2f507b369b085b35ef4bbe3bcf1e','url':'/vercel.svg'},{'revision':'a2760511c65806022ad20adf74370ff3','url':'/window.svg'},{'revision':'e3156c7afff103a282810e9ba436d119','url':'/workbox-4754cb34.js'}]=[]})();
+/*
+ * ATTENTION: An "eval-source-map" devtool has been used.
+ * This devtool is neither made for production nor for readable output files.
+ * It uses "eval()" calls to create a separate source file with attached SourceMaps in the browser devtools.
+ * If you are trying to read the output file, select a different devtool (https://webpack.js.org/configuration/devtool/)
+ * or disable the default devtool with "devtool: false".
+ * If you are looking for production-ready output files, see mode: "production" (https://webpack.js.org/configuration/mode/).
+ */
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ "./app/sw.ts":
+/*!*******************!*\
+  !*** ./app/sw.ts ***!
+  \*******************/
+/***/ ((module, __webpack_exports__, __webpack_require__) => {
+
+eval(__webpack_require__.ts("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   manifest: () => (/* binding */ manifest)\n/* harmony export */ });\n/// <reference lib=\"webworker\" />\nconst manifest = undefined = [];\n\n\n;\n    // Wrapped in an IIFE to avoid polluting the global scope\n    ;\n    (function () {\n        var _a, _b;\n        // Legacy CSS implementations will `eval` browser code in a Node.js context\n        // to extract CSS. For backwards compatibility, we need to check we're in a\n        // browser context before continuing.\n        if (typeof self !== 'undefined' &&\n            // AMP / No-JS mode does not inject these helpers:\n            '$RefreshHelpers$' in self) {\n            // @ts-ignore __webpack_module__ is global\n            var currentExports = module.exports;\n            // @ts-ignore __webpack_module__ is global\n            var prevSignature = (_b = (_a = module.hot.data) === null || _a === void 0 ? void 0 : _a.prevSignature) !== null && _b !== void 0 ? _b : null;\n            // This cannot happen in MainTemplate because the exports mismatch between\n            // templating and execution.\n            self.$RefreshHelpers$.registerExportsForReactRefresh(currentExports, module.id);\n            // A module can be accepted automatically based on its exports, e.g. when\n            // it is a Refresh Boundary.\n            if (self.$RefreshHelpers$.isReactRefreshBoundary(currentExports)) {\n                // Save the previous exports signature on update so we can compare the boundary\n                // signatures. We avoid saving exports themselves since it causes memory leaks (https://github.com/vercel/next.js/pull/53797)\n                module.hot.dispose(function (data) {\n                    data.prevSignature =\n                        self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports);\n                });\n                // Unconditionally accept an update to this module, we'll check if it's\n                // still a Refresh Boundary later.\n                // @ts-ignore importMeta is replaced in the loader\n                /* unsupported import.meta.webpackHot */ undefined.accept();\n                // This field is set when the previous version of this module was a\n                // Refresh Boundary, letting us know we need to check for invalidation or\n                // enqueue an update.\n                if (prevSignature !== null) {\n                    // A boundary can become ineligible if its exports are incompatible\n                    // with the previous exports.\n                    //\n                    // For example, if you add/remove/change exports, we'll want to\n                    // re-execute the importing modules, and force those components to\n                    // re-render. Similarly, if you convert a class component to a\n                    // function, we want to invalidate the boundary.\n                    if (self.$RefreshHelpers$.shouldInvalidateReactRefreshBoundary(prevSignature, self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports))) {\n                        module.hot.invalidate();\n                    }\n                    else {\n                        self.$RefreshHelpers$.scheduleUpdate();\n                    }\n                }\n            }\n            else {\n                // Since we just executed the code for the module, it's possible that the\n                // new exports made it ineligible for being a boundary.\n                // We only care about the case when we were _previously_ a boundary,\n                // because we already accepted this update (accidental side effect).\n                var isNoLongerABoundary = prevSignature !== null;\n                if (isNoLongerABoundary) {\n                    module.hot.invalidate();\n                }\n            }\n        }\n    })();\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9hcHAvc3cudHMiLCJtYXBwaW5ncyI6Ijs7OztBQUFBLGlDQUFpQztBQU0xQixNQUFNQSxXQUFXQyxLQUFLQyxhQUFhLEdBQUcsRUFBRSIsInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxvbHVzZVxcT25lRHJpdmVcXERvY3VtZW50c1xcR2l0SHViXFxNb25pZXRhclxcYXBwXFxzdy50cyJdLCJzb3VyY2VzQ29udGVudCI6WyIvLy8gPHJlZmVyZW5jZSBsaWI9XCJ3ZWJ3b3JrZXJcIiAvPlxyXG5cclxuZGVjbGFyZSBjb25zdCBzZWxmOiBTZXJ2aWNlV29ya2VyR2xvYmFsU2NvcGUgJiB7XHJcbiAgX19TV19NQU5JRkVTVDogQXJyYXk8eyB1cmw6IHN0cmluZzsgcmV2aXNpb246IHN0cmluZyB8IG51bGwgfT5cclxufVxyXG5cclxuZXhwb3J0IGNvbnN0IG1hbmlmZXN0ID0gc2VsZi5fX1NXX01BTklGRVNUID0gW10iXSwibmFtZXMiOlsibWFuaWZlc3QiLCJzZWxmIiwiX19TV19NQU5JRkVTVCJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///./app/sw.ts\n"));
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			if (cachedModule.error !== undefined) throw cachedModule.error;
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			id: moduleId,
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		var threw = true;
+/******/ 		try {
+/******/ 			__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 			threw = false;
+/******/ 		} finally {
+/******/ 			if(threw) delete __webpack_module_cache__[moduleId];
+/******/ 		}
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 			for(var key in definition) {
+/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__webpack_require__.r = (exports) => {
+/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/trusted types policy */
+/******/ 	(() => {
+/******/ 		var policy;
+/******/ 		__webpack_require__.tt = () => {
+/******/ 			// Create Trusted Type policy if Trusted Types are available and the policy doesn't exist yet.
+/******/ 			if (policy === undefined) {
+/******/ 				policy = {
+/******/ 					createScript: (script) => (script)
+/******/ 				};
+/******/ 				if (typeof trustedTypes !== "undefined" && trustedTypes.createPolicy) {
+/******/ 					policy = trustedTypes.createPolicy("nextjs#bundler", policy);
+/******/ 				}
+/******/ 			}
+/******/ 			return policy;
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/trusted types script */
+/******/ 	(() => {
+/******/ 		__webpack_require__.ts = (script) => (__webpack_require__.tt().createScript(script));
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/react refresh */
+/******/ 	(() => {
+/******/ 		if (__webpack_require__.i) {
+/******/ 		__webpack_require__.i.push((options) => {
+/******/ 			const originalFactory = options.factory;
+/******/ 			options.factory = (moduleObject, moduleExports, webpackRequire) => {
+/******/ 				const hasRefresh = typeof self !== "undefined" && !!self.$RefreshInterceptModuleExecution$;
+/******/ 				const cleanup = hasRefresh ? self.$RefreshInterceptModuleExecution$(moduleObject.id) : () => {};
+/******/ 				try {
+/******/ 					originalFactory.call(this, moduleObject, moduleExports, webpackRequire);
+/******/ 				} finally {
+/******/ 					cleanup();
+/******/ 				}
+/******/ 			}
+/******/ 		})
+/******/ 		}
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/compat */
+/******/ 	
+/******/ 	
+/******/ 	// noop fns to prevent runtime errors during initialization
+/******/ 	if (typeof self !== "undefined") {
+/******/ 		self.$RefreshReg$ = function () {};
+/******/ 		self.$RefreshSig$ = function () {
+/******/ 			return function (type) {
+/******/ 				return type;
+/******/ 			};
+/******/ 		};
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module can't be inlined because the eval-source-map devtool is used.
+/******/ 	var __webpack_exports__ = __webpack_require__("./app/sw.ts");
+/******/ 	
+/******/ })()
+;

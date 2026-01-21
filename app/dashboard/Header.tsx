@@ -1,6 +1,7 @@
+// components/Header.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Bell,
@@ -15,8 +16,10 @@ import {
   Globe,
   Eye,
   EyeOff,
-  Menu
+  Loader2
 } from 'lucide-react'
+import { useSettings } from '@/contexts/SettingsContext'
+import { toast } from 'react-hot-toast'
 
 interface UserInfo {
   name: string
@@ -25,6 +28,7 @@ interface UserInfo {
   avatar: string
   plan: string
   joinedDate: string
+  id?: string
 }
 
 interface Notification {
@@ -46,8 +50,24 @@ interface HeaderProps {
   navigationItems: Array<{ id: string; label: string }>
 }
 
-const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CAD']
-const languages = ['English', 'Spanish', 'French', 'German', 'Chinese']
+// Available currencies and languages
+const currencies = [
+  { value: 'USD', label: 'USD ($)' },
+  { value: 'EUR', label: 'EUR (€)' },
+  { value: 'GBP', label: 'GBP (£)' },
+  { value: 'NGN', label: 'NGN (₦)' },
+  { value: 'JPY', label: 'JPY (¥)' },
+  { value: 'CAD', label: 'CAD (C$)' },
+]
+
+const languages = [
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Español' },
+  { value: 'fr', label: 'Français' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'zh', label: '中文' },
+  { value: 'ja', label: '日本語' },
+]
 
 const mockNotifications: Notification[] = [
   {
@@ -99,8 +119,16 @@ export function Header({
   const [isLanguageOpen, setIsLanguageOpen] = useState(false)
   const [showBalance, setShowBalance] = useState(true)
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
-  const [selectedCurrency, setSelectedCurrency] = useState('USD')
-  const [selectedLanguage, setSelectedLanguage] = useState('English')
+  
+  // Get settings from context - ADD safe defaults
+  const { settings, updateSettings, isLoading } = useSettings()
+
+  // Use safe defaults if settings are not available
+  const safeSettings = settings || {
+    currency: 'USD',
+    language: 'en',
+    // Add other default settings as needed
+  }
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
@@ -130,7 +158,42 @@ export function Header({
     setNotifications(notifications.map(notification => ({ ...notification, read: true })))
   }
 
+  const updateCurrency = async (currency: string) => {
+    try {
+      await updateSettings({ currency })
+    } catch (error) {
+      console.error('Error updating currency:', error)
+      toast.error('Failed to update currency')
+    }
+  }
+
+  const updateLanguage = async (languageValue: string) => {
+    try {
+      await updateSettings({ language: languageValue })
+    } catch (error) {
+      console.error('Error updating language:', error)
+      toast.error('Failed to update language')
+    }
+  }
+
   const unreadCount = notifications.filter(n => !n.read).length
+
+  // Get currency symbol for display
+  const getCurrencySymbol = (currencyCode: string) => {
+    switch (currencyCode) {
+      case 'USD': return '$'
+      case 'EUR': return '€'
+      case 'GBP': return '£'
+      case 'NGN': return '₦'
+      case 'JPY': return '¥'
+      case 'CAD': return 'C$'
+      default: return '$'
+    }
+  }
+
+  // Find current currency and language - use safeSettings
+  const currentCurrency = currencies.find(c => c.value === safeSettings.currency)
+  const currentLanguage = languages.find(l => l.value === safeSettings.language)
 
   return (
     <header className="fixed top-0 left-0 right-0 h-16 border-b border-gray-800 bg-gray-900 z-40 lg:left-64">
@@ -169,32 +232,42 @@ export function Header({
             <button
               onClick={() => setIsCurrencyOpen(!isCurrencyOpen)}
               className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
+              disabled={isLoading}
             >
-              <Globe className="w-4 h-4" />
-              <span className="text-sm">{selectedCurrency}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${isCurrencyOpen ? 'rotate-180' : ''}`} />
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Globe className="w-4 h-4" />
+                  <span className="text-sm">{safeSettings.currency} {getCurrencySymbol(safeSettings.currency)}</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isCurrencyOpen ? 'rotate-180' : ''}`} />
+                </>
+              )}
             </button>
 
             <AnimatePresence>
-              {isCurrencyOpen && (
+              {isCurrencyOpen && !isLoading && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full right-0 mt-2 w-32 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
+                  className="absolute top-full right-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
                 >
                   {currencies.map((currency) => (
                     <button
-                      key={currency}
+                      key={currency.value}
                       onClick={() => {
-                        setSelectedCurrency(currency)
+                        updateCurrency(currency.value)
                         setIsCurrencyOpen(false)
                       }}
-                      className={`w-full px-3 py-2 text-sm text-left hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                        selectedCurrency === currency ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
+                      className={`w-full px-3 py-2 text-sm text-left hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl flex items-center justify-between ${
+                        safeSettings.currency === currency.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
                       }`}
                     >
-                      {currency}
+                      <span>{currency.label}</span>
+                      {safeSettings.currency === currency.value && (
+                        <span className="text-emerald-400">✓</span>
+                      )}
                     </button>
                   ))}
                 </motion.div>
@@ -292,7 +365,7 @@ export function Header({
                               <p className="text-sm text-gray-300 mt-1">{notification.message}</p>
                               {notification.amount && (
                                 <p className="text-sm text-emerald-400 font-medium mt-1">
-                                  +${notification.amount.toLocaleString()}
+                                  {getCurrencySymbol(safeSettings.currency)}{notification.amount.toLocaleString()}
                                 </p>
                               )}
                               <div className="flex items-center mt-2">
@@ -358,6 +431,9 @@ export function Header({
                         <p className="text-xs text-gray-400 truncate">
                           {user.email}
                         </p>
+                        <p className="text-xs text-emerald-400 mt-1">
+                          {currentCurrency?.label || 'USD ($)'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -371,24 +447,53 @@ export function Header({
                       <div className="grid grid-cols-3 gap-1 px-2 mb-2">
                         {currencies.map((currency) => (
                           <button
-                            key={currency}
+                            key={currency.value}
                             onClick={() => {
-                              setSelectedCurrency(currency)
+                              updateCurrency(currency.value)
                               setIsUserMenuOpen(false)
                             }}
-                            className={`px-2 py-1 text-xs rounded-lg transition-colors ${
-                              selectedCurrency === currency 
+                            className={`px-2 py-1 text-xs rounded-lg transition-colors flex items-center justify-between ${
+                              safeSettings.currency === currency.value 
                                 ? 'text-emerald-400 bg-emerald-500/10' 
                                 : 'text-gray-300 hover:bg-gray-700'
                             }`}
                           >
-                            {currency}
+                            <span>{currency.value}</span>
+                            {safeSettings.currency === currency.value && (
+                              <span className="text-emerald-400 ml-1">✓</span>
+                            )}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <button className="flex items-center w-full px-3 py-2 text-sm text-gray-300 rounded-lg hover:bg-gray-700 transition-colors">
+                    {/* Language Selector */}
+                    <div>
+                      <div className="px-3 py-2 text-xs text-gray-500 uppercase font-semibold">
+                        Language
+                      </div>
+                      {languages.map((language) => (
+                        <button
+                          key={language.value}
+                          onClick={() => {
+                            updateLanguage(language.value)
+                            setIsUserMenuOpen(false)
+                          }}
+                          className={`w-full px-3 py-2 text-sm rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-between ${
+                            safeSettings.language === language.value 
+                              ? 'text-emerald-400 bg-emerald-500/10' 
+                              : 'text-gray-300'
+                          }`}
+                        >
+                          <span>{language.label}</span>
+                          {safeSettings.language === language.value && (
+                            <span className="text-emerald-400">✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button className="flex items-center w-full px-3 py-2 mt-2 text-sm text-gray-300 rounded-lg hover:bg-gray-700 transition-colors">
                       <User className="w-4 h-4 mr-2" />
                       Profile Settings
                     </button>

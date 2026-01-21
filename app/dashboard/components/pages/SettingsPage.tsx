@@ -10,9 +10,21 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/utils/supabase/client';
 import { toast } from 'react-hot-toast';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface SettingsPageProps {
-  userSettings: any;
+  userSettings: {
+    notifications: boolean;
+    twoFactorAuth: boolean;
+    autoBackup: boolean;
+    emailReports: boolean;
+    pushNotifications: boolean;
+    currency: string;
+    language: string;
+    dateFormat: string;
+    timeZone: string;
+    theme: string;
+  };
   setUserSettings: (settings: any) => void;
   handleSaveSettings: () => void;
   handleExportData: () => void;
@@ -27,8 +39,8 @@ interface SettingsPageProps {
   currencies: any[];
   currency: string;
   language: string;
-  setCurrency: (curr: string) => void;
-  setLanguage: (lang: string) => void;
+  setCurrency: (currency: string) => void;
+  setLanguage: (language: string) => void;
   user: any;
 }
 
@@ -37,7 +49,8 @@ const ProfileSection = memo(function ProfileSection({
   localSettings,
   updateSetting,
   darkMode,
-  themeClasses
+  themeClasses,
+  user
 }: any) {
   return (
     <div className="space-y-8">
@@ -50,7 +63,7 @@ const ProfileSection = memo(function ProfileSection({
             <label className={`block text-sm font-semibold mb-3 ${themeClasses.text.primary}`}>Full Name *</label>
             <input
               type="text"
-              value={localSettings.fullName}
+              value={localSettings.fullName || ''}
               onChange={(e) => updateSetting('fullName', e.target.value)}
               className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                 darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
@@ -62,7 +75,7 @@ const ProfileSection = memo(function ProfileSection({
             <label className={`block text-sm font-semibold mb-3 ${themeClasses.text.primary}`}>Email Address *</label>
             <input
               type="email"
-              value={localSettings.email}
+              value={user?.email || ''}
               className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 ${
                 darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
               }`}
@@ -83,7 +96,7 @@ const ProfileSection = memo(function ProfileSection({
               <label className={`block text-sm font-semibold mb-3 ${themeClasses.text.primary}`}>Business Name</label>
               <input
                 type="text"
-                value={localSettings.businessName}
+                value={localSettings.businessName || ''}
                 onChange={(e) => updateSetting('businessName', e.target.value)}
                 className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                   darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
@@ -95,12 +108,12 @@ const ProfileSection = memo(function ProfileSection({
               <label className={`block text-sm font-semibold mb-3 ${themeClasses.text.primary}`}>Phone Number</label>
               <input
                 type="tel"
-                value={localSettings.phoneNumber}
+                value={localSettings.phoneNumber || ''}
                 onChange={(e) => updateSetting('phoneNumber', e.target.value)}
                 className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                   darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
                 }`}
-                placeholder="+1 (555) 000-0000"
+                placeholder="+234 123 456 7890"
               />
             </div>
           </div>
@@ -129,7 +142,7 @@ const PreferencesSection = memo(function PreferencesSection({
           <div>
             <label className={`block text-sm font-semibold mb-3 ${themeClasses.text.primary}`}>Primary Currency *</label>
             <select
-              value={localSettings.currency}
+              value={localSettings.currency || 'USD'}
               onChange={(e) => updateSetting('currency', e.target.value)}
               className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                 darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
@@ -139,11 +152,13 @@ const PreferencesSection = memo(function PreferencesSection({
                 <option key={curr.value} value={curr.value}>{curr.label}</option>
               ))}
             </select>
+            <p className={`text-xs mt-2 ${themeClasses.text.muted}`}>Used for all financial calculations</p>
           </div>
+          
           <div>
             <label className={`block text-sm font-semibold mb-3 ${themeClasses.text.primary}`}>Language</label>
             <select
-              value={localSettings.language}
+              value={localSettings.language || 'en'}
               onChange={(e) => updateSetting('language', e.target.value)}
               className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                 darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
@@ -154,10 +169,11 @@ const PreferencesSection = memo(function PreferencesSection({
               ))}
             </select>
           </div>
+          
           <div>
             <label className={`block text-sm font-semibold mb-3 ${themeClasses.text.primary}`}>Date Format</label>
             <select
-              value={localSettings.dateFormat}
+              value={localSettings.dateFormat || 'MM/DD/YYYY'}
               onChange={(e) => updateSetting('dateFormat', e.target.value)}
               className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                 darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
@@ -168,10 +184,11 @@ const PreferencesSection = memo(function PreferencesSection({
               <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
             </select>
           </div>
+          
           <div>
             <label className={`block text-sm font-semibold mb-3 ${themeClasses.text.primary}`}>Time Zone</label>
             <select
-              value={localSettings.timezone}
+              value={localSettings.timezone || 'UTC'}
               onChange={(e) => updateSetting('timezone', e.target.value)}
               className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
                 darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
@@ -181,6 +198,8 @@ const PreferencesSection = memo(function PreferencesSection({
               <option value="Africa/Lagos">West Africa Time (WAT)</option>
               <option value="America/New_York">Eastern Time (ET)</option>
               <option value="Europe/London">Greenwich Mean Time (GMT)</option>
+              <option value="Asia/Tokyo">Japan Standard Time (JST)</option>
+              <option value="Australia/Sydney">Australian Eastern Time (AET)</option>
             </select>
           </div>
         </div>
@@ -192,7 +211,8 @@ const PreferencesSection = memo(function PreferencesSection({
           {[
             { key: 'compactView', title: 'Compact View', description: 'Show more data in less space' },
             { key: 'autoRefresh', title: 'Auto-refresh Data', description: 'Automatically update data every 5 minutes' },
-            { key: 'showCharts', title: 'Show Charts', description: 'Display visual charts and graphs' }
+            { key: 'showCharts', title: 'Show Charts', description: 'Display visual charts on dashboard' },
+            { key: 'defaultToCurrentMonth', title: 'Default to Current Month', description: 'Start with current month view' }
           ].map((item) => (
             <div key={item.key} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 ${
               darkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
@@ -205,7 +225,7 @@ const PreferencesSection = memo(function PreferencesSection({
                 <input
                   type="checkbox"
                   className="sr-only peer"
-                  checked={localSettings[item.key]}
+                  checked={localSettings[item.key] || false}
                   onChange={(e) => updateSetting(item.key, e.target.checked)}
                 />
                 <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
@@ -364,7 +384,7 @@ const DataPrivacySection = memo(function DataPrivacySection({
   updateSetting,
   darkMode,
   themeClasses,
-  isBackingUp = false  // New prop to control loading state
+  isBackingUp = false
 }: {
   handleExport: () => void;
   handleBackup: () => void;
@@ -470,7 +490,7 @@ const DataPrivacySection = memo(function DataPrivacySection({
                 <input
                   type="checkbox"
                   className="sr-only peer"
-                  checked={localSettings.dataSharing}
+                  checked={localSettings.dataSharing || false}
                   onChange={(e) => updateSetting('dataSharing', e.target.checked)}
                 />
                 <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
@@ -488,7 +508,7 @@ const DataPrivacySection = memo(function DataPrivacySection({
                 <input
                   type="checkbox"
                   className="sr-only peer"
-                  checked={localSettings.marketingEmails}
+                  checked={localSettings.marketingEmails || false}
                   onChange={(e) => updateSetting('marketingEmails', e.target.checked)}
                 />
                 <div className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
@@ -503,7 +523,7 @@ const DataPrivacySection = memo(function DataPrivacySection({
   );
 });
 
-// Feedback Form (isolated for stable textarea)
+// Feedback Form
 const FeedbackForm = memo(function FeedbackForm({
   feedback,
   setFeedback,
@@ -587,7 +607,10 @@ const HelpFeedbackSection = memo(function HelpFeedbackSection({
             </div>
             <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Documentation</h4>
             <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Browse our help center and guides</p>
-            <button onClick={() => window.open('https://monietardoc.hashnode.space/', '_blank')} className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm hover:cursor-pointer font-medium">
+            <button 
+              onClick={() => window.open('https://monietardoc.hashnode.space/', '_blank')} 
+              className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm hover:cursor-pointer font-medium"
+            >
               View Docs
             </button>
           </div>
@@ -598,7 +621,10 @@ const HelpFeedbackSection = memo(function HelpFeedbackSection({
             </div>
             <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Email Support</h4>
             <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Get help from our support team</p>
-            <button onClick={() => window.location.href = 'mailto:support@monietar.com'} className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:cursor-pointer hover:bg-emerald-700 transition-colors text-sm font-medium">
+            <button 
+              onClick={() => window.location.href = 'mailto:support@monietar.com'} 
+              className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:cursor-pointer hover:bg-emerald-700 transition-colors text-sm font-medium"
+            >
               Email Support
             </button>
           </div>
@@ -618,9 +644,6 @@ const HelpFeedbackSection = memo(function HelpFeedbackSection({
 });
 
 export default function SettingsPage({
-  userSettings,
-  setUserSettings,
-  handleSaveSettings,
   handleExportData,
   setShowChangePasswordDialog,
   setShowClearDataDialog,
@@ -631,10 +654,6 @@ export default function SettingsPage({
   themeClasses,
   languagesList,
   currencies,
-  currency,
-  language,
-  setCurrency,
-  setLanguage,
   user
 }: SettingsPageProps) {
   const [activeSection, setActiveSection] = useState('profile');
@@ -642,143 +661,47 @@ export default function SettingsPage({
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [sendingFeedback, setSendingFeedback] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  
+  // Use settings from context
+  const { settings, updateSettings, isLoading } = useSettings();
+  
+  // Use settings as localSettings
+  const localSettings = settings || {};
 
-  const defaultNotifications = {
-    budgetAlerts: true,
-    weeklyReports: false,
-    transactionAlerts: true,
-    aiRecommendations: true,
-    securityAlerts: true
-  };
-
-  const [localSettings, setLocalSettings] = useState({
-    fullName: '',
-    email: '',
-    businessName: '',
-    phoneNumber: '',
-    currency: 'USD',
-    language: 'en',
-    dateFormat: 'MM/DD/YYYY',
-    timezone: 'UTC',
-    compactView: false,
-    autoRefresh: false,
-    showCharts: true,
-    notifications: defaultNotifications,
-    dataSharing: false,
-    marketingEmails: true,
-  });
-
+  // Load user profile from auth - FIXED: Remove email from updateSettings call
   useEffect(() => {
-    if (user?.id) {
-      loadUserProfile();
-      loadUserSettings();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (userSettings) {
-      setLocalSettings(prev => ({
-        ...prev,
-        ...userSettings,
-        notifications: {
-          ...defaultNotifications,
-          ...(userSettings.notifications || {})
-        }
-      }));
-    }
-  }, [userSettings]);
-
-  const loadUserProfile = async () => {
-    try {
-      if (!user) return;
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        setLocalSettings(prev => ({
-          ...prev,
-          fullName: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || '',
-          email: authUser.email || '',
-          businessName: authUser.user_metadata?.business_name || ''
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-    }
-  };
-
-  const loadUserSettings = async () => {
-    try {
-      if (!user?.id) return;
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('settings')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading settings:', error);
-        toast.error('Failed to load settings');
-        return;
-      }
-
-      if (data?.settings) {
-        setLocalSettings(prev => ({
-          ...prev,
-          ...data.settings,
-          notifications: {
-            ...defaultNotifications,
-            ...(data.settings.notifications || {})
-          }
-        }));
-
-        if (setUserSettings) {
-          setUserSettings({
-            ...data.settings,
-            notifications: {
-              ...defaultNotifications,
-              ...(data.settings.notifications || {})
-            }
+    const loadUserProfile = async () => {
+      try {
+        if (!user) return;
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          // Only update name fields, email should not be in settings
+          await updateSettings({
+            fullName: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || '',
+            businessName: authUser.user_metadata?.business_name || ''
           });
         }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
       }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-      toast.error('Failed to load settings');
+    };
+
+    if (user?.id) {
+      loadUserProfile();
     }
-  };
+  }, [user, updateSettings]);
 
   const handleSave = async () => {
     try {
-      if (!user?.id) {
-        toast.error('Please sign in to save settings');
-        return;
-      }
-
       setSaving(true);
-
-      const settingsToSave = {
-        ...localSettings,
-        last_updated: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          settings: settingsToSave,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-
-      if (error) throw error;
-
-      if (setUserSettings) setUserSettings(settingsToSave);
-      setCurrency(localSettings.currency);
-      setLanguage(localSettings.language);
-
+      
+      // Save all current settings to Supabase
+      await updateSettings(localSettings);
+      
       setSaveSuccess(true);
       toast.success('Settings saved successfully!');
       setTimeout(() => setSaveSuccess(false), 3000);
-
-      if (handleSaveSettings) await handleSaveSettings();
     } catch (error: any) {
       console.error('Error saving settings:', error);
       toast.error(error.message || 'Failed to save settings');
@@ -787,36 +710,66 @@ export default function SettingsPage({
     }
   };
 
-  const updateSetting = (key: string, value: any) => {
-    setLocalSettings(prev => {
-      const newSettings = { ...prev };
+  // FIXED: Add type safety for updateSetting function
+  const updateSetting = async (key: string, value: any) => {
+    try {
       if (key.includes('.')) {
         const keys = key.split('.');
         if (keys.length === 2) {
-          (newSettings as any)[keys[0]] = { ...(newSettings as any)[keys[0]] || {} };
-          (newSettings as any)[keys[0]][keys[1]] = value;
+          const section = keys[0];
+          const settingKey = keys[1];
+          
+          // Handle different sections
+          if (section === 'notifications') {
+            const updatedNotifications = {
+              ...(localSettings.notifications || {}),
+              [settingKey]: value
+            };
+            await updateSettings({ notifications: updatedNotifications });
+          }
         }
       } else {
-        (newSettings as any)[key] = value;
+        // Handle top-level settings with type safety
+        const validSettings = [
+          'currency', 'language', 'dateFormat', 'timezone', 
+          'fullName', 'businessName', 'phoneNumber',
+          'compactView', 'autoRefresh', 'showCharts', 'defaultToCurrentMonth',
+          'dataSharing', 'marketingEmails'
+        ];
+        
+        if (validSettings.includes(key)) {
+          await updateSettings({ [key]: value } as any);
+        }
       }
-      return newSettings;
-    });
+    } catch (error) {
+      console.error('Error updating setting:', error);
+      toast.error('Failed to update setting');
+    }
   };
 
+  // FIXED: Type-safe getNestedSetting function
   const getNestedSetting = (key: string): boolean => {
     if (key.includes('.')) {
       const keys = key.split('.');
       let value: any = localSettings;
+      
       for (const k of keys) {
-        if (value && typeof value === 'object' && k in value) {
+        if (value && typeof value === 'object') {
           value = value[k];
         } else {
           return false;
         }
       }
-      return value;
+      return Boolean(value);
     }
-    return (localSettings as any)[key] || false;
+    
+    // Handle top-level boolean settings
+    const booleanSettings = ['compactView', 'autoRefresh', 'showCharts', 'defaultToCurrentMonth', 'dataSharing', 'marketingEmails'];
+    if (booleanSettings.includes(key)) {
+      return Boolean(localSettings[key as keyof typeof localSettings]);
+    }
+    
+    return false;
   };
 
   const handleSendFeedback = async () => {
@@ -859,9 +812,18 @@ export default function SettingsPage({
     if (handleExportData) await handleExportData();
     else toast.error('Export functionality not available');
   };
+  
   const handleBackup = async () => {
-    if (handleBackupData) await handleBackupData();
-    else toast.error('Backup functionality not available');
+    if (handleBackupData) {
+      setIsBackingUp(true);
+      try {
+        await handleBackupData();
+      } finally {
+        setIsBackingUp(false);
+      }
+    } else {
+      toast.error('Backup functionality not available');
+    }
   };
 
   const sections = [
@@ -874,23 +836,74 @@ export default function SettingsPage({
   ];
 
   const renderSection = () => {
+    const sectionProps = {
+      localSettings,
+      updateSetting,
+      getNestedSetting,
+      darkMode,
+      themeClasses,
+      user
+    };
+
     switch (activeSection) {
       case 'profile':
-        return <ProfileSection localSettings={localSettings} updateSetting={updateSetting} darkMode={darkMode} themeClasses={themeClasses} />;
+        return <ProfileSection {...sectionProps} />;
       case 'preferences':
-        return <PreferencesSection localSettings={localSettings} updateSetting={updateSetting} currencies={currencies} languagesList={languagesList} darkMode={darkMode} themeClasses={themeClasses} />;
+        return (
+          <PreferencesSection 
+            {...sectionProps}
+            currencies={currencies}
+            languagesList={languagesList}
+          />
+        );
       case 'notifications':
-        return <NotificationsSection localSettings={localSettings} updateSetting={updateSetting} getNestedSetting={getNestedSetting} darkMode={darkMode} themeClasses={themeClasses} />;
+        return <NotificationsSection {...sectionProps} />;
       case 'security':
-        return <SecuritySection handleChangePassword={handleChangePassword} setShowDeleteAccountDialog={setShowDeleteAccountDialog} darkMode={darkMode} themeClasses={themeClasses} />;
+        return (
+          <SecuritySection 
+            handleChangePassword={handleChangePassword}
+            setShowDeleteAccountDialog={setShowDeleteAccountDialog}
+            darkMode={darkMode}
+            themeClasses={themeClasses}
+          />
+        );
       case 'data':
-        return <DataPrivacySection handleExport={handleExport} handleBackup={handleBackup} setShowRestoreDialog={setShowRestoreDialog} setShowClearDataDialog={setShowClearDataDialog} localSettings={localSettings} updateSetting={updateSetting} darkMode={darkMode} themeClasses={themeClasses} />;
+        return (
+          <DataPrivacySection 
+            handleExport={handleExport}
+            handleBackup={handleBackup}
+            setShowRestoreDialog={setShowRestoreDialog}
+            setShowClearDataDialog={setShowClearDataDialog}
+            localSettings={localSettings}
+            updateSetting={updateSetting}
+            darkMode={darkMode}
+            themeClasses={themeClasses}
+            isBackingUp={isBackingUp}
+          />
+        );
       case 'feedback':
-        return <HelpFeedbackSection feedback={feedback} setFeedback={setFeedback} handleSendFeedback={handleSendFeedback} sendingFeedback={sendingFeedback} darkMode={darkMode} themeClasses={themeClasses} />;
+        return (
+          <HelpFeedbackSection 
+            feedback={feedback}
+            setFeedback={setFeedback}
+            handleSendFeedback={handleSendFeedback}
+            sendingFeedback={sendingFeedback}
+            darkMode={darkMode}
+            themeClasses={themeClasses}
+          />
+        );
       default:
         return null;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-20">

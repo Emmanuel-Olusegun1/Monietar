@@ -24,6 +24,7 @@ import { EditBudgetModal } from './components/modals/EditBudgetModal';
 import type { EnhancedBudget } from '@/app/dashboard/types';
 import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { SettingsProvider } from '@/contexts/SettingsContext'; // ADDED: Import SettingsProvider
 
 type AllowedPeriodDisplay = 'Monthly' | 'Yearly' | 'Quarterly';
 
@@ -71,7 +72,8 @@ interface DashboardClientProps {
   initialSession?: any; // Make optional if needed
 }
 
-export default function DashboardClient({ initialSession }: DashboardClientProps = {}) {
+// Main Dashboard Client Component
+function DashboardContent({ initialSession }: DashboardClientProps = {}) {
   const [activeTab, setActiveTab] = useState('overview');
   const [darkMode, setDarkMode] = useState(true);
   const [showBalance, setShowBalance] = useState(false);
@@ -678,18 +680,44 @@ const loadData = async (userId: string) => {
 
   // Handle data backup
 const handleBackup = async () => {
-  if (handleBackup) {
+  try {
     setIsBackingUp(true);
-    try {
-      await handleBackup();
-      toast.success('Backup created successfully!');
-    } catch (err) {
-      toast.error('Failed to create backup');
-    } finally {
-      setIsBackingUp(false);
+    if (!user.id) {
+      toast.error('Not authenticated');
+      return;
     }
-  } else {
-    toast.error('Backup functionality not available');
+
+    // Create backup data
+    const backupData = {
+      timestamp: new Date().toISOString(),
+      userId: user.id,
+      transactions: financialData.transactions,
+      budgets: financialData.budgets,
+      income: financialData.income,
+      expenses: financialData.expenses,
+      profit: financialData.profit
+    };
+
+    // Save backup to localStorage (you can save to Supabase instead)
+    const backups = JSON.parse(localStorage.getItem('monietar_backups') || '[]');
+    backups.push(backupData);
+    
+    // Keep only last 10 backups
+    if (backups.length > 10) {
+      backups.shift();
+    }
+    
+    localStorage.setItem('monietar_backups', JSON.stringify(backups));
+    
+    toast.success('Backup created successfully!', {
+      icon: '💾',
+      duration: 3000
+    });
+  } catch (error) {
+    console.error('Backup failed:', error);
+    toast.error('Failed to create backup');
+  } finally {
+    setIsBackingUp(false);
   }
 };
 
@@ -1206,5 +1234,14 @@ if (loading || !user.id || !dataLoaded) {
         darkMode={darkMode}
       />
     </div>
+  );
+}
+
+// Main export with SettingsProvider wrapper
+export default function DashboardClient({ initialSession }: DashboardClientProps = {}) {
+  return (
+    <SettingsProvider userId={initialSession?.id}>
+      <DashboardContent initialSession={initialSession} />
+    </SettingsProvider>
   );
 }
