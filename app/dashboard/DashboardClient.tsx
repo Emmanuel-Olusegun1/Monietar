@@ -24,7 +24,7 @@ import { EditBudgetModal } from './components/modals/EditBudgetModal';
 import type { EnhancedBudget } from '@/app/dashboard/types';
 import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
-import { SettingsProvider } from '@/contexts/SettingsContext'; // ADDED: Import SettingsProvider
+import { SettingsProvider } from '@/contexts/SettingsContext';
 
 type AllowedPeriodDisplay = 'Monthly' | 'Yearly' | 'Quarterly';
 
@@ -47,7 +47,7 @@ const toDbPeriod = (period: AllowedPeriodDisplay): 'monthly' | 'yearly' | 'quart
 };
 
 interface UserInfo {
-  id: string; // FIXED: Added id property
+  id: string;
   name: string;
   email: string;
   businessName: string;
@@ -67,9 +67,8 @@ interface FinancialData {
   cashFlowForecast: any[];
 }
 
-// FIXED: Added interface for props
 interface DashboardClientProps {
-  initialSession?: any; // Make optional if needed
+  initialSession?: any;
 }
 
 // Main Dashboard Client Component
@@ -90,10 +89,6 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
   const [currentModel, setCurrentModel] = useState<string>('Checking...');
   const [modelIntelligence, setModelIntelligence] = useState<string>('Medium');
   const [estimatedCost, setEstimatedCost] = useState<string>('FREE 🎉');
-
-  // Currency and language states
-  const [currency, setCurrency] = useState('NGN');
-  const [language, setLanguage] = useState('en');
 
   // Modal states
   const [showIncomeForm, setShowIncomeForm] = useState(false);
@@ -147,20 +142,6 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
     date: ''
   });
 
-  // User settings state
-  const [userSettings, setUserSettings] = useState({
-    notifications: true,
-    twoFactorAuth: false,
-    autoBackup: true,
-    emailReports: true,
-    pushNotifications: true,
-    currency: 'NGN',
-    language: 'en',
-    dateFormat: 'DD/MM/YYYY',
-    timeZone: 'Africa/Lagos',
-    theme: 'dark'
-  });
-
   // Editing and deletion states
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [editingBudget, setEditingBudget] = useState<EnhancedBudget | null>(null);
@@ -170,7 +151,7 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
 
   // FIXED: User state - includes id property
   const [user, setUser] = useState<UserInfo>({
-    id: '', // FIXED: Added id
+    id: '',
     name: 'User',
     email: '',
     businessName: 'My Business',
@@ -193,23 +174,6 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
 
   // Alias for delete account dialog to use existing delete modal
   const setShowDeleteAccountDialog = setShowDeleteModal;
-
-  // Language and currency options
-  const languagesList = [
-    { value: 'en', label: 'English' },
-    { value: 'fr', label: 'French' },
-    { value: 'sw', label: 'Swahili' },
-    { value: 'yo', label: 'Yoruba' },
-    { value: 'ig', label: 'Igbo' },
-    { value: 'ha', label: 'Hausa' }
-  ];
-
-  const currencies = [
-    { value: 'NGN', label: 'Naira' },
-    { value: 'CFA', label: 'XFA' },
-    { value: 'USD', label: 'Dollar' },
-    { value: 'EUR', label: 'Euro' }
-  ];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [realTimeAlerts, setRealTimeAlerts] = useState<any[]>([]);
@@ -357,7 +321,7 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
   const formatCurrencyForAI = (amount: number): string => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
-      currency: currency,
+      currency: 'NGN',
       minimumFractionDigits: 0,
       maximumFractionDigits: 2
     }).format(amount);
@@ -584,36 +548,6 @@ const loadData = async (userId: string) => {
     setDataLoaded(true); // Still set to true even on error
   }
 };
-
-  // Handle saving user settings
-  const handleSaveSettings = async () => {
-    try {
-      if (!user.id) {
-        toast.error('Not authenticated');
-        return;
-      }
-
-      setIsSubmitting(true);
-      
-      // Update user settings in Supabase
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          settings: userSettings,
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
-
-      toast.success('Settings saved successfully!');
-    } catch (error: any) {
-      console.error('Error saving settings:', error);
-      toast.error('Failed to save settings');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   // Handle exporting data
   const handleExportData = async () => {
@@ -973,12 +907,6 @@ if (loading || !user.id || !dataLoaded) {
         setShowBalance={setShowBalance}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
-        currency={currency}
-        setCurrency={setCurrency}
-        language={language}
-        setLanguage={setLanguage}
-        currencies={currencies}
-        languagesList={languagesList}
         realTimeAlerts={realTimeAlerts}
       />
 
@@ -1076,7 +1004,7 @@ if (loading || !user.id || !dataLoaded) {
 
           {activeTab === 'connect account' && (
             <AccountsPage 
-              user={user as any} // FIXED: Cast to any to bypass type checking
+              user={user as any}
               darkMode={darkMode} 
               showToast={toast} 
               themeClasses={themeClasses} 
@@ -1085,9 +1013,6 @@ if (loading || !user.id || !dataLoaded) {
 
           {activeTab === 'settings' && (
             <SettingsPage
-              userSettings={userSettings}
-              setUserSettings={setUserSettings}
-              handleSaveSettings={handleSaveSettings}
               handleExportData={handleExportData}
               setShowChangePasswordDialog={setShowChangePasswordDialog}
               setShowClearDataDialog={setShowClearDataDialog}
@@ -1096,13 +1021,7 @@ if (loading || !user.id || !dataLoaded) {
               handleBackupData={handleBackup}
               darkMode={darkMode}
               themeClasses={themeClasses}
-              languagesList={languagesList}
-              currencies={currencies}
-              currency={userSettings.currency}
-              language={userSettings.language}
-              setCurrency={setCurrency}
-              setLanguage={setLanguage}
-              user={user as any} // FIXED: Cast to any to bypass type checking
+              user={user}
             />
           )}
 

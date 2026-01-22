@@ -1,4 +1,3 @@
-// components/Header.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useSettings } from '@/contexts/SettingsContext'
 import { toast } from 'react-hot-toast'
+import { CURRENCIES, LANGUAGES, getCurrencySymbol } from '@/app/utils/constants'
 
 interface UserInfo {
   name: string
@@ -49,25 +49,6 @@ interface HeaderProps {
   onLogout: () => void
   navigationItems: Array<{ id: string; label: string }>
 }
-
-// Available currencies and languages
-const currencies = [
-  { value: 'USD', label: 'USD ($)' },
-  { value: 'EUR', label: 'EUR (€)' },
-  { value: 'GBP', label: 'GBP (£)' },
-  { value: 'NGN', label: 'NGN (₦)' },
-  { value: 'JPY', label: 'JPY (¥)' },
-  { value: 'CAD', label: 'CAD (C$)' },
-]
-
-const languages = [
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Español' },
-  { value: 'fr', label: 'Français' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'zh', label: '中文' },
-  { value: 'ja', label: '日本語' },
-]
 
 const mockNotifications: Notification[] = [
   {
@@ -120,14 +101,15 @@ export function Header({
   const [showBalance, setShowBalance] = useState(true)
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
   
-  // Get settings from context - ADD safe defaults
+  // Get settings from context
   const { settings, updateSettings, isLoading } = useSettings()
 
-  // Use safe defaults if settings are not available
-  const safeSettings = settings || {
-    currency: 'USD',
-    language: 'en',
-    // Add other default settings as needed
+  // Safe settings with defaults
+  const safeSettings = {
+    currency: settings?.currency || 'USD',
+    language: settings?.language || 'en',
+    notifications: settings?.notifications || {},
+    profile: settings?.profile || {}
   }
 
   const getNotificationIcon = (type: Notification['type']) => {
@@ -161,6 +143,10 @@ export function Header({
   const updateCurrency = async (currency: string) => {
     try {
       await updateSettings({ currency })
+      toast.success(`Currency updated to ${currency}`, {
+        icon: '💱',
+        duration: 2000
+      })
     } catch (error) {
       console.error('Error updating currency:', error)
       toast.error('Failed to update currency')
@@ -170,30 +156,28 @@ export function Header({
   const updateLanguage = async (languageValue: string) => {
     try {
       await updateSettings({ language: languageValue })
+      toast.success(`Language updated`, {
+        icon: '🌐',
+        duration: 2000
+      })
     } catch (error) {
       console.error('Error updating language:', error)
       toast.error('Failed to update language')
     }
   }
 
-  const unreadCount = notifications.filter(n => !n.read).length
-
-  // Get currency symbol for display
-  const getCurrencySymbol = (currencyCode: string) => {
-    switch (currencyCode) {
-      case 'USD': return '$'
-      case 'EUR': return '€'
-      case 'GBP': return '£'
-      case 'NGN': return '₦'
-      case 'JPY': return '¥'
-      case 'CAD': return 'C$'
-      default: return '$'
-    }
+  // Handle theme change and update settings
+  const handleThemeToggle = () => {
+    const newDarkMode = !darkMode
+    setDarkMode(newDarkMode)
+    updateSettings({ theme: newDarkMode ? 'dark' : 'light' })
   }
 
-  // Find current currency and language - use safeSettings
-  const currentCurrency = currencies.find(c => c.value === safeSettings.currency)
-  const currentLanguage = languages.find(l => l.value === safeSettings.language)
+  const unreadCount = notifications.filter(n => !n.read).length
+
+  // Find current currency and language labels
+  const currentCurrency = CURRENCIES.find(c => c.value === safeSettings.currency)
+  const currentLanguage = LANGUAGES.find(l => l.value === safeSettings.language)
 
   return (
     <header className="fixed top-0 left-0 right-0 h-16 border-b border-gray-800 bg-gray-900 z-40 lg:left-64">
@@ -251,25 +235,38 @@ export function Header({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full right-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
+                  className="absolute top-full right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
                 >
-                  {currencies.map((currency) => (
-                    <button
-                      key={currency.value}
-                      onClick={() => {
-                        updateCurrency(currency.value)
-                        setIsCurrencyOpen(false)
-                      }}
-                      className={`w-full px-3 py-2 text-sm text-left hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl flex items-center justify-between ${
-                        safeSettings.currency === currency.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
-                      }`}
-                    >
-                      <span>{currency.label}</span>
-                      {safeSettings.currency === currency.value && (
-                        <span className="text-emerald-400">✓</span>
-                      )}
-                    </button>
-                  ))}
+                  <div className="p-3 border-b border-gray-700">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Currency</h4>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {CURRENCIES.map((currency) => (
+                      <button
+                        key={currency.value}
+                        onClick={() => {
+                          updateCurrency(currency.value)
+                          setIsCurrencyOpen(false)
+                        }}
+                        className={`w-full px-4 py-3 text-sm text-left hover:bg-gray-700 transition-colors flex items-center justify-between ${
+                          safeSettings.currency === currency.value 
+                            ? 'text-emerald-400 bg-emerald-500/10' 
+                            : 'text-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{getCurrencySymbol(currency.value)}</span>
+                          <div>
+                            <div className="font-medium">{currency.value}</div>
+                            <div className="text-xs text-gray-500">{currency.label.split('(')[1]?.replace(')', '')}</div>
+                          </div>
+                        </div>
+                        {safeSettings.currency === currency.value && (
+                          <span className="text-emerald-400 ml-2">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -277,11 +274,18 @@ export function Header({
 
           {/* Theme Toggle - Always visible */}
           <button
-            onClick={() => setDarkMode(!darkMode)}
+            onClick={handleThemeToggle}
             className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
             aria-label="Toggle theme"
+            disabled={isLoading}
           >
-            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : darkMode ? (
+              <Sun className="w-5 h-5" />
+            ) : (
+              <Moon className="w-5 h-5" />
+            )}
           </button>
 
           {/* Balance Visibility - Always visible */}
@@ -431,9 +435,15 @@ export function Header({
                         <p className="text-xs text-gray-400 truncate">
                           {user.email}
                         </p>
-                        <p className="text-xs text-emerald-400 mt-1">
-                          {currentCurrency?.label || 'USD ($)'}
-                        </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-xs text-emerald-400 font-medium">
+                            {currentCurrency?.value || 'USD'} {getCurrencySymbol(safeSettings.currency)}
+                          </span>
+                          <span className="text-xs text-gray-600">•</span>
+                          <span className="text-xs text-blue-400">
+                            {currentLanguage?.label || 'English'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -445,7 +455,7 @@ export function Header({
                         Currency
                       </div>
                       <div className="grid grid-cols-3 gap-1 px-2 mb-2">
-                        {currencies.map((currency) => (
+                        {CURRENCIES.map((currency) => (
                           <button
                             key={currency.value}
                             onClick={() => {
@@ -472,7 +482,7 @@ export function Header({
                       <div className="px-3 py-2 text-xs text-gray-500 uppercase font-semibold">
                         Language
                       </div>
-                      {languages.map((language) => (
+                      {LANGUAGES.map((language) => (
                         <button
                           key={language.value}
                           onClick={() => {

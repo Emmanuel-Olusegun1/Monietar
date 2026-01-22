@@ -1,4 +1,3 @@
-// contexts/SettingsContext.tsx
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
@@ -6,27 +5,47 @@ import { supabase } from '@/utils/supabase/client';
 import { toast } from 'react-hot-toast';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
-interface Settings {
+// Define complete Settings interface matching your components' expectations
+export interface Settings {
+  // Core settings
   currency: string;
   language: string;
-  fullName?: string;
-  businessName?: string;
-  phoneNumber?: string;
-  dateFormat?: string;
-  timezone?: string;
-  compactView?: boolean;
-  autoRefresh?: boolean;
-  showCharts?: boolean;
-  defaultToCurrentMonth?: boolean;
-  notifications?: {
-    budgetAlerts?: boolean;
-    weeklyReports?: boolean;
-    transactionAlerts?: boolean;
-    aiRecommendations?: boolean;
-    securityAlerts?: boolean;
+  dateFormat: string;
+  timezone: string;
+  theme: string;
+  
+  // Notification settings
+  notifications: {
+    budgetAlerts: boolean;
+    weeklyReports: boolean;
+    transactionAlerts: boolean;
+    aiRecommendations: boolean;
+    securityAlerts: boolean;
   };
-  dataSharing?: boolean;
-  marketingEmails?: boolean;
+  
+  // Dashboard preferences
+  dashboard: {
+    compactView: boolean;
+    autoRefresh: boolean;
+    showCharts: boolean;
+    defaultToCurrentMonth: boolean;
+  };
+  
+  // Privacy settings
+  privacy: {
+    dataSharing: boolean;
+    marketingEmails: boolean;
+  };
+  
+  // Profile settings
+  profile: {
+    fullName: string;
+    businessName: string;
+    phoneNumber: string;
+  };
+  
+  // Allow additional properties for flexibility
+  [key: string]: any;
 }
 
 interface UserSettingsRow {
@@ -42,15 +61,13 @@ interface SettingsContextType {
   isLoading: boolean;
 }
 
+// Default settings that match the structure
 const defaultSettings: Settings = {
   currency: 'USD',
   language: 'en',
   dateFormat: 'MM/DD/YYYY',
   timezone: 'UTC',
-  compactView: false,
-  autoRefresh: false,
-  showCharts: true,
-  defaultToCurrentMonth: true,
+  theme: 'dark',
   notifications: {
     budgetAlerts: true,
     weeklyReports: false,
@@ -58,8 +75,21 @@ const defaultSettings: Settings = {
     aiRecommendations: true,
     securityAlerts: true
   },
-  dataSharing: false,
-  marketingEmails: true,
+  dashboard: {
+    compactView: false,
+    autoRefresh: false,
+    showCharts: true,
+    defaultToCurrentMonth: true
+  },
+  privacy: {
+    dataSharing: false,
+    marketingEmails: true
+  },
+  profile: {
+    fullName: '',
+    businessName: '',
+    phoneNumber: ''
+  }
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -88,12 +118,27 @@ export function SettingsProvider({ children, userId }: { children: ReactNode; us
       }
 
       const userSettings = data?.settings || {};
+      
+      // Merge with defaults ensuring all properties exist
       setSettings({
         ...defaultSettings,
         ...userSettings,
+        // Ensure nested objects are properly merged
         notifications: {
           ...defaultSettings.notifications,
-          ...userSettings.notifications
+          ...(userSettings.notifications || {})
+        },
+        dashboard: {
+          ...defaultSettings.dashboard,
+          ...(userSettings.dashboard || {})
+        },
+        privacy: {
+          ...defaultSettings.privacy,
+          ...(userSettings.privacy || {})
+        },
+        profile: {
+          ...defaultSettings.profile,
+          ...(userSettings.profile || {})
         }
       });
     } catch (error) {
@@ -107,7 +152,9 @@ export function SettingsProvider({ children, userId }: { children: ReactNode; us
   const updateSettings = async (newSettings: Partial<Settings>) => {
     try {
       if (!userId) {
-        toast.error('Please sign in to update settings');
+        // Still update local state for preview
+        const updatedSettings = { ...settings, ...newSettings };
+        setSettings(updatedSettings);
         return;
       }
 
@@ -125,13 +172,14 @@ export function SettingsProvider({ children, userId }: { children: ReactNode; us
 
       setSettings(updatedSettings);
       
-      // Show toast notification
+      // Show toast notification for specific settings
       const settingKeys = Object.keys(newSettings);
       if (settingKeys.length === 1) {
         const key = settingKeys[0];
         let message = 'Setting updated';
         if (key === 'currency') message = 'Currency updated';
         else if (key === 'language') message = 'Language updated';
+        else if (key === 'theme') message = 'Theme updated';
         toast.success(message, { duration: 2000 });
       }
     } catch (error: any) {
@@ -165,7 +213,19 @@ export function SettingsProvider({ children, userId }: { children: ReactNode; us
                 ...userSettings,
                 notifications: {
                   ...defaultSettings.notifications,
-                  ...userSettings.notifications
+                  ...(userSettings.notifications || {})
+                },
+                dashboard: {
+                  ...defaultSettings.dashboard,
+                  ...(userSettings.dashboard || {})
+                },
+                privacy: {
+                  ...defaultSettings.privacy,
+                  ...(userSettings.privacy || {})
+                },
+                profile: {
+                  ...defaultSettings.profile,
+                  ...(userSettings.profile || {})
                 }
               });
             }

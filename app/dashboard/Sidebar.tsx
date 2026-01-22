@@ -23,6 +23,8 @@ import {
   Languages,
   Currency
 } from 'lucide-react'
+import { useSettings } from '@/contexts/SettingsContext'
+import { CURRENCIES, LANGUAGES } from '@/app/utils/constants'
 
 interface NavigationItem {
   id: string
@@ -49,14 +51,8 @@ interface SidebarProps {
   isMobileMenuOpen: boolean
   setIsMobileMenuOpen: (open: boolean) => void
   onLogout: () => void
-  currency: string
-  setCurrency: (currency: string) => void
-  language: string
-  setLanguage: (language: string) => void
   showBalance: boolean
   setShowBalance: (show: boolean) => void
-  currencies: Array<{ value: string; label: string }>
-  languagesList: Array<{ value: string; label: string }>
   realTimeAlerts: Array<any>
   isDecrypting?: boolean;
   encryptionEnabled?: boolean;
@@ -79,14 +75,8 @@ export function Sidebar({
   darkMode, 
   setDarkMode,
   onLogout,
-  currency,
-  setCurrency,
-  language,
-  setLanguage,
   showBalance,
   setShowBalance,
-  currencies,
-  languagesList,
   realTimeAlerts
 }: SidebarProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -94,6 +84,9 @@ export function Sidebar({
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false)
   const [isLanguageOpen, setIsLanguageOpen] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+
+  // Use settings from context
+  const { settings, updateSettings, isLoading } = useSettings()
 
   const themeClasses = {
     sidebar: 'bg-gray-900 border-gray-800',
@@ -133,21 +126,35 @@ export function Sidebar({
   }
 
   const getCurrentLanguage = () => {
-    return languagesList?.find(lang => lang.value === language)?.label || 'English'
+    return LANGUAGES.find(lang => lang.value === settings?.language)?.label || 'English'
   }
 
   const getCurrentCurrency = () => {
-    return currencies?.find(curr => curr.value === currency)?.label || 'NGN'
+    return CURRENCIES.find(curr => curr.value === settings?.currency)?.label || 'NGN'
   }
 
-  const handleCurrencyChange = (newCurrency: string) => {
-    setCurrency(newCurrency)
-    setIsCurrencyOpen(false)
+  const handleCurrencyChange = async (newCurrency: string) => {
+    try {
+      await updateSettings({ currency: newCurrency })
+      setIsCurrencyOpen(false)
+    } catch (error) {
+      console.error('Error updating currency:', error)
+    }
   }
 
-  const handleLanguageChange = (newLanguage: string) => {
-    setLanguage(newLanguage)
-    setIsLanguageOpen(false)
+  const handleLanguageChange = async (newLanguage: string) => {
+    try {
+      await updateSettings({ language: newLanguage })
+      setIsLanguageOpen(false)
+    } catch (error) {
+      console.error('Error updating language:', error)
+    }
+  }
+
+  const handleThemeToggle = () => {
+    const newDarkMode = !darkMode
+    setDarkMode(newDarkMode)
+    updateSettings({ theme: newDarkMode ? 'dark' : 'light' })
   }
 
   return (
@@ -173,6 +180,7 @@ export function Sidebar({
               <button
                 onClick={() => setIsCurrencyOpen(!isCurrencyOpen)}
                 className="flex items-center space-x-2 px-3 py-2 hover:cursor-pointer rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
+                disabled={isLoading}
               >
                 <Currency className="w-4 h-4" />
                 <span className="text-sm">{getCurrentCurrency()}</span>
@@ -180,19 +188,19 @@ export function Sidebar({
               </button>
 
               <AnimatePresence>
-                {isCurrencyOpen && (
+                {isCurrencyOpen && !isLoading && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
                     className="absolute top-full right-0 mt-2 w-32 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
                   >
-                    {currencies.map((curr) => (
+                    {CURRENCIES.map((curr) => (
                       <button
                         key={curr.value}
                         onClick={() => handleCurrencyChange(curr.value)}
                         className={`w-full px-3 py-2 text-sm text-left hover:cursor-pointer hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                          currency === curr.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
+                          settings?.currency === curr.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
                         }`}
                       >
                         {curr.label}
@@ -205,11 +213,18 @@ export function Sidebar({
 
             {/* Theme Toggle */}
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={handleThemeToggle}
               className="p-2 rounded-lg bg-gray-800 hover:cursor-pointer hover:bg-gray-700 transition-colors text-gray-300"
               title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              disabled={isLoading}
             >
-              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              ) : darkMode ? (
+                <Sun className="w-5 h-5" />
+              ) : (
+                <Moon className="w-5 h-5" />
+              )}
             </button>
 
             {/* Balance Visibility */}
@@ -226,6 +241,7 @@ export function Sidebar({
               <button
                 onClick={() => setIsLanguageOpen(!isLanguageOpen)}
                 className="flex items-center space-x-2 px-3 py-2 hover:cursor-pointer rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
+                disabled={isLoading}
               >
                 <Languages className="w-4 h-4" />
                 <span className="text-sm">{getCurrentLanguage()}</span>
@@ -233,19 +249,19 @@ export function Sidebar({
               </button>
 
               <AnimatePresence>
-                {isLanguageOpen && (
+                {isLanguageOpen && !isLoading && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
                     className="absolute top-full right-0 mt-2 w-32 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
                   >
-                    {languagesList.map((lang) => (
+                    {LANGUAGES.map((lang) => (
                       <button
                         key={lang.value}
                         onClick={() => handleLanguageChange(lang.value)}
                         className={`w-full px-3 py-2 text-sm hover:cursor-pointer text-left hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                          language === lang.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
+                          settings?.language === lang.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
                         }`}
                       >
                         {lang.label}
@@ -306,6 +322,15 @@ export function Sidebar({
                           <p className="text-xs text-gray-400 truncate">
                             {user.email}
                           </p>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-xs text-emerald-400">
+                              {settings?.currency || 'USD'}
+                            </span>
+                            <span className="text-xs text-gray-600">•</span>
+                            <span className="text-xs text-blue-400">
+                              {getCurrentLanguage()}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
