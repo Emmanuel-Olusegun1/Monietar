@@ -107,7 +107,7 @@ export default function Hero() {
                             </motion.a>
                             
                             <motion.a
-                                href='/demo'
+                                href='https://youtube.com/@algoritic?si=PRPb9aGjrVT0_Pc6'
                                 className="group border border-gray-300 text-emerald-700 hover:text-emerald-800 font-medium px-8 py-4 rounded-lg transition-all duration-200 hover:border-emerald-400 flex items-center justify-center gap-3"
                                 whileHover={{ scale: 1.02, y: -1 }}
                                 whileTap={{ scale: 0.98 }}
