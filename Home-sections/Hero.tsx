@@ -95,7 +95,7 @@ export default function Hero() {
                                 whileHover={{ scale: 1.02, y: -1 }}
                                 whileTap={{ scale: 0.98 }}
                             >
-                                <span>Start Free Trial</span>
+                                <span>Get Started</span>
                                 <svg 
                                     className="w-5 h-5 transition-transform group-hover:translate-x-1" 
                                     fill="none" 
