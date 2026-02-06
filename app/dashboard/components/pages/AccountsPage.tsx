@@ -306,7 +306,7 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
     <div className="space-y-6">
       <div className={`rounded-xl border-2 p-4 ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
         <p className={`${themeClasses.text.primary} text-sm font-medium`}>
-          Manual mode active — connect bank coming soon. Import transactions via CSV/JSON below.
+          Manual mode active — connect bank coming soon. Import transactions via CSV/JSON/PDF below.
         </p>
       </div>
       {/* Header */}
