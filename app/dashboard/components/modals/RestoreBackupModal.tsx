@@ -1,11 +1,14 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 
 interface Backup {
   id: string;
   created_at: string;
-  file_size: number;
+  file_size: number | null;
+  backup_name?: string | null;
+  backup_date?: string | null;
 }
 
 interface RestoreBackupModalProps {
@@ -15,6 +18,7 @@ interface RestoreBackupModalProps {
   selectedBackup: string
   onSelectedBackupChange: (backupId: string) => void
   onRestore: (backupId: string) => void
+  onRename: (backupId: string, newName: string) => void
   darkMode: boolean
 }
 
@@ -25,8 +29,25 @@ export function RestoreBackupModal({
   selectedBackup,
   onSelectedBackupChange,
   onRestore,
+  onRename,
   darkMode
 }: RestoreBackupModalProps) {
+  const selectedBackupRecord = useMemo(
+    () => availableBackups.find((backup) => backup.id === selectedBackup),
+    [availableBackups, selectedBackup]
+  );
+  const [backupName, setBackupName] = useState('');
+
+  useEffect(() => {
+    setBackupName(selectedBackupRecord?.backup_name || '');
+  }, [selectedBackupRecord?.backup_name]);
+
+  const handleRename = () => {
+    const nextName = backupName.trim();
+    if (!selectedBackup || !nextName) return;
+    onRename(selectedBackup, nextName);
+  };
+
   const themeClasses = {
     card: darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
     text: {
@@ -52,10 +73,30 @@ export function RestoreBackupModal({
               <option value="" className={darkMode ? 'bg-gray-700' : 'bg-white'}>Select a backup</option>
               {availableBackups.map((backup) => (
                 <option key={backup.id} value={backup.id} className={darkMode ? 'bg-gray-700' : 'bg-white'}>
-                  {new Date(backup.created_at).toLocaleString()} - {backup.file_size} bytes
+                  {(backup.backup_name || new Date(backup.backup_date || backup.created_at).toLocaleString())} - {(backup.file_size ?? 0)} bytes
                 </option>
               ))}
             </select>
+
+            <div className="space-y-2">
+              <label className={`text-sm font-medium ${themeClasses.text.primary}`}>Backup name</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={backupName}
+                  onChange={(e) => setBackupName(e.target.value)}
+                  placeholder="Enter backup name"
+                  className={`flex-1 px-4 py-3 rounded-xl focus:ring-2 focus:ring-emerald-500 ${themeClasses.input}`}
+                />
+                <button
+                  onClick={handleRename}
+                  disabled={!selectedBackup || !backupName.trim() || backupName.trim() === (selectedBackupRecord?.backup_name || '')}
+                  className="px-4 py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Rename
+                </button>
+              </div>
+            </div>
             
             <div className="flex space-x-3">
               <button

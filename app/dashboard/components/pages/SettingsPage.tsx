@@ -572,11 +572,27 @@ const DataPrivacySection = memo(function DataPrivacySection({
             </div>
             <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Export Data</h4>
             <p className={`text-sm mb-4 ${themeClasses.text.secondary}`}>Download your financial data as CSV or Excel</p>
+            <p className={`text-xs mb-3 ${darkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>Pro feature</p>
             <button
               onClick={handleExport}
-              className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+              disabled
+              className={`w-full px-4 py-3 rounded-lg transition-colors text-sm font-medium ${
+                darkMode
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              }`}
             >
               Export Data
+            </button>
+            <button
+              onClick={() => toast('Upgrade to Pro to unlock data export.')}
+              className={`mt-3 w-full px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                darkMode
+                  ? 'border-emerald-500/40 text-emerald-300 hover:border-emerald-400 hover:text-emerald-200'
+                  : 'border-emerald-600/40 text-emerald-700 hover:border-emerald-600 hover:text-emerald-800'
+              }`}
+            >
+              Upgrade to Pro
             </button>
           </div>
 

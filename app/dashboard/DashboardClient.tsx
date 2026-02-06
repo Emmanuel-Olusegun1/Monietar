@@ -20,6 +20,8 @@ import { EditTransactionModal } from './components/modals/EditTransactionModal';
 import { DeleteConfirmationModal } from './components/modals/DeleteConfirmationModal';
 import { AddBudgetModal } from './components/modals/AddBudgetModal';
 import { EditBudgetModal } from './components/modals/EditBudgetModal';
+import { RestoreBackupModal } from './components/modals/RestoreBackupModal';
+import { ClearDataModal } from './components/modals/ClearDataModal';
 
 import type { EnhancedBudget } from '@/app/dashboard/types';
 import { supabase } from '@/utils/supabase/client';
@@ -67,6 +69,14 @@ interface FinancialData {
   cashFlowForecast: any[];
 }
 
+interface BackupRecord {
+  id: string;
+  created_at: string;
+  file_size: number | null;
+  backup_name?: string | null;
+  backup_date?: string | null;
+}
+
 interface DashboardClientProps {
   initialSession?: any;
 }
@@ -104,6 +114,9 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
   const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [availableBackups, setAvailableBackups] = useState<BackupRecord[]>([]);
+  const [selectedBackup, setSelectedBackup] = useState('');
+  const [isRestoringBackup, setIsRestoringBackup] = useState(false);
 
   // Transaction form data
   const [transactionFormData, setTransactionFormData] = useState({
@@ -637,48 +650,206 @@ const loadData = async (userId: string) => {
     }
   };
 
+  const loadBackups = async () => {
+    if (!user.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('backups')
+        .select('id, created_at, file_size, backup_name, backup_date')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAvailableBackups(data || []);
+    } catch (error) {
+      console.error('Failed to load backups:', error);
+      toast.error('Failed to load backups');
+    }
+  };
+
+  useEffect(() => {
+    if (showRestoreDialog) {
+      loadBackups();
+    }
+  }, [showRestoreDialog, user.id]);
+
   // Handle data backup
-const handleBackup = async () => {
-  try {
-    setIsBackingUp(true);
+  const handleBackup = async () => {
+    try {
+      setIsBackingUp(true);
+      if (!user.id) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      const backupPayload = {
+        timestamp: new Date().toISOString(),
+        userId: user.id,
+        transactions: financialData.transactions,
+        budgets: financialData.budgets,
+        income: financialData.income,
+        expenses: financialData.expenses,
+        profit: financialData.profit
+      };
+
+      const payloadJson = JSON.stringify(backupPayload);
+      const fileSize = new Blob([payloadJson]).size;
+
+      const { error } = await supabase
+        .from('backups')
+        .insert({
+          user_id: user.id,
+          backup_data: backupPayload,
+          backup_type: 'full',
+          backup_name: `Backup ${new Date().toLocaleString()}`,
+          backup_date: new Date().toISOString(),
+          backup_size: fileSize,
+          file_size: fileSize,
+          user_email: user.email || null,
+          metadata: {
+            transactions: Array.isArray(backupPayload.transactions) ? backupPayload.transactions.length : 0,
+            budgets: Array.isArray(backupPayload.budgets) ? backupPayload.budgets.length : 0
+          },
+          data: {}
+        });
+
+      if (error) throw error;
+
+      await loadBackups();
+      toast.success('Backup created successfully!', {
+        icon: '💾',
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('Backup failed:', error);
+      toast.error('Failed to create backup');
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleRestoreBackup = async (backupId: string) => {
+    if (!user.id || !backupId) return;
+
+    try {
+      setIsRestoringBackup(true);
+
+      const { data, error } = await supabase
+        .from('backups')
+        .select('id, backup_data')
+        .eq('id', backupId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error || !data?.backup_data) {
+        throw error || new Error('Backup not found');
+      }
+
+      const backupData = data.backup_data as any;
+
+      await supabase.from('transactions').delete().eq('user_id', user.id);
+      await supabase.from('budgets').delete().eq('user_id', user.id);
+
+      const transactionsToInsert = Array.isArray(backupData.transactions)
+        ? backupData.transactions.map((tx: any) => ({
+            ...tx,
+            user_id: user.id
+          }))
+        : [];
+
+      const budgetsToInsert = Array.isArray(backupData.budgets)
+        ? backupData.budgets.map((budget: any) => ({
+            ...budget,
+            user_id: user.id
+          }))
+        : [];
+
+      if (transactionsToInsert.length > 0) {
+        const { error: txError } = await supabase.from('transactions').insert(transactionsToInsert);
+        if (txError) throw txError;
+      }
+
+      if (budgetsToInsert.length > 0) {
+        const { error: budgetError } = await supabase.from('budgets').insert(budgetsToInsert);
+        if (budgetError) throw budgetError;
+      }
+
+      await loadData(user.id);
+      setSelectedBackup('');
+      setShowRestoreDialog(false);
+      toast.success('Backup restored successfully!');
+    } catch (error) {
+      console.error('Restore failed:', error);
+      toast.error('Failed to restore backup');
+    } finally {
+      setIsRestoringBackup(false);
+    }
+  };
+
+  const handleRenameBackup = async (backupId: string, newName: string) => {
+    if (!user.id || !backupId || !newName.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('backups')
+        .update({
+          backup_name: newName.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', backupId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      await loadBackups();
+      toast.success('Backup renamed');
+    } catch (error) {
+      console.error('Rename failed:', error);
+      toast.error('Failed to rename backup');
+    }
+  };
+
+  const handleClearData = async () => {
     if (!user.id) {
       toast.error('Not authenticated');
       return;
     }
 
-    // Create backup data
-    const backupData = {
-      timestamp: new Date().toISOString(),
-      userId: user.id,
-      transactions: financialData.transactions,
-      budgets: financialData.budgets,
-      income: financialData.income,
-      expenses: financialData.expenses,
-      profit: financialData.profit
-    };
+    try {
+      setIsSubmitting(true);
 
-    // Save backup to localStorage (you can save to Supabase instead)
-    const backups = JSON.parse(localStorage.getItem('monietar_backups') || '[]');
-    backups.push(backupData);
-    
-    // Keep only last 10 backups
-    if (backups.length > 10) {
-      backups.shift();
+      const [txResult, budgetsResult, backupsResult] = await Promise.all([
+        supabase.from('transactions').delete().eq('user_id', user.id),
+        supabase.from('budgets').delete().eq('user_id', user.id),
+        supabase.from('backups').delete().eq('user_id', user.id)
+      ]);
+
+      if (txResult.error || budgetsResult.error || backupsResult.error) {
+        throw txResult.error || budgetsResult.error || backupsResult.error;
+      }
+
+      setFinancialData({
+        income: 0,
+        expenses: 0,
+        profit: 0,
+        transactions: [],
+        budgets: [],
+        alerts: [],
+        aiRecommendations: [],
+        cashFlowForecast: []
+      });
+
+      setAvailableBackups([]);
+      setSelectedBackup('');
+      setShowClearDataDialog(false);
+      toast.success('All data cleared successfully.');
+    } catch (error) {
+      console.error('Clear data failed:', error);
+      toast.error('Failed to clear data');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    localStorage.setItem('monietar_backups', JSON.stringify(backups));
-    
-    toast.success('Backup created successfully!', {
-      icon: '💾',
-      duration: 3000
-    });
-  } catch (error) {
-    console.error('Backup failed:', error);
-    toast.error('Failed to create backup');
-  } finally {
-    setIsBackingUp(false);
-  }
-};
+  };
 
   // Transaction handlers
   const handleSubmitTransaction = async () => {
@@ -1146,6 +1317,24 @@ if (loading || !user.id || !dataLoaded) {
         darkMode={darkMode}
         isLoading={isSubmitting}
         type="delete"
+      />
+
+      <RestoreBackupModal
+        isOpen={showRestoreDialog}
+        onClose={() => { setShowRestoreDialog(false); setSelectedBackup(''); }}
+        availableBackups={availableBackups}
+        selectedBackup={selectedBackup}
+        onSelectedBackupChange={setSelectedBackup}
+        onRestore={handleRestoreBackup}
+        onRename={handleRenameBackup}
+        darkMode={darkMode}
+      />
+
+      <ClearDataModal
+        isOpen={showClearDataDialog}
+        onClose={() => setShowClearDataDialog(false)}
+        onConfirm={handleClearData}
+        darkMode={darkMode}
       />
 
       <button
