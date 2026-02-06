@@ -80,6 +80,7 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [aiInsightsLoading, setAiInsightsLoading] = useState(false);
   const [isBackingUp, setIsBackingUp] = useState(false);
 
   // AI Chat States
@@ -530,14 +531,38 @@ const loadData = async (userId: string) => {
       transactions,
       budgets: budgetsArray,
       alerts: [],
-      aiRecommendations: transactions.length > 3
-        ? [
-            profit >= 0 ? `Great! You're saving ${((profit / income) * 100).toFixed(1)}% of income` : `Reduce expenses by ${((Math.abs(profit) / expenses) * 100).toFixed(1)}%`,
-            budgetsArray.length > 0 ? `${budgetsArray.length} active budgets tracking` : 'Set up budgets to control spending'
-          ]
-        : ['Add transactions to unlock smart AI insights'],
+      aiRecommendations: [],
       cashFlowForecast: []
     });
+
+    setAiInsightsLoading(true);
+    try {
+      const insightsResponse = await fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          currency: 'NGN',
+          income,
+          expenses,
+          profit,
+          transactions: transactions.slice(0, 50),
+          budgets: budgetsArray
+        })
+      });
+
+      const insightsData = await insightsResponse.json();
+      if (insightsData?.success && Array.isArray(insightsData.insights)) {
+        setFinancialData((prev) => ({
+          ...prev,
+          aiRecommendations: insightsData.insights
+        }));
+      }
+    } catch (insightsError) {
+      console.error('❌ AI insights error:', insightsError);
+    } finally {
+      setAiInsightsLoading(false);
+    }
     
     setDataLoaded(true); // Add this line
     console.log('✅ Data loaded successfully');
@@ -960,6 +985,7 @@ if (loading || !user.id || !dataLoaded) {
               language="en"
               user={user}
               aiRecommendations={financialData.aiRecommendations}
+              aiInsightsLoading={aiInsightsLoading}
               transactions={financialData.transactions}
               income={financialData.income}
               expenses={financialData.expenses}
@@ -969,6 +995,13 @@ if (loading || !user.id || !dataLoaded) {
               setShowExpenseForm={setShowExpenseForm}
               setShowBudgetForm={() => setShowBudgetForm(true)}
               CustomTooltip={() => null}
+              budgets={budgetsWithRealTimeTracking.map((budget) => ({
+                id: budget.id,
+                category: budget.category,
+                budget_limit: budget.budget_limit,
+                spent: budget.spent,
+                period: budget.period
+              }))}
             />
           )}
 

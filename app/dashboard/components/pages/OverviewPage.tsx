@@ -29,6 +29,7 @@ interface OverviewPageProps {
   language: string;
   user: any;
   aiRecommendations: string[];
+  aiInsightsLoading?: boolean;
   transactions: any[];
   income: number;
   expenses: number;
@@ -182,6 +183,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = (props) => {
     setShowExpenseForm,
     setShowBudgetForm,
     aiRecommendations = [],
+    aiInsightsLoading = false,
     transactions = [],
     income = 0,
     expenses = 0,
@@ -210,7 +212,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = (props) => {
 
     const profitMargin = income > 0 ? (profit / income) * 100 : 0;
     const expenseRatio = income > 0 ? (expenses / income) * 100 : 0;
-    const budgetAdherence = 85;
+    const budgetAdherence = budgets.length > 0
+      ? (budgets.filter(b => b.budget_limit > 0 && b.spent <= b.budget_limit).length / budgets.length) * 100
+      : 100;
 
     const healthScore = Math.max(0, Math.min(100, 
       (profitMargin * 0.4) + 
@@ -444,6 +448,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = (props) => {
   const renderBudgetOverview = () => {
     if (budgets.length === 0) return null;
 
+    const totalBudgets = budgets.length;
+    const totalBudget = budgets.reduce((sum, b) => sum + b.budget_limit, 0);
+    const totalSpent = budgets.reduce((sum, b) => sum + b.spent, 0);
+    const warningBudgets = budgets.filter(b => b.budget_limit > 0 && (b.spent / b.budget_limit) * 100 >= 80 && (b.spent / b.budget_limit) * 100 < 100).length;
+    const exceededBudgets = budgets.filter(b => b.budget_limit > 0 && (b.spent / b.budget_limit) * 100 >= 100).length;
+
     return (
       <div className={`rounded-2xl p-6 border backdrop-blur-sm ${darkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
         <div className="flex items-center justify-between mb-6">
@@ -462,6 +472,65 @@ export const OverviewPage: React.FC<OverviewPageProps> = (props) => {
             <Plus className="w-4 h-4" />
             New Budget
           </motion.button>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className={`p-4 rounded-xl border-2 backdrop-blur-sm ${darkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Budgets</p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {totalBudgets}
+                </p>
+              </div>
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+                <PieChart className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className={`p-4 rounded-xl border-2 backdrop-blur-sm ${darkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Budget</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatCurrency(totalBudget)}
+                </p>
+              </div>
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <Target className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className={`p-4 rounded-xl border-2 backdrop-blur-sm ${darkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Spent</p>
+                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                  {formatCurrency(totalSpent)}
+                </p>
+              </div>
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className={`p-4 rounded-xl border-2 backdrop-blur-sm ${darkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Alerts</p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {warningBudgets + exceededBudgets}
+                </p>
+              </div>
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -540,8 +609,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = (props) => {
 
   // NEW: Recent Transactions
   const renderRecentTransactions = () => {
-    const recent = transactions
-      .sort((a: any, b: any) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime())
+    const getTxTimestamp = (tx: any) => new Date(tx.updated_at || tx.created_at || tx.date).getTime();
+    const recent = [...transactions]
+      .sort((a: any, b: any) => getTxTimestamp(b) - getTxTimestamp(a))
       .slice(0, 6);
 
     if (recent.length === 0) return null;
@@ -550,8 +620,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = (props) => {
       <div className={`rounded-2xl p-6 border backdrop-blur-sm ${darkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
         <h3 className={`text-xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Recent Transactions</h3>
         <div className="space-y-3">
-          {recent.map((tx: any) => (
-            <div key={tx.id} className={`flex items-center justify-between p-4 rounded-xl ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+          {recent.map((tx: any, index: number) => (
+            <div key={tx.id || `${tx.category}-${getTxTimestamp(tx)}-${index}`} className={`flex items-center justify-between p-4 rounded-xl ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-xl ${tx.type === 'income' ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
                   <DollarSign className={`w-5 h-5 ${tx.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`} />
@@ -568,7 +638,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = (props) => {
                   {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                 </p>
                 <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                  {new Date(tx.created_at || tx.date).toLocaleDateString()}
+                  {new Date(tx.updated_at || tx.created_at || tx.date).toLocaleDateString()}
                 </p>
               </div>
             </div>
@@ -594,37 +664,54 @@ export const OverviewPage: React.FC<OverviewPageProps> = (props) => {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {aiRecommendations.map((recommendation: string, index: number) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{ scale: 1.02 }}
-            className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-              darkMode 
-                ? 'bg-gradient-to-r from-gray-800/50 to-gray-900/50 border-gray-700 hover:border-blue-500/30' 
-                : 'bg-gradient-to-r from-white to-gray-50/50 border-gray-200 hover:border-blue-500/30'
-            } shadow-sm hover:shadow-md`}
-          >
-            <div className="flex items-start space-x-3">
-              <Lightbulb className={`w-5 h-5 text-blue-500 mt-0.5`} />
-              <p className={`text-sm leading-relaxed ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {recommendation}
-              </p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      {aiInsightsLoading && (
+        <div className="text-center py-8">
+          <div className="w-16 h-16 mx-auto mb-4 bg-blue-500/10 rounded-2xl flex items-center justify-center">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+              className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full"
+            />
+          </div>
+          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Generating insights...
+          </p>
+        </div>
+      )}
 
-      {aiRecommendations.length === 0 && (
+      {!aiInsightsLoading && (
+        <div className="space-y-4">
+          {aiRecommendations.map((recommendation: string, index: number) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ scale: 1.02 }}
+              className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                darkMode 
+                  ? 'bg-gradient-to-r from-gray-800/50 to-gray-900/50 border-gray-700 hover:border-blue-500/30' 
+                  : 'bg-gradient-to-r from-white to-gray-50/50 border-gray-200 hover:border-blue-500/30'
+              } shadow-sm hover:shadow-md`}
+            >
+              <div className="flex items-start space-x-3">
+                <Lightbulb className={`w-5 h-5 text-blue-500 mt-0.5`} />
+                <p className={`text-sm leading-relaxed ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {recommendation}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {!aiInsightsLoading && aiRecommendations.length === 0 && (
         <div className="text-center py-8">
           <div className="w-16 h-16 mx-auto mb-4 bg-blue-500/10 rounded-2xl flex items-center justify-center">
             <Lightbulb className={`w-8 h-8 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
           </div>
           <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            Add transactions to get AI-powered insights
+            No AI-powered insights currently
           </p>
         </div>
       )}
