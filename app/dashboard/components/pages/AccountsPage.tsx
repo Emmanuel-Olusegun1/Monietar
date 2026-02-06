@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CreditCard, Trash2, RefreshCw, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { CreditCard, Trash2, RefreshCw, AlertTriangle, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import MonoConnect from '../MonoConnect';
 
@@ -13,6 +13,7 @@ const supabase = createClient(
 interface Account {
   id: string;
   mono_account_id: string;
+  mono_display_id?: string | null;
   institution: string;
   status: 'active' | 'error' | 'reconnecting';
   connected_at: string;
@@ -33,10 +34,12 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
   const [connectedAccounts, setConnectedAccounts] = useState<Account[]>([]);
   const [showMonoConnect, setShowMonoConnect] = useState(false);
   const [syncingAccounts, setSyncingAccounts] = useState<string[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState('');
 
   // Fetch connected accounts
   const fetchConnectedAccounts = async () => {
-    if (!user) {
+    if (!user?.id) {
       setConnectedAccounts([]);
       return;
     }
@@ -45,7 +48,7 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
       const { data, error } = await supabase
         .from('user_accounts')
         .select('*')
-        .eq('user_id', user.user.id)
+        .eq('user_id', user.id)
         .order('connected_at', { ascending: false });
 
       if (error) throw error;
@@ -67,7 +70,7 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
 
   // Handle Mono connection success
   const handleMonoSuccess = async (authCode: string) => {
-    if (!user) return;
+    if (!user?.id) return;
 
     try {
       const response = await fetch('/api/mono/connect', {
@@ -77,7 +80,7 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
         },
         body: JSON.stringify({
           code: authCode,
-          userId: user.user.id,
+          userId: user.id,
         }),
       });
 
@@ -101,6 +104,91 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
     }
   };
 
+  const parseCsv = (text: string) => {
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    if (lines.length === 0) return [];
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    return lines.slice(1).map((line) => {
+      const cols = line.split(',').map(c => c.trim());
+      const row: Record<string, string> = {};
+      headers.forEach((h, i) => { row[h] = cols[i] || ''; });
+      return row;
+    });
+  };
+
+  const normalizeAmount = (value: string) => {
+    const num = Number(value.replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const mapToTransaction = (row: Record<string, any>) => {
+    const amount = normalizeAmount(row.amount || row.amt || row.value || '');
+    const type = (row.type || row.transaction_type || row.kind || '').toLowerCase() === 'income' || amount > 0 ? 'income' : 'expense';
+    const date = row.date || row.transaction_date || row.created_at || new Date().toISOString().split('T')[0];
+    const description = row.description || row.narration || row.memo || 'Imported transaction';
+    const category = row.category || 'Imported';
+
+    return {
+      amount: Math.abs(amount),
+      category,
+      description,
+      date,
+      type
+    };
+  };
+
+  const handleImportFile = async (file: File) => {
+    if (!user?.id) {
+      showToast('Please sign in to import');
+      return;
+    }
+
+    setImportError('');
+    setIsImporting(true);
+
+    try {
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        showToast('PDF import is coming soon. Please use CSV or JSON for now.');
+        setIsImporting(false);
+        return;
+      }
+
+      const text = await file.text();
+      let rows: Record<string, any>[] = [];
+
+      if (file.name.toLowerCase().endsWith('.json')) {
+        const parsed = JSON.parse(text);
+        rows = Array.isArray(parsed) ? parsed : parsed?.transactions || [];
+      } else {
+        rows = parseCsv(text);
+      }
+
+      if (rows.length === 0) {
+        showToast('No transactions found in file');
+        setIsImporting(false);
+        return;
+      }
+
+      const transactions = rows.map(mapToTransaction).map((tx) => ({
+        ...tx,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase.from('transactions').insert(transactions);
+      if (error) throw error;
+
+      showToast(`Imported ${transactions.length} transactions`);
+    } catch (error: any) {
+      console.error('Import error:', error);
+      setImportError(error?.message || 'Failed to import file');
+      showToast('Failed to import file');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Sync account transactions
   const syncAccountTransactions = async (accountId: string) => {
     setSyncingAccounts(prev => [...prev, accountId]);
@@ -113,7 +201,7 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
         },
         body: JSON.stringify({
           accountId,
-          userId: user.user.id,
+          userId: user.id,
         }),
       });
 
@@ -146,7 +234,7 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
         body: JSON.stringify({ 
           accountId,
           monoAccountId,
-          userId: user.user.id 
+          userId: user.id 
         }),
       });
 
@@ -192,8 +280,35 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
     }
   };
 
+  const UploadButton = (
+    <label
+      className={`inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-semibold transition-colors ${
+        isImporting
+          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          : 'bg-emerald-600 text-white hover:bg-emerald-700'
+      }`}
+    >
+      {isImporting ? 'Importing…' : 'Upload File'}
+      <input
+        type="file"
+        accept=".csv,.json,.pdf"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleImportFile(file);
+        }}
+        className="hidden"
+        disabled={isImporting}
+      />
+    </label>
+  );
+
   return (
     <div className="space-y-6">
+      <div className={`rounded-xl border-2 p-4 ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+        <p className={`${themeClasses.text.primary} text-sm font-medium`}>
+          Manual mode active — connect bank coming soon. Import transactions via CSV/JSON below.
+        </p>
+      </div>
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
@@ -204,14 +319,7 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
             Connect your bank accounts to automatically track transactions
           </p>
         </div>
-        
-        <button
-          onClick={() => setShowMonoConnect(true)}
-          className="flex items-center space-x-2 px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm hover:cursor-pointer border border-emerald-500"
-        >
-          <CreditCard className="w-5 h-5" />
-          <span>Connect Bank Account</span>
-        </button>
+        {UploadButton}
       </div>
 
       {/* Accounts List */}
@@ -220,18 +328,12 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
           <div className={`text-center py-12 rounded-2xl border-2 border-dashed ${themeClasses.border}`}>
             <CreditCard className={`w-16 h-16 mx-auto mb-4 ${themeClasses.text.muted}`} />
             <h3 className={`text-lg font-semibold mb-2 ${themeClasses.text.primary}`}>
-              No bank accounts connected
+              No transactions imported yet
             </h3>
             <p className={`mb-6 max-w-sm mx-auto ${themeClasses.text.secondary}`}>
-              Connect your bank account to automatically import transactions and track your finances in real-time.
+              Upload a CSV/JSON/PDF to add your transactions.
             </p>
-            <button
-              onClick={() => setShowMonoConnect(true)}
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-sm hover:cursor-pointer"
-            >
-              <CreditCard className="w-5 h-5" />
-              <span>Connect Your First Account</span>
-            </button>
+            {UploadButton}
           </div>
         ) : (
           <div className="grid gap-4">
@@ -278,6 +380,11 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
                         Connected {new Date(account.connected_at).toLocaleDateString()}
                         {account.last_sync && ` • Last synced ${new Date(account.last_sync).toLocaleDateString()}`}
                       </p>
+                      {account.mono_display_id && (
+                        <p className={`text-xs ${themeClasses.text.muted} mt-1`}>
+                          Mono ID: {account.mono_display_id}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -320,20 +427,20 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
         )}
       </div>
 
-      {/* Features Section */}
+      {/* Manual Mode Details */}
       {connectedAccounts.length === 0 && (
         <div className={`mt-8 p-6 rounded-2xl ${themeClasses.card}`}>
           <h3 className={`text-lg font-semibold mb-4 ${themeClasses.text.primary}`}>
-            Why Connect Your Bank Account?
+            Manual Import (Active)
           </h3>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900 rounded-xl flex items-center justify-center mx-auto mb-3">
-                <RefreshCw className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                <FileText className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Real-time Sync</h4>
+              <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>CSV / JSON / PDF</h4>
               <p className={`text-sm ${themeClasses.text.secondary}`}>
-                Automatically import transactions as they happen
+                Import transactions from files you already have.
               </p>
             </div>
             
@@ -341,9 +448,9 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
               <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Accurate Tracking</h4>
+              <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Quick Setup</h4>
               <p className={`text-sm ${themeClasses.text.secondary}`}>
-                Never miss a transaction with automatic categorization
+                No bank linking required to get started.
               </p>
             </div>
             
@@ -351,9 +458,9 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
               <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <AlertTriangle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Smart Alerts</h4>
+              <h4 className={`font-semibold mb-2 ${themeClasses.text.primary}`}>Bank Sync Pro</h4>
               <p className={`text-sm ${themeClasses.text.secondary}`}>
-                Get notified about unusual spending and budget limits
+                Auto-connect is a Pro feature (coming soon).
               </p>
             </div>
           </div>
@@ -361,18 +468,7 @@ export default function AccountsPage({ darkMode, themeClasses, user, showToast }
       )}
 
       {/* Mono Connect Widget */}
-      {showMonoConnect && (
-        <MonoConnect
-          onSuccess={handleMonoSuccess}
-          onClose={() => setShowMonoConnect(false)}
-          onEvent={(event: any) => {
-            console.log('Mono event:', event);
-            if (event.type === 'OPENED') {
-              showToast('Connecting to your bank...');
-            }
-          }}
-        />
-      )}
+      {showMonoConnect && null}
     </div>
   );
 }
