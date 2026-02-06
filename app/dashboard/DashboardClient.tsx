@@ -23,6 +23,7 @@ import { EditBudgetModal } from './components/modals/EditBudgetModal';
 import { RestoreBackupModal } from './components/modals/RestoreBackupModal';
 import { ClearDataModal } from './components/modals/ClearDataModal';
 import { ChangePasswordModal } from './components/modals/ChangePasswordModal';
+import { DeleteAccountModal } from './components/modals/DeleteAccountModal';
 
 import type { EnhancedBudget, PasswordData } from '@/app/dashboard/types';
 import { supabase } from '@/utils/supabase/client';
@@ -115,9 +116,11 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
   const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
   const [availableBackups, setAvailableBackups] = useState<BackupRecord[]>([]);
   const [selectedBackup, setSelectedBackup] = useState('');
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
+  const handleShowDeleteAccountDialog = (show: boolean) => setShowDeleteAccountDialog(show);
   const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: '',
     newPassword: '',
@@ -191,9 +194,6 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
     aiRecommendations: ['Add transactions to get insights'],
     cashFlowForecast: []
   });
-
-  // Alias for delete account dialog to use existing delete modal
-  const setShowDeleteAccountDialog = setShowDeleteModal;
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [realTimeAlerts, setRealTimeAlerts] = useState<any[]>([]);
@@ -863,6 +863,42 @@ const loadData = async (userId: string) => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user.id) {
+      toast.error('Not authenticated');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const deletionResults = await Promise.all([
+        supabase.from('transactions').delete().eq('user_id', user.id),
+        supabase.from('budgets').delete().eq('user_id', user.id),
+        supabase.from('backups').delete().eq('user_id', user.id),
+        supabase.from('user_settings').delete().eq('user_id', user.id),
+        supabase.from('user_accounts').delete().eq('user_id', user.id),
+        supabase.from('feedback').delete().eq('user_id', user.id),
+        supabase.from('user_ai_tokens').delete().eq('user_id', user.id),
+        supabase.from('users').delete().eq('id', user.id)
+      ]);
+
+      const firstError = deletionResults.find((result) => result.error)?.error;
+      if (firstError) throw firstError;
+
+      await supabase.auth.signOut();
+      setShowDeleteAccountDialog(false);
+      toast.success('Account deleted successfully');
+      router.push('/auth/signin');
+    } catch (error) {
+      console.error('Delete account failed:', error);
+      toast.error('Failed to delete account');
+      setShowDeleteAccountDialog(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleClearData = async () => {
     if (!user.id) {
       toast.error('Not authenticated');
@@ -1274,7 +1310,7 @@ if (loading || !user.id || !dataLoaded) {
               handleExportData={handleExportData}
               setShowChangePasswordDialog={setShowChangePasswordDialog}
               setShowClearDataDialog={setShowClearDataDialog}
-              setShowDeleteAccountDialog={setShowDeleteAccountDialog}
+              setShowDeleteAccountDialog={handleShowDeleteAccountDialog}
               setShowRestoreDialog={setShowRestoreDialog}
               handleBackupData={handleBackup}
               darkMode={darkMode}
@@ -1402,6 +1438,14 @@ if (loading || !user.id || !dataLoaded) {
         onSubmit={handleChangePasswordSubmit}
         isLoading={isSubmitting}
         darkMode={darkMode}
+      />
+
+      <DeleteAccountModal
+        isOpen={showDeleteAccountDialog}
+        onClose={() => setShowDeleteAccountDialog(false)}
+        onConfirm={handleDeleteAccount}
+        darkMode={darkMode}
+        isLoading={isSubmitting}
       />
 
       <button
