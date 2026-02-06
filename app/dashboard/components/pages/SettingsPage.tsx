@@ -509,7 +509,7 @@ const SecuritySection = memo(function SecuritySection({
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <span className={`text-sm ${themeClasses.text.muted}`}>Not enabled</span>
+              <span className={`text-sm ${themeClasses.text.muted}`}>Not available</span>
               <ChevronRight className={`w-5 h-5 ${themeClasses.text.muted}`} />
             </div>
           </button>

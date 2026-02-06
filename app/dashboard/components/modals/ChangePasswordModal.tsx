@@ -9,6 +9,7 @@ interface ChangePasswordModalProps {
   passwordData: PasswordData
   onPasswordDataChange: (data: PasswordData) => void
   onSubmit: () => void
+  isLoading?: boolean
   darkMode: boolean
 }
 
@@ -18,6 +19,7 @@ export function ChangePasswordModal({
   passwordData,
   onPasswordDataChange,
   onSubmit,
+  isLoading = false,
   darkMode
 }: ChangePasswordModalProps) {
   const themeClasses = {
@@ -61,9 +63,14 @@ export function ChangePasswordModal({
             <div className="flex space-x-3">
               <button
                 onClick={onSubmit}
-                className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 border border-emerald-500"
+                disabled={isLoading}
+                className={`flex-1 py-3 rounded-xl border ${
+                  isLoading
+                    ? 'bg-gray-400 text-gray-100 cursor-not-allowed border-gray-400'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-500'
+                }`}
               >
-                Update Password
+                {isLoading ? 'Updating...' : 'Update Password'}
               </button>
               <button
                 onClick={onClose}

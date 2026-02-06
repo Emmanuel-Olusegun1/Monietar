@@ -22,8 +22,9 @@ import { AddBudgetModal } from './components/modals/AddBudgetModal';
 import { EditBudgetModal } from './components/modals/EditBudgetModal';
 import { RestoreBackupModal } from './components/modals/RestoreBackupModal';
 import { ClearDataModal } from './components/modals/ClearDataModal';
+import { ChangePasswordModal } from './components/modals/ChangePasswordModal';
 
-import type { EnhancedBudget } from '@/app/dashboard/types';
+import type { EnhancedBudget, PasswordData } from '@/app/dashboard/types';
 import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { SettingsProvider } from '@/contexts/SettingsContext';
@@ -117,6 +118,11 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
   const [availableBackups, setAvailableBackups] = useState<BackupRecord[]>([]);
   const [selectedBackup, setSelectedBackup] = useState('');
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
+  const [passwordData, setPasswordData] = useState<PasswordData>({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
 
   // Transaction form data
   const [transactionFormData, setTransactionFormData] = useState({
@@ -809,6 +815,54 @@ const loadData = async (userId: string) => {
     }
   };
 
+  const handleChangePasswordSubmit = async () => {
+    if (!user?.email) {
+      toast.error('User email not found');
+      return;
+    }
+
+    const { currentPassword, newPassword, confirmPassword } = passwordData;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword
+      });
+
+      if (signInError) {
+        toast.error('Current password is incorrect');
+        return;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) throw updateError;
+
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowChangePasswordDialog(false);
+      toast.success('Password updated successfully');
+    } catch (error) {
+      console.error('Password update failed:', error);
+      toast.error('Failed to update password');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleClearData = async () => {
     if (!user.id) {
       toast.error('Not authenticated');
@@ -1334,6 +1388,19 @@ if (loading || !user.id || !dataLoaded) {
         isOpen={showClearDataDialog}
         onClose={() => setShowClearDataDialog(false)}
         onConfirm={handleClearData}
+        darkMode={darkMode}
+      />
+
+      <ChangePasswordModal
+        isOpen={showChangePasswordDialog}
+        onClose={() => {
+          setShowChangePasswordDialog(false);
+          setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        }}
+        passwordData={passwordData}
+        onPasswordDataChange={setPasswordData}
+        onSubmit={handleChangePasswordSubmit}
+        isLoading={isSubmitting}
         darkMode={darkMode}
       />
 
