@@ -226,70 +226,7 @@ export default function FAQ() {
                     </motion.div>
                 )}
 
-                {/* Enhanced CTA Section */}
-                <motion.div
-                    className="text-center mt-16"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
-                >
-                    <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 text-white shadow-xl">
-                        <motion.h3 
-                            className="text-2xl font-bold mb-4"
-                            initial={{ opacity: 0, y: 10 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.5, delay: 0.5 }}
-                        >
-                            Ready to join the future of business finance?
-                        </motion.h3>
-                        <motion.p 
-                            className="text-gray-300 mb-6 text-lg"
-                            initial={{ opacity: 0, y: 10 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.5, delay: 0.6 }}
-                        >
-                            Join forward-thinking SMEs already benefiting from Monietar's AI-powered cash flow management.
-                        </motion.p>
-                        
-                        <motion.div 
-                            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-                            initial={{ opacity: 0, y: 10 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.5, delay: 0.7 }}
-                        >
-                            <motion.a
-                                href="/auth/signup"
-                                className="inline-flex items-center gap-3 px-8 py-4 rounded-lg bg-white text-gray-900 font-bold hover:bg-gray-50 transition-all duration-200 group shadow-lg"
-                                whileHover={{ scale: 1.05, y: -2 }}
-                                whileTap={{ scale: 0.98 }}
-                            >
-                                <MessageCircle className="w-5 h-5" />
-                                Join Monietar Now
-                                <motion.div
-                                    animate={{ x: [0, 4, 0] }}
-                                    transition={{ duration: 1.5, repeat: Infinity }}
-                                >
-                                    →
-                                </motion.div>
-                            </motion.a>
-                            
-                            <motion.a
-                                href="mailto:info@algoritic.com.ng"
-                                className="inline-flex items-center gap-3 px-6 py-3 rounded-lg bg-white/10 text-white font-semibold hover:bg-white/20 transition-all duration-200 group border border-white/20"
-                                whileHover={{ scale: 1.05, y: -2 }}
-                                whileTap={{ scale: 0.98 }}
-                            >
-                                <Mail className="w-5 h-5" />
-                                Contact Support
-                            </motion.a>
-                        </motion.div>
-                    </div>
-                    
-                </motion.div>
+              
             </div>
         </section>
     );
