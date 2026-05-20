@@ -13,6 +13,7 @@ export interface Settings {
   dateFormat: string;
   timezone: string;
   theme: string;
+  plan: string;
   
   // Notification settings
   notifications: {
@@ -68,6 +69,7 @@ const defaultSettings: Settings = {
   dateFormat: 'MM/DD/YYYY',
   timezone: 'UTC',
   theme: 'dark',
+  plan: 'Starter',
   notifications: {
     budgetAlerts: true,
     weeklyReports: false,

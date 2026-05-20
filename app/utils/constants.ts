@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS = {
   dateFormat: 'MM/DD/YYYY',
   timezone: 'UTC',
   theme: 'dark',
+  plan: 'Starter',
   notifications: {
     budgetAlerts: true,
     weeklyReports: true,

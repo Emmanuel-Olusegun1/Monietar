@@ -16,35 +16,24 @@ export default function FAQ() {
     const faqData = [
         {
             question: "What is Monietar?",
-            answer: "Monietar is an AI-powered platform designed to help SMes/SMBs and Startups in Afria manage their cash flow, track income and expenses, create budgets, and gain insights into their financial health.",
+            answer: "Monietar is an AI-powered platform designed to help SMes/SMBs and Startups in Africa to safely link their shop’s bank transfers, physical cash box, and cross-border currency pools into one hands-free ledger. No manual math, No missing flow.",
         },
         {
-            question: "Is Monietar really free to use?",
-            answer: "Yes! Our core features are completely free forever. We believe every African business should have access to powerful financial tools. The Free tier includes income/expense tracking, AI-powered insights, email support and lot more. We'll offer Professional and Enterprise features in the future, but the core functionality will always remain free.",
+            question: "Is joining the waitlist free?",
+            answer: "Yes, Registration is entirely free, and waitlist entries get an exclusive 90-days zero-cost window when their cohort access token unlocks.",
         },
         {
-            question: "Can I access the system on mobile devices?",
-            answer: "Absolutely! Monietar Cash Flow Management System is designed to be mobile-friendly, allowing you to track your finances and access insights anytime, anywhere.",
+            question: "Is my connnected bank accounts safe  with Monietar?",
+            answer: "Completely. Monietar has read-only access via secure Open Banking tokens. We can never hold, touch, or move your money, we only read statements to automate your books",
         },
+       
         {
-            question: "When will the professional plan be available?",
-            answer: "The Pro tier is currently in development and is expected to launch in mid-2026.",
-        },
-        // {
-        //     question: "How many spots are available?",
-        //     answer: "We're limiting early access to the first 2,000 SMEs to ensure quality onboarding and support for our founding members.",
-        // },
-        // {
-        //     question: "Can I refer other businesses?",
-        //     answer: "Yes! Referring other qualified SMEs can move you up the waitlist and unlock additional early bird benefits.",
-        // },
-        {
-            question: "What makes this different from other financial tools?",
-            answer: "Our platform is specifically designed for African SMEs, with AI-powered insights tailored to local business environments and challenges.",
+            question: "What happens to my data if my store network drops?",
+            answer: "The platform securely logs pending alerts locally on your device hits internet coverage again, it automatically syncs back up to your cloud database",
         },
         {
             question: "Is my data secure on the platform?",
-            answer: "Yes, we use bank-level encryption and comply with all local data protection regulations to keep your financial information safe.",
+            answer: "Your financial data is encrypted end-to-end and never shared or sold. You stay in full control, delete your data anytime, instantly.",
         }
     ];
 

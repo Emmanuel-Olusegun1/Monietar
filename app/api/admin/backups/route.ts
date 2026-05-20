@@ -43,7 +43,35 @@ export async function GET(request: NextRequest) {
       .limit(50);
 
     if (error) throw error;
-    return NextResponse.json({ backups: data || [] });
+    const backups = data || [];
+    const userIds = Array.from(new Set(backups.map((backup) => backup.user_id))).filter(Boolean);
+
+    let userMap = new Map<string, { name: string | null; business_name: string | null; email: string | null }>();
+    if (userIds.length > 0) {
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, name, business_name, email')
+        .in('id', userIds);
+      (usersData || []).forEach((user) => {
+        userMap.set(user.id, {
+          name: user.name || null,
+          business_name: user.business_name || null,
+          email: user.email || null
+        });
+      });
+    }
+
+    const enriched = backups.map((backup) => {
+      const user = userMap.get(backup.user_id);
+      return {
+        ...backup,
+        user_name: user?.name || null,
+        user_business: user?.business_name || null,
+        user_email: user?.email || null
+      };
+    });
+
+    return NextResponse.json({ backups: enriched });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to load backups' }, { status: 500 });
   }

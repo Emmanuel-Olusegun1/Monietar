@@ -9,11 +9,11 @@ type LinkProps = {
 };
 
 const company: LinkProps[] = [
-  { title: 'About', link: '#about' },
-  { title: 'Careers', link: '#careers' },
-  { title: 'Contact', link: '#contact' },
-  { title: 'Privacy', link: '#privacy' },
-  { title: 'Terms', link: '#terms' },
+  { title: 'About', link: '/about' },
+  { title: 'Careers', link: '/careers' },
+  { title: 'Contact', link: '/contact' },
+  { title: 'Privacy', link: '/privacy' },
+  { title: 'Terms', link: '/terms' },
 ];
 
 const productLinks: LinkProps[] = [

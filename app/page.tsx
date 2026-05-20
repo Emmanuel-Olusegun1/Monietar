@@ -1,11 +1,5 @@
-'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { useState, FormEvent } from 'react';
-import Slider from 'react-slick';
-import 'slick-carousel/slick/slick.css';
-import 'slick-carousel/slick/slick-theme.css';
-import { Brain, Plug, DollarSign, Users, LayoutDashboard, Shield } from 'lucide-react';
+'use client';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Hero from '@/Home-sections/Hero';
@@ -14,61 +8,64 @@ import Feature from '@/Home-sections/Feature';
 import Premuim from '@/Home-sections/Premium';
 import Pricing from '@/Home-sections/Pricing';
 import Faqs from '@/Home-sections/Faqs';
-// import Benefits from '@/Home-sections/Benefits'
-// import Testimonials from '@/Home-sections/Testimonial';
 import Contacts from '@/Home-sections/Contacts';
+// import Benefits from '@/Home-sections/Benefits';
+import Testimonials from '@/Home-sections/Testimonial';
 
 function Home() {
-  const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState('');
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setSubmitMessage('Success! You\'re on the waitlist.');
-      setEmail('');
-    } catch (error) {
-      setSubmitMessage('Oops! Something went wrong.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-
-
-
-  
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 font-sans">
-
-      {/* Header */}
+    <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-gray-100 font-sans flex flex-col">
       <Header />
-      {/* Hero Section */}
-      <Hero />
-      {/* Trust Bar */}
-      <Trustbar />
-      {/* Features Section */}
-      <Feature />
-      {/* Premium Coming Soon Section */}
-      <Premuim />?
-      {/* FAQ Section */}
-      <Faqs />
-      {/* Benefits section */}
-      {/* <Benefits /> */}
-      {/* Pricing Section */}
-      <Pricing />
-      {/* Testimonials Section */}
-      {/* <Testimonials /> */}
-      {/* Contact Section */}
-      <Contacts />
-      {/* Footer */}
+      <main className="flex-1 w-full">
+        {/* Hero Section */}
+        <section className="relative z-10">
+          <Hero />
+        </section>
+
+        {/* Trust Bar */}
+        <section className="relative z-10">
+          <Trustbar />
+        </section>
+
+        {/* Features Section */}
+        <section className="relative z-10 ">
+          <Feature />
+        </section>
+
+        {/* Benefits Section */}
+        {/* <section className="relative z-10 py-12 md:py-20 bg-white/60 backdrop-blur-md border-t border-gray-100">
+          <Benefits />
+        </section> */}
+
+        {/* Premium Section */}
+        {/* <section className="relative z-10">
+          <Premuim />
+        </section> */}
+
+        {/* Testimonials Section */}
+        {/* <section className="relative z-10 py-12 md:py-20 bg-gray-50 border-t border-b border-gray-100">
+          <Testimonials />
+        </section> */}
+
+        {/* FAQ Section */}
+        <section className="relative z-10 bg-white/60 backdrop-blur-md border-t border-b border-gray-100">
+          <Faqs />
+        </section>
+
+        {/* Pricing Section */}
+        {/* <section className="relative z-10">
+          <Pricing />
+        </section> */}
+
+        {/* Contact Section */}
+        <section className="relative z-10 py-12 md:py-20 bg-white/60 backdrop-blur-md border-t border-gray-100">
+          <Contacts />
+        </section>
+      </main>
       <Footer />
     </div>
   );
 }
+// ...existing code above...
 
 export default Home;

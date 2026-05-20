@@ -2,43 +2,44 @@
 
 import { motion } from 'framer-motion';
 import { useRef } from 'react';
+import { TrendingUp, Repeat, Package as BoxIcon, Globe, FileText } from 'lucide-react';
 
 type FeatureCards = {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   desc: string;
 };
 
 const features: FeatureCards[] = [
   { 
-    icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', 
-    title: 'Cash Flow Tracking', 
-    desc: 'Monitor income and expenses effortlessly in real-time with categorization of transactions.'
+    icon: <TrendingUp className="w-6 h-6 md:w-7 md:h-7 text-gray-700" />, 
+    title: 'Instant Profit and Loss Tracking', 
+    desc: 'Skip the end-of-month stress and view your true net margin updated with every single transaction'
   },
   { 
-    icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 
-    title: 'Budgeting Tools', 
-    desc: 'Create and manage budgets for specific categories or periods with alerts for overspending.'
+    icon: <Repeat className="w-6 h-6 md:w-7 md:h-7 text-gray-700" />, 
+    title: 'Hands-Free Transfer Logging', 
+    desc: 'Secure midnight bank statement syncs automatically and double-checks your records so you never skip a transaction'
   },
   { 
-    icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', 
-    title: 'Financial Insights', 
-    desc: 'AI-generated reports on cash flow trends, forecasts, and anomalies with visual dashboards.'
+    icon: <BoxIcon className="w-6 h-6 md:w-7 md:h-7 text-gray-700" />, 
+    title: 'Independent Physical Cash Vault', 
+    desc: 'Log immediate cash sales, track minor daily payouts, and manage money waiting for bank deposit'
   },
   { 
-    icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 
-    title: 'Decision Support', 
-    desc: 'AI recommendations for cost-saving and revenue optimization based on historical data.'
+    icon: <BoxIcon className="w-6 h-6 md:w-7 md:h-7 text-gray-700" />, 
+    title: 'Automated Inventory Tracking', 
+    desc: 'Monietar monitors your inventory stock levels in the background as sales happen across your channels'
   },
   { 
-    icon: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z', 
-    title: 'User Interface', 
-    desc: 'Intuitive, mobile-friendly design with multi-language and multi-currency support.'
+    icon: <Globe className="w-6 h-6 md:w-7 md:h-7 text-gray-700" />, 
+    title: 'Dual-Currency Sourcing Corridors', 
+    desc: 'Keep your accounting stable using automated daily parallel market rates or set your own custom conversion lock-ins'
   },
   { 
-    icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z', 
-    title: 'Security & Compliance', 
-    desc: 'Bank-level encryption, GDPR compliance, and regular security audits to protect your data.'
+    icon: <FileText className="w-6 h-6 md:w-7 md:h-7 text-gray-700" />, 
+    title: 'Pre-compiled Financial Statement Report', 
+    desc: 'Share your verified transaction track record directly with banks, partners, or networks to secure loans and grants'
   }
 ];
 
@@ -100,7 +101,7 @@ export default function Feature() {
           viewport={{ once: true, margin: "-50px" }}
           variants={headerVariants}
         >
-          <motion.div
+           <motion.div
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 mb-6"
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -108,19 +109,18 @@ export default function Feature() {
             transition={{ duration: 0.4, delay: 0.1 }}
           >
             <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
-            <span className="text-sm font-medium text-gray-600">Launching Features</span>
-          </motion.div>
+            <span className="text-sm font-medium text-gray-600">The MONIETAR Matrix</span>
+          </motion.div> 
           
           <motion.h2 
-            className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-4 md:mb-6 leading-tight"
+            className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-2 md:mb-6 leading-tight"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            Enterprise-Grade
-            <br />
-            <span className="text-gray-800">Financial Intelligence</span>
+            The Core Engine For Your Business
+            <span className="text-emerald-800"> Financial Intelligence</span>
           </motion.h2>
           
           <motion.p 
@@ -130,7 +130,7 @@ export default function Feature() {
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            Advanced tools designed for modern businesses seeking clarity and control
+            We connect your store's bank transfers, physical cash, and multi-currency balance into one unified, background automation system
           </motion.p>
         </motion.div>
 
@@ -154,12 +154,10 @@ export default function Feature() {
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring" as const, stiffness: 400 }}
               >
-                <svg className="w-5 h-5 md:w-6 md:h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.icon} />
-                </svg>
+                {feature.icon}
               </motion.div>
               
-              <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-3 md:mb-4">
+              <h3 className="text-xl md:text-2xl font-semibold text-emerald-900 mb-3 md:mb-4">
                 {feature.title}
               </h3>
               
@@ -195,7 +193,7 @@ export default function Feature() {
           </motion.a> */}
           
           <motion.p 
-            className="text-gray-500 text-sm mt-4"
+            className="text-gray-500 text-md"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}

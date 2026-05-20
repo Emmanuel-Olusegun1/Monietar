@@ -537,6 +537,66 @@ const SecuritySection = memo(function SecuritySection({
   );
 });
 
+// Billing & Plan Section
+const BillingSection = memo(function BillingSection({
+  localSettings,
+  themeClasses
+}: any) {
+  const currentPlan = localSettings?.plan || 'Starter';
+  const isPaid = ['Professional', 'Enterprise'].includes(currentPlan);
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className={`text-2xl font-bold mb-2 ${themeClasses.text.primary}`}>Plan & Billing</h3>
+        <p className={`text-sm mb-6 ${themeClasses.text.secondary}`}>
+          Manage your subscription and upgrade when ready.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className={`rounded-2xl p-6 border ${themeClasses.card}`}>
+          <p className={`text-sm ${themeClasses.text.muted}`}>Current Plan</p>
+          <h4 className={`text-xl font-semibold mt-2 ${themeClasses.text.primary}`}>{currentPlan}</h4>
+          <p className={`text-sm mt-2 ${themeClasses.text.secondary}`}>
+            {isPaid ? 'You have access to premium features.' : 'Upgrade to unlock advanced tools.'}
+          </p>
+        </div>
+
+        <div className={`rounded-2xl p-6 border ${themeClasses.card}`}>
+          <p className={`text-sm ${themeClasses.text.muted}`}>Professional</p>
+          <h4 className={`text-xl font-semibold mt-2 ${themeClasses.text.primary}`}>NGN 5,000 / month</h4>
+          <p className={`text-sm mt-2 ${themeClasses.text.secondary}`}>Advanced analytics and exports.</p>
+          <a
+            href="/checkout?plan=professional&billing=monthly"
+            className="inline-flex items-center justify-center w-full mt-4 px-4 py-3 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition"
+          >
+            Upgrade to Professional
+          </a>
+        </div>
+
+        <div className={`rounded-2xl p-6 border ${themeClasses.card}`}>
+          <p className={`text-sm ${themeClasses.text.muted}`}>Enterprise</p>
+          <h4 className={`text-xl font-semibold mt-2 ${themeClasses.text.primary}`}>NGN 12,000 / month</h4>
+          <p className={`text-sm mt-2 ${themeClasses.text.secondary}`}>Full access, priority support.</p>
+          <a
+            href="/checkout?plan=enterprise&billing=monthly"
+            className="inline-flex items-center justify-center w-full mt-4 px-4 py-3 rounded-xl bg-gray-900 text-white font-medium hover:bg-gray-800 transition"
+          >
+            Upgrade to Enterprise
+          </a>
+        </div>
+      </div>
+
+      <div className={`rounded-2xl p-4 border ${themeClasses.card}`}>
+        <p className={`text-sm ${themeClasses.text.secondary}`}>
+          Test mode is enabled. Upgrades simulate plan changes without charging.
+        </p>
+      </div>
+    </div>
+  );
+});
+
 // Data & Privacy Section
 const DataPrivacySection = memo(function DataPrivacySection({
   handleExport,
@@ -895,7 +955,7 @@ export default function SettingsPage({
         }
       } else {
         // Handle top-level settings
-        const validTopLevelSettings = ['currency', 'language', 'dateFormat', 'timezone', 'theme'] as const;
+        const validTopLevelSettings = ['currency', 'language', 'dateFormat', 'timezone', 'theme', 'plan'] as const;
         type TopLevelSetting = typeof validTopLevelSettings[number];
         
         if (validTopLevelSettings.includes(key as TopLevelSetting)) {
@@ -983,6 +1043,7 @@ export default function SettingsPage({
     { id: 'preferences', label: 'Preferences', icon: SettingsIcon }, // CHANGED: Use SettingsIcon
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
+    { id: 'billing', label: 'Plan & Billing', icon: CreditCard },
     { id: 'data', label: 'Data & Privacy', icon: Database },
     { id: 'feedback', label: 'Help & Feedback', icon: HelpCircle },
   ];
@@ -1008,6 +1069,14 @@ export default function SettingsPage({
           <SecuritySection 
             handleChangePassword={handleChangePassword}
             setShowDeleteAccountDialog={setShowDeleteAccountDialog}
+            darkMode={darkMode}
+            themeClasses={themeClasses}
+          />
+        );
+      case 'billing':
+        return (
+          <BillingSection
+            localSettings={localSettings}
             darkMode={darkMode}
             themeClasses={themeClasses}
           />

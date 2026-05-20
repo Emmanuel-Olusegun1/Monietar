@@ -11,68 +11,60 @@ type TrustbarProps = {
 
 const trustbars: TrustbarProps[] = [
   {  
-    image: 'https://res.cloudinary.com/dzibfknxq/image/upload/v1757720388/flutterwave-1_jsr2yw.svg',
-    alt: 'Flutterwave'
+    image: 'https://logos.hunter.io/mono.co',
+    alt: 'Mono'
   },
   {  
-    image: 'https://res.cloudinary.com/dzibfknxq/image/upload/v1757720984/nestle-13_anacwn.svg',
-    alt: 'Nestle'
+    image: 'https://cdn.brandfetch.io/idxHEQM_d9/theme/dark/logo.svg?c=1dxbfHSJFAPEGdCLU4o5B',
+    alt: 'Okra'
   },
   {  
-    image: 'https://res.cloudinary.com/dzibfknxq/image/upload/v1757721192/shopify-2_ghtoaf.svg',
-    alt: 'Shopify'
+    image: 'https://cdn.brandfetch.io/idSJbgjvJl/w/400/h/400/theme/dark/icon.jpeg?c=1dxbfHSJFAPEGdCLU4o5B',
+    alt: 'Stitch'
   },
   {  
-    image: 'https://res.cloudinary.com/dzibfknxq/image/upload/v1757721355/airbnb_vfi8kd.svg',
-    alt: 'Airbnb'
+    image: 'https://cdn.brandfetch.io/idvtkQjw5h/theme/dark/logo.svg?c=1dxbfHSJFAPEGdCLU4o5B',
+    alt: 'Orange'
   },
   {  
-    image: 'https://res.cloudinary.com/dzibfknxq/image/upload/v1758404391/Monietar_full_logo-removebg-preview_wrhgjj.png',
-    alt: 'Monietar'
-  },
-  {  
-    image: 'https://res.cloudinary.com/dzibfknxq/image/upload/v1760008054/MTN_Group_id6u4FvWmZ_1_zmrfo0.png',
-    alt: 'MTN'
-  },
-  {  
-    image: 'https://cdn.brandfetch.io/idvMDbAci6/theme/dark/logo.svg?c=1bxid64Mup7aczewSAYMX&t=1684941042073',
-    alt: 'Airtel'
+    image: 'https://cdn.brandfetch.io/idjRhziMSh/theme/dark/logo.svg?c=1dxbfHSJFAPEGdCLU4o5B',
+    alt: 'Moniepoint'
   },
   {  
     image: 'https://cdn.brandfetch.io/idM5mrwtDs/theme/dark/logo.svg?c=1bxid64Mup7aczewSAYMX&t=1667559828449',
     alt: 'Paystack'
   },
   {  
-    image: 'https://cdn.brandfetch.io/idxE04AMjS/theme/dark/logo.svg?c=1bxid64Mup7aczewSAYMX&t=1745309101688',
-    alt: 'Interswitch'
+    image: 'https://cdn.brandfetch.io/id7yHeqwD3/w/284/h/92/theme/dark/logo.png?c=1dxbfHSJFAPEGdCLU4o5B',
+    alt: 'Opay'
   },
   {  
-    image: 'https://cdn.brandfetch.io/idL99acsY_/theme/dark/logo.svg?c=1bxid64Mup7aczewSAYMX&t=1667560932568',
-    alt: 'First Bank'
+    image: 'https://cdn.brandfetch.io/idB52afxsR/w/400/h/400/theme/dark/icon.jpeg?c=1dxbfHSJFAPEGdCLU4o5B',
+    alt: 'EcoBank'
+  },
+    {  
+    image: 'https://cdn.brandfetch.io/iddYbQIdlK/theme/dark/logo.svg?c=1dxbfHSJFAPEGdCLU4o5B',
+    alt: 'Flutterwave'
   },
   {  
-    image: 'https://cdn.brandfetch.io/idMFED6Iz3/theme/dark/logo.svg?c=1bxid64Mup7aczewSAYMX&t=1667580089799',
-    alt: 'GTBank'
+    image: 'https://cdn.brandfetch.io/idbEJ2XWew/theme/light/logo.svg?c=1dxbfHSJFAPEGdCLU4o5B',
+    alt: 'UBA'
   }
 ];
 
 export default function Trustbar() {
   return (
-    <section className="py-16 bg-emerald-50 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 bg-white/60"></div>
-      <div className="absolute top-0 left-0 w-48 h-48 bg-emerald-200/30 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
-      <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-300/30 rounded-full blur-2xl translate-x-1/3 translate-y-1/3"></div>
-      
-      <div className="container mx-auto max-w-7xl px-4 relative z-10">
+    <section className="bg-[#f1f1f1] relative overflow-hidden">
+     
+      <div className="container mx-auto max-w-7xl px-1 relative z-10">
         <motion.p 
-          className="text-center text-emerald-800 text-sm uppercase tracking-wider mb-12 font-medium"
+          className="text-center text-emerald-800 text-sm uppercase tracking-wider mb-6 font-medium"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          Trusted by Leading African Businesses
+          Securely  Connected to Africa's Leading Banking Networks
         </motion.p>
         
         <motion.div
@@ -91,7 +83,7 @@ export default function Trustbar() {
             {trustbars.map((trust, i) => (
               <motion.div
                 key={i}
-                className="flex-shrink-0 relative h-20 w-32 mx-6"
+                className="flex-shrink-0 relative h-10 w-22 mx-6"
                 whileHover={{ 
                   scale: 1.05,
                   transition: { duration: 0.2 }
@@ -101,7 +93,7 @@ export default function Trustbar() {
                   src={trust.image}
                   alt={trust.alt}
                   fill
-                  className="object-contain grayscale hover:grayscale-0 opacity-70 hover:opacity-100 transition-all duration-300"
+                  className="object-contain grayscale hover:grayscale-0 opacity-70 hover:opacity-100 transition-all duration-300 mb-4"
                 />
               </motion.div>
             ))}
