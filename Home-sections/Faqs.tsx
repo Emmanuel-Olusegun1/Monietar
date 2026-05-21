@@ -97,7 +97,7 @@ export default function FAQ() {
                             <p className="text-gray-700 mb-6">Monietar turns transaction data into clear, real-time insights for your business, sales, profit, and cash flow, automatically and securely. Explore the most common questions below.</p>
                             <div className="space-y-4">
                                 <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-md bg-gray-900 text-white flex items-center justify-center">
+                                    <div className="w-10 h-10 rounded-md  bg-emerald-900 hover-bg-emerald-700 text-white flex items-center justify-center">
                                         <Lightbulb className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
@@ -106,7 +106,7 @@ export default function FAQ() {
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-md bg-gray-900 text-white flex items-center justify-center">
+                                    <div className="w-10 h-10 rounded-md  bg-emerald-900 hover-bg-emerald-700 text-white flex items-center justify-center">
                                         <Lock className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
