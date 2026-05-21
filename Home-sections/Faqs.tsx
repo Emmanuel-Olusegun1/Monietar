@@ -60,7 +60,7 @@ export default function FAQ() {
             <div className="container mx-auto max-w-4xl">
                 {/* Header */}
                 <motion.div 
-                    className="text-center mb-16"
+                    className="mb-16"
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -97,7 +97,7 @@ export default function FAQ() {
                     </motion.h2>
                     
                     <motion.p 
-                        className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8"
+                        className="text-xl text-gray-600 max-w-2xl leading-relaxed mb-8"
                         initial={{ opacity: 0, y: 15 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -105,35 +105,61 @@ export default function FAQ() {
                     >
                     Everything you need to know about Monietar
                     </motion.p>
+                    {/* layout grid: left text, right search+faqs */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                        {/* Left column: descriptive text */}
+                        <div className="order-1 lg:order-1">
+                            <p className="text-gray-700 mb-6">Monietar simplifies bookkeeping for SMEs and startups across Africa — connect accounts, sync offline sales, and reconcile automatically. Explore the most common questions below.</p>
+                            <div className="space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-md bg-gray-900 text-white flex items-center justify-center">💡</div>
+                                    <div>
+                                        <h4 className="font-semibold text-gray-900">Seamless integration</h4>
+                                        <p className="text-gray-600">Connect banks, cash boxes, and currency pools without manual work.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-md bg-gray-900 text-white flex items-center justify-center">🔒</div>
+                                    <div>
+                                        <h4 className="font-semibold text-gray-900">Privacy first</h4>
+                                        <p className="text-gray-600">Read-only tokens and end-to-end encryption keep your data safe.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                    {/* Search Bar */}
-                    <motion.div
-                        className="relative max-w-md mx-auto"
-                        initial={{ opacity: 0, y: 10 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5, delay: 0.4 }}
-                    >
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                            ref={searchInputRef}
-                            type="text"
-                            placeholder="Search questions... (Ctrl+K)"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200"
-                        />
-                        {searchTerm && (
-                            <motion.button
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                onClick={() => setSearchTerm('')}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        {/* Right column will contain search and faqs list */}
+                        <div className="order-2 lg:order-2">
+                            {/* Search Bar */}
+                            <motion.div
+                                className="relative w-full"
+                                initial={{ opacity: 0, y: 10 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.5, delay: 0.4 }}
                             >
-                                ✕
-                            </motion.button>
-                        )}
-                    </motion.div>
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    placeholder="Search questions... (Ctrl+K)"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200"
+                                />
+                                {searchTerm && (
+                                    <motion.button
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        onClick={() => setSearchTerm('')}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        ✕
+                                    </motion.button>
+                                )}
+                            </motion.div>
+                        </div>
+                    </div>
                 </motion.div>
 
                 {/* Results Count */}
