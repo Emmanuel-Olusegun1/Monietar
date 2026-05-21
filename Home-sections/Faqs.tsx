@@ -160,14 +160,14 @@ export default function FAQ() {
                             >
                                 <div className="flex items-start space-x-4 flex-1">
                                     <motion.div 
-                                        className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center text-sm font-semibold mt-1 group-hover:bg-gray-800 transition-colors"
+                                        className="flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-900 text-white flex items-center justify-center text-sm font-semibold mt-1 group-hover:bg-emerald-800 transition-colors"
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.95 }}
                                     >
                                         {index + 1}
                                     </motion.div>
                                     <div className="text-left flex-1">
-                                        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-gray-700 transition-colors duration-200 mb-1">
+                                        <h3 className="text-lg font-semibold text-emerald-900 group-hover:text-emerald-700 transition-colors duration-200 mb-1">
                                             {faq.question}
                                         </h3>
                                     </div>
@@ -191,7 +191,7 @@ export default function FAQ() {
                                         className="overflow-hidden"
                                     >
                                         <div className="px-6 pb-6">
-                                            <div className="w-full h-px bg-gray-200 mb-4"></div>
+                                            <div className="w-full h-px bg-emerald-100 mb-4"></div>
                                             <p className="text-gray-600 leading-relaxed">
                                                 {faq.answer}
                                             </p>
