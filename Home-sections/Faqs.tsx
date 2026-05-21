@@ -1,13 +1,11 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Mail, MessageCircle, Search, Clock, Users, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronDown, Mail, Users, Lightbulb, Lock } from 'lucide-react';
 
 export default function FAQ() {
     const [activeFaq, setActiveFaq] = useState<number | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const searchInputRef = useRef<HTMLInputElement>(null);
 
     const toggleFaq = (index: number) => {
         setActiveFaq(activeFaq === index ? null : index);
@@ -16,43 +14,30 @@ export default function FAQ() {
     const faqData = [
         {
             question: "What is Monietar?",
-            answer: "Monietar is an AI-powered platform designed to help SMes/SMBs and Startups in Africa to safely link their shop’s bank transfers, physical cash box, and cross-border currency pools into one hands-free ledger. No manual math, No missing flow.",
+            answer: "Monietar is an AI-driven financial intelligence platform for SMEs and startups in Africa. It links bank transfers, on-site cash, and multi-currency balances to surface real-time sales, profit, and cash flow insights, automatically.",
         },
         {
             question: "Is joining the waitlist free?",
-            answer: "Yes, Registration is entirely free, and waitlist entries get an exclusive 90-days zero-cost window when their cohort access token unlocks.",
+            answer: "Yes. Joining the waitlist is free and early members get access perks when their cohort token unlocks.",
         },
         {
-            question: "Is my connnected bank accounts safe  with Monietar?",
-            answer: "Completely. Monietar has read-only access via secure Open Banking tokens. We can never hold, touch, or move your money, we only read statements to automate your books",
-        },
-       
-        {
-            question: "What happens to my data if my store network drops?",
-            answer: "The platform securely logs pending alerts locally on your device hits internet coverage again, it automatically syncs back up to your cloud database",
+            question: "Are my connected accounts safe with Monietar?",
+            answer: "Yes. We use read-only Open Banking tokens and industry-standard encryption. Monietar never moves your money, we only read transaction data to generate insights.",
         },
         {
-            question: "Is my data secure on the platform?",
-            answer: "Your financial data is encrypted end-to-end and never shared or sold. You stay in full control, delete your data anytime, instantly.",
+            question: "What happens if my store goes offline?",
+            answer: "Events are cached securely on-device while offline and automatically sync once connectivity returns, no data lost.",
+        },
+        {
+            question: "How is my data protected?",
+            answer: "Your data is encrypted at rest and in transit, access-controlled, and never sold. You can remove your account and data anytime.",
         }
     ];
 
-    const filteredFaqs = faqData.filter(faq => 
-        faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredFaqs = faqData;
 
-    // Keyboard shortcut for search (Cmd+K / Ctrl+K)
     useEffect(() => {
-        const handleKeyPress = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                e.preventDefault();
-                searchInputRef.current?.focus();
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyPress);
-        return () => document.removeEventListener('keydown', handleKeyPress);
+        // placeholder for any future mount logic
     }, []);
 
     return (
@@ -109,17 +94,21 @@ export default function FAQ() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                         {/* Left column: descriptive text */}
                         <div className="order-1 lg:order-1">
-                            <p className="text-gray-700 mb-6">Monietar simplifies bookkeeping for SMEs and startups across Africa — connect accounts, sync offline sales, and reconcile automatically. Explore the most common questions below.</p>
+                            <p className="text-gray-700 mb-6">Monietar turns transaction data into clear, real-time insights for your business, sales, profit, and cash flow, automatically and securely. Explore the most common questions below.</p>
                             <div className="space-y-4">
                                 <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-md bg-gray-900 text-white flex items-center justify-center">💡</div>
+                                    <div className="w-10 h-10 rounded-md bg-gray-900 text-white flex items-center justify-center">
+                                        <Lightbulb className="w-5 h-5 text-white" />
+                                    </div>
                                     <div>
                                         <h4 className="font-semibold text-gray-900">Seamless integration</h4>
                                         <p className="text-gray-600">Connect banks, cash boxes, and currency pools without manual work.</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-md bg-gray-900 text-white flex items-center justify-center">🔒</div>
+                                    <div className="w-10 h-10 rounded-md bg-gray-900 text-white flex items-center justify-center">
+                                        <Lock className="w-5 h-5 text-white" />
+                                    </div>
                                     <div>
                                         <h4 className="font-semibold text-gray-900">Privacy first</h4>
                                         <p className="text-gray-600">Read-only tokens and end-to-end encryption keep your data safe.</p>
@@ -128,52 +117,29 @@ export default function FAQ() {
                             </div>
                         </div>
 
-                        {/* Right column will contain search and faqs list */}
-                        <div className="order-2 lg:order-2">
-                            {/* Search Bar */}
+                        {/* Right column: illustration + contact CTA */}
+                        <div className="order-2 lg:order-2 flex items-center justify-center">
                             <motion.div
-                                className="relative w-full"
+                                className="w-full flex flex-col items-center text-center"
                                 initial={{ opacity: 0, y: 10 }}
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ duration: 0.5, delay: 0.4 }}
                             >
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    ref={searchInputRef}
-                                    type="text"
-                                    placeholder="Search questions... (Ctrl+K)"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200"
-                                />
-                                {searchTerm && (
-                                    <motion.button
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        onClick={() => setSearchTerm('')}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                        ✕
-                                    </motion.button>
-                                )}
+                                <div className="w-28 h-28 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center mb-4">
+                                    <Users className="w-12 h-12 text-gray-700" />
+                                </div>
+                                <p className="text-gray-600 mb-3">Browse common questions or reach out to our team for anything specific.</p>
+                                <a href="/contact" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-800 text-white hover:bg-emerald-700 transition">
+                                    <Mail className="w-4 h-4" />
+                                    Contact Support
+                                </a>
                             </motion.div>
                         </div>
                     </div>
                 </motion.div>
 
-                {/* Results Count */}
-                {searchTerm && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center mb-6"
-                    >
-                        <p className="text-gray-600">
-                            Found {filteredFaqs.length} {filteredFaqs.length === 1 ? 'result' : 'results'} for "{searchTerm}"
-                        </p>
-                    </motion.div>
-                )}
+                {/* Results Count removed (search UI disabled) */}
                 
                 {/* FAQ Grid */}
                 <div className="grid gap-4">
@@ -237,20 +203,7 @@ export default function FAQ() {
                     ))}
                 </div>
 
-                {/* No Results */}
-                {searchTerm && filteredFaqs.length === 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center py-12"
-                    >
-                        <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                            <Search className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">No results found</h3>
-                        <p className="text-gray-600">Try different keywords or browse all questions above</p>
-                    </motion.div>
-                )}
+                {/* No-results UI removed (search disabled) */}
 
               
             </div>
