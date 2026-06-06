@@ -385,24 +385,7 @@ export default function Contact() {
             </div>
 
             {/* Additional Info */}
-            <motion.div
-              className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-center"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              {[
-                { number: '1,000+', label: 'Businesses Helped' },
-                { number: '24h', label: 'Avg. Response Time' },
-                { number: '98%', label: 'Satisfaction Rate' }
-              ].map((stat, index) => (
-                <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="text-2xl font-bold text-gray-900 mb-1">{stat.number}</div>
-                  <div className="text-sm text-gray-600">{stat.label}</div>
-                </div>
-              ))}
-            </motion.div>
+            
           </motion.div>
         </div>
       </div>

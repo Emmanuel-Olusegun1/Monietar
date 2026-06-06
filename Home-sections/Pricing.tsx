@@ -1,7 +1,6 @@
-'use client'
+'use client';
 
 import { motion } from 'framer-motion';
-import { url } from 'inspector';
 import { useState } from 'react';
 
 export default function Pricing() {
@@ -10,86 +9,73 @@ export default function Pricing() {
 
   const plans = {
     free: {
-      name: 'Starter',
-      description: 'Essential financial tools for small businesses',
+      name: 'Retail Starter',
+      description: 'Perfect for everyday retail store owners replacing their paper notebooks with automation.',
       price: { NGN: 0, XOF: 0 },
       yearlyPrice: { NGN: 0, XOF: 0 },
       features: [
-        'Real-time income & expense tracking',
-        'Basic budget management',
-        'Overspending alerts',
-        'Cash flow trend reports',
-        'Basic AI recommendations',
-        'Email support',
-        '1 business account',
+        'Auto-log up to 150 bank transfers or cash sales monthly',
+        '1 Connected Core Bank Account',
+        'Independent Physical Cash Vault tracking',
+        'Weekly AI Voice Report Card (Pidgin or English)',
+        'Email Support',
       ],
-      cta: 'Get Started Free',
-      popular: true,
-      comingSoon: false,
-      url: '/auth/signin'
+      cta: 'Join Waitlist — Get Free Access',
+      popular: false,
+      discounted: false,
+      url: '#waitlist-section', // Anchor link scrolling to your final waitlist CTA form
     },
     pro: {
-      name: 'Professional',
-      description: 'Advanced tools for growing businesses',
-      price: { NGN: 5000, XOF: 5000 },
-      yearlyPrice: { NGN: 50000, XOF: 50000 },
+      name: 'Growing Merchant',
+      description: 'Built for established merchants managing multiple store assistants and high daily alert counts.',
+      price: { NGN: 7500, XOF: 2800 }, // Localized approximate CFA conversion included
+      yearlyPrice: { NGN: 75000, XOF: 28000 },
+      originalPrice: { NGN: 15000, XOF: 5600 },
       features: [
-        'Everything in Starter',
-        'Advanced budget analytics',
-        'Custom financial goals',
-        'Predictive forecasting',
-        'Revenue optimization',
-        'Accounting software integration',
-        'Export capabilities',
-        'Customizable dashboards',
+        'Auto-log up to 2,500 transactions monthly',
+        'Unlimited Connected Bank Accounts',
+        'Multi-Device Alert Syncing for shop assistants',
+        'Live, instant Profit & Loss (P&L) dashboard views',
+        'Automated Inventory Sourcing & stock alerts',
         'Priority email & chat support',
-        'Up to 3 business accounts'
       ],
-      cta: 'Coming Soon',
-      popular: false,
-      comingSoon: true,
-      url: ''
+      cta: 'Lock In 50% Discount',
+      popular: true,
+      discounted: true,
+      url: '#waitlist-section',
     },
     premium: {
-      name: 'Enterprise',
-      description: 'Complete financial platform for established businesses',
-      price: { NGN: 12000, XOF: 12000 },
-      yearlyPrice: { NGN: 120000, XOF: 120000 },
+      name: 'Borderless Pro',
+      description: 'Engineered specifically for merchants sourcing or selling goods simultaneously across regions.',
+      price: { NGN: 22500, XOF: 8500 },
+      yearlyPrice: { NGN: 225000, XOF: 85000 },
+      originalPrice: { NGN: 45000, XOF: 17000 },
       features: [
-        'Everything in Professional',
-        'Unlimited transaction history',
-        'Advanced cash flow analysis',
-        'Custom AI models',
-        'Advanced scenario planning',
-        'Real-time market insights',
-        'Bank API integration',
-        'Multiple accounting platforms',
-        'Custom API access',
-        'White-label reports',
-        'Executive dashboards',
-        'Team collaboration',
-        'Dedicated account manager',
-        '24/7 priority support',
-        'Unlimited business accounts',
-        'Real-time currency conversion',
-        'Multi-currency accounts',
-        'SOC 2 compliance'
+        'Unlimited Monthly Transactions across all channels',
+        'Dual-Currency Ledger Engine (Naira ⇄ CFA Franc)',
+        'Automated Parallel Market Rate Auto-Indexing',
+        '1-Tap Audit-Ready Financial Statement Exports (PDF/Excel)',
+        'Custom AI Accounting Chatbot assistance',
+        'Dedicated account priority channels',
       ],
-      cta: 'Coming Soon',
+      cta: 'Lock In 50% Discount',
       popular: false,
-      comingSoon: true,
-      url: ''
-    }
+      discounted: true,
+      url: '#waitlist-section',
+    },
   };
 
-  const getPrice = (plan: keyof typeof plans) => {
-    const priceData = plans[plan];
-    const amount = billingPeriod === 'yearly' ? priceData.yearlyPrice[currency] : priceData.price[currency];
+  const getPrice = (planKey: keyof typeof plans) => {
+    const plan = plans[planKey];
+    const amount = billingPeriod === 'yearly' ? plan.yearlyPrice[currency] : plan.price[currency];
+    const originalAmount = plan.originalPrice ? (billingPeriod === 'yearly' ? plan.originalPrice[currency] * 10 : plan.originalPrice[currency]) : null;
+
     return {
       amount,
+      originalAmount,
       symbol: currency === 'NGN' ? '₦' : '',
       suffix: currency === 'XOF' ? ' CFA' : '',
-      period: billingPeriod === 'yearly' ? '/year' : '/month'
+      period: billingPeriod === 'yearly' ? '/year' : '/month',
     };
   };
 
@@ -100,7 +86,7 @@ export default function Pricing() {
         {/* Luxury Green Gradient Orbs */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/10 to-green-600/5 rounded-lg blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-emerald-400/5 to-green-500/10 rounded-full blur-3xl"></div>
-        
+
         {/* Grid Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:80px_80px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,black,transparent)]"></div>
@@ -113,7 +99,7 @@ export default function Pricing() {
 
       <div className="container mx-auto max-w-7xl relative z-10">
         {/* Header */}
-        <motion.div 
+        <motion.div
           className="text-center mb-20"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -128,80 +114,80 @@ export default function Pricing() {
             transition={{ duration: 0.5, delay: 0.1 }}
           >
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-emerald-300">Transparent Pricing</span>
+            <span className="text-sm font-medium text-emerald-300">Pioneer Cohort Access</span>
           </motion.div>
 
-          <motion.h2 
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
+          <motion.h2
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            Choose Your
-            <span className="text-emerald-400 block">Financial Plan</span>
+            Premium Financial Tools.
+            <span className="text-emerald-400 block mt-2">Free &amp; 50% Waitlist Tiers</span>
           </motion.h2>
-          
-          <motion.p 
-            className="text-xl text-gray-400 max-w-2xl mx-auto"
+
+          <motion.p
+            className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed"
             initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            Scale your financial management with our flexible pricing plans
+            Monietar scales directly alongside your real business growth. Join the waitlist today to lock in your foundational early-bird pricing tokens.
           </motion.p>
 
           {/* Controls */}
-          <motion.div 
-            className="flex flex-col sm:flex-row justify-center items-center gap-8 mt-12"
+          <motion.div
+            className="flex flex-col sm:flex-row justify-center items-center gap-6 mt-12"
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
             {/* Billing Toggle */}
-            <div className="bg-gray-900 rounded-2xl p-2 shadow-xl border border-gray-800 inline-flex">
+            <div className="bg-gray-900 rounded-2xl p-1.5 shadow-xl border border-gray-800 inline-flex">
               <button
+                type="button"
                 onClick={() => setBillingPeriod('monthly')}
-                className={`px-8 py-3 rounded-xl text-sm font-semibold transition-all ${
-                  billingPeriod === 'monthly' 
-                    ? 'bg-emerald-500 text-black shadow-lg' 
+                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  billingPeriod === 'monthly'
+                    ? 'bg-emerald-500 text-black shadow-lg'
                     : 'text-gray-400 hover:text-white bg-transparent'
                 }`}
               >
                 Monthly
               </button>
               <button
+                type="button"
                 onClick={() => setBillingPeriod('yearly')}
-                className={`px-8 py-3 rounded-xl text-sm font-semibold transition-all ${
-                  billingPeriod === 'yearly' 
-                    ? 'bg-emerald-500 text-black shadow-lg' 
+                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  billingPeriod === 'yearly'
+                    ? 'bg-emerald-500 text-black shadow-lg'
                     : 'text-gray-400 hover:text-white bg-transparent'
                 }`}
               >
-                Yearly <span className="text-emerald-400 ml-1">Save 17%</span>
+                Yearly <span className="text-emerald-950 ml-1 font-bold bg-emerald-300/60 px-1.5 py-0.5 rounded text-xs">Save 17%</span>
               </button>
             </div>
 
             {/* Currency Toggle */}
-            <div className="bg-gray-900 rounded-2xl p-2 shadow-xl border border-gray-800 inline-flex">
+            <div className="bg-gray-900 rounded-2xl p-1.5 shadow-xl border border-gray-800 inline-flex">
               <button
+                type="button"
                 onClick={() => setCurrency('NGN')}
-                className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all ${
-                  currency === 'NGN' 
-                    ? 'bg-emerald-500 text-black' 
-                    : 'text-gray-400 hover:text-white bg-transparent'
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  currency === 'NGN' ? 'bg-emerald-500 text-black' : 'text-gray-400 hover:text-white bg-transparent'
                 }`}
               >
                 ₦ NGN
               </button>
               <button
+                type="button"
                 onClick={() => setCurrency('XOF')}
-                className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all ${
-                  currency === 'XOF' 
-                    ? 'bg-emerald-500 text-black' 
-                    : 'text-gray-400 hover:text-white bg-transparent'
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  currency === 'XOF' ? 'bg-emerald-500 text-black' : 'text-gray-400 hover:text-white bg-transparent'
                 }`}
               >
                 CFA XOF
@@ -217,9 +203,7 @@ export default function Pricing() {
             return (
               <motion.div
                 key={key}
-                className={`group relative ${
-                  plan.popular ? 'lg:-mt-4 lg:mb-4' : ''
-                }`}
+                className={`group relative ${plan.popular ? 'lg:-mt-4 lg:mb-4' : ''}`}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -227,72 +211,70 @@ export default function Pricing() {
               >
                 {/* Popular Plan Badge */}
                 {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20">
-                    <div className="bg-gradient-to-r from-emerald-500 to-green-500 text-black text-sm font-bold px-6 py-2 rounded-full shadow-lg">
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20 whitespace-nowrap">
+                    <div className="bg-gradient-to-r from-emerald-500 to-green-500 text-black text-xs font-black px-6 py-1.5 rounded-full shadow-lg tracking-wider">
                       MOST POPULAR
                     </div>
                   </div>
                 )}
 
-                {/* Coming Soon Badge */}
-                {plan.comingSoon && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20">
-                    <div className="bg-gray-600 text-white text-sm font-bold px-6 py-2 rounded-full shadow-lg">
-                      COMING SOON
+                {/* 50% Off Waitlist Identifier Badge */}
+                {plan.discounted && !plan.popular && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20 whitespace-nowrap">
+                    <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold px-5 py-1.5 rounded-full shadow-lg">
+                      50% WAITLIST OFF
                     </div>
                   </div>
                 )}
 
-                <div className={`relative rounded-3xl border-2 transition-all duration-500 overflow-hidden ${
-                  plan.popular 
-                    ? 'border-emerald-500 bg-gradient-to-b from-gray-900 to-black shadow-2xl' 
-                    : 'border-gray-800 bg-gradient-to-b from-gray-900 to-black hover:border-emerald-400/50'
-                }`}>
-                  {/* Green Shine Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  
+                <div
+                  className={`relative rounded-3xl border-2 transition-all duration-500 overflow-hidden ${
+                    plan.popular
+                      ? 'border-emerald-500 bg-gradient-to-b from-gray-900 via-zinc-950 to-black shadow-2xl shadow-emerald-500/5'
+                      : 'border-gray-800 bg-gradient-to-b from-gray-900 to-black hover:border-emerald-500/40'
+                  }`}
+                >
+                  {/* Hover Shine Background Accent */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
                   <div className="relative p-8">
                     {/* Plan Header */}
                     <div className="text-center mb-8">
-                      <h3 className={`text-2xl font-bold mb-3 ${
-                        plan.popular ? 'text-emerald-400' : 'text-white'
-                      }`}>
+                      <h3 className={`text-2xl font-bold mb-3 ${plan.popular ? 'text-emerald-400' : 'text-white'}`}>
                         {plan.name}
                       </h3>
-                      <p className="text-gray-400 text-sm">{plan.description}</p>
-                      
+                      <p className="text-gray-400 text-sm min-h-[40px] leading-relaxed px-2">{plan.description}</p>
+
                       {/* Price Display */}
                       <div className="mt-8">
-                        <div className="flex items-baseline justify-center">
-                          <span className={`text-5xl font-bold ${
-                            plan.popular ? 'text-emerald-400' : 'text-white'
-                          }`}>
-                            {price.symbol}{price.amount?.toLocaleString()}{price.suffix}
-                          </span>
-                          <span className="text-gray-400 ml-2 text-lg">{price.period}</span>
+                        <div className="flex flex-col items-center justify-center">
+                          {/* Strike-through original price context for verification */}
+                          {price.originalAmount !== null && price.originalAmount > 0 && (
+                            <span className="text-gray-500 text-lg line-through font-medium tracking-tight mb-1">
+                              {price.symbol}{price.originalAmount.toLocaleString()}{price.suffix}
+                            </span>
+                          )}
+                          <div className="flex items-baseline justify-center">
+                            <span className={`text-5xl font-extrabold tracking-tight ${plan.popular ? 'text-emerald-400' : 'text-white'}`}>
+                              {price.symbol}{price.amount.toLocaleString()}{price.suffix}
+                            </span>
+                            <span className="text-gray-400 ml-2 text-sm font-medium">{price.period}</span>
+                          </div>
                         </div>
-                        
+
                         {/* Savings Badge */}
-                        {billingPeriod === 'yearly' && price.amount && price.amount > 0 && (
-                          <div className="mt-3 inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full text-sm">
-                            <span>💰</span>
-                            Save 2 months free
+                        {billingPeriod === 'yearly' && price.amount > 0 && (
+                          <div className="mt-4 inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-300 px-3 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
+                            <span>💰</span> Includes 2 Months Free Sourcing
                           </div>
                         )}
-                        
-                        {/* Currency Conversion
-                        {currency === 'XOF' && price.amount && price.amount > 0 && (
-                          <p className="text-gray-500 text-sm mt-2">
-                            ≈ ₦{plan.price.NGN.toLocaleString()} monthly
-                          </p>
-                        )} */}
                       </div>
                     </div>
 
                     {/* Features List */}
-                    <ul className="space-y-4 mb-8">
+                    <ul className="space-y-4 mb-8 min-h-[260px]">
                       {plan.features.map((feature, featureIndex) => (
-                        <motion.li 
+                        <motion.li
                           key={featureIndex}
                           className="flex items-start gap-3"
                           initial={{ opacity: 0, x: -10 }}
@@ -300,36 +282,33 @@ export default function Pricing() {
                           viewport={{ once: true }}
                           transition={{ duration: 0.4, delay: featureIndex * 0.05 + index * 0.1 }}
                         >
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                            plan.popular ? 'bg-emerald-500' : 'bg-emerald-500/20'
-                          }`}>
-                            <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                              plan.popular ? 'bg-emerald-500' : 'bg-emerald-500/20'
+                            }`}
+                          >
+                            <svg className={`w-3 h-3 ${plan.popular ? 'text-black' : 'text-emerald-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
-                          <span className="text-gray-300 text-sm leading-relaxed">{feature}</span>
+                          <span className="text-gray-300 text-sm leading-relaxed text-left">{feature}</span>
                         </motion.li>
                       ))}
                     </ul>
 
-                    {/* CTA Button */}
-                    <motion.button
-                      
-                      className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
-                        plan.comingSoon
-                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                          : plan.popular
-                          ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg hover:shadow-emerald-500/25 hover:scale-105'
-                          : 'bg-gray-800 hover:bg-emerald-500 text-white hover:text-black border border-gray-700 hover:border-emerald-500'
+                    {/* Action Form Directing To Waitlist Anchor Link */}
+                    <motion.a
+                      href={plan.url}
+                      className={`block text-center w-full py-3.5 rounded-xl font-bold text-base transition-all duration-300 ${
+                        plan.popular
+                          ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/15 hover:scale-[1.02]'
+                          : 'bg-gray-800 hover:bg-emerald-500 text-white hover:text-black border border-gray-700 hover:border-emerald-500 hover:scale-[1.02]'
                       }`}
-                      whileHover={plan.comingSoon ? {} : { scale: 1.02 }}
-                      whileTap={plan.comingSoon ? {} : { scale: 0.98 }}
-                      disabled={plan.comingSoon}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      <a href={plan.url}>
                       {plan.cta}
-                      </a>
-                    </motion.button>
+                    </motion.a>
                   </div>
                 </div>
               </motion.div>
@@ -337,36 +316,36 @@ export default function Pricing() {
           })}
         </div>
 
-        {/* Additional Info */}
-        <motion.div 
+        {/* Unified Bottom Info Card */}
+        <motion.div
           className="text-center mt-16"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.6 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
         >
-          <div className="bg-gray-900/50 rounded-2xl p-8 border border-gray-800 max-w-2xl mx-auto">
-            <h4 className="text-lg font-semibold text-white mb-4">All plans include:</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-400">
+          <div className="bg-gray-900/40 backdrop-blur-sm rounded-2xl p-6 border border-gray-800 max-w-2xl mx-auto">
+            <h4 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">All infrastructure accounts include:</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-gray-400">
               <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                Bank-level security
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+                Bank-level read-only security
               </div>
               <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                99.9% uptime SLA
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+                Zero transaction manipulation architecture
               </div>
               <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                Regular updates
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+                Offline transaction listener syncing
               </div>
             </div>
           </div>
 
-          {/* Currency Note */}
-          <p className="text-gray-500 text-sm mt-8">
-            * Prices in CFA Francs are approximate. Actual charges will be processed in your local currency.
-            {currency === 'XOF' && ' 1 CFA ≈ 2.61 NGN'}
+          {/* Local Exchange Operational Margin Note */}
+          <p className="text-gray-500 text-xs mt-8">
+            * Subscriptions are processed in local currency. Parallel currency index pricing maps onto exact banking api conversion intervals.
+            {currency === 'XOF' && ' Current corridor reference rate: 1 XOF ≈ 2.61 NGN.'}
           </p>
         </motion.div>
       </div>

@@ -57,7 +57,7 @@ export default function Header() {
   // Menu structure
   const menu = [
     { label: 'Home', href: '/' },
-    { label: 'About us', href: '/' },
+    { label: 'About us', href: '/about' },
     {
       label: 'Product',
       dropdown: [

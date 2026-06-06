@@ -96,45 +96,8 @@ export default function FAQ() {
                         <div className="order-1 lg:order-1">
                             <p className="text-gray-700 mb-6">Monietar turns transaction data into clear, real-time insights for your business, sales, profit, and cash flow, automatically and securely. Explore the most common questions below.</p>
                             <div className="space-y-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-md  bg-emerald-900 hover-bg-emerald-700 text-white flex items-center justify-center">
-                                        <Lightbulb className="w-5 h-5 text-white" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-gray-900">Seamless integration</h4>
-                                        <p className="text-gray-600">Connect banks, cash boxes, and currency pools without manual work.</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-md  bg-emerald-900 hover-bg-emerald-700 text-white flex items-center justify-center">
-                                        <Lock className="w-5 h-5 text-white" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-gray-900">Privacy first</h4>
-                                        <p className="text-gray-600">Read-only tokens and end-to-end encryption keep your data safe.</p>
-                                    </div>
-                                </div>
+                            
                             </div>
-                        </div>
-
-                        {/* Right column: illustration + contact CTA */}
-                        <div className="order-2 lg:order-2 flex items-center justify-center">
-                            <motion.div
-                                className="w-full flex flex-col items-center text-center"
-                                initial={{ opacity: 0, y: 10 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.5, delay: 0.4 }}
-                            >
-                                <div className="w-28 h-28 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center mb-4">
-                                    <Users className="w-12 h-12 text-gray-700" />
-                                </div>
-                                <p className="text-gray-600 mb-3">Browse common questions or reach out to our team for anything specific.</p>
-                                <a href="/contact" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-800 text-white hover:bg-emerald-700 transition">
-                                    <Mail className="w-4 h-4" />
-                                    Contact Support
-                                </a>
-                            </motion.div>
                         </div>
                     </div>
                 </motion.div>

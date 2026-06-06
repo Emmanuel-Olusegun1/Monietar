@@ -9,6 +9,7 @@ import Premuim from '@/Home-sections/Premium';
 import Pricing from '@/Home-sections/Pricing';
 import Faqs from '@/Home-sections/Faqs';
 import Contacts from '@/Home-sections/Contacts';
+import FinalCTA from '@/Home-sections/final-cta';
 // import Benefits from '@/Home-sections/Benefits';
 import Testimonials from '@/Home-sections/Testimonial';
 
@@ -53,19 +54,22 @@ function Home() {
         </section>
 
         {/* Pricing Section */}
-        {/* <section className="relative z-10">
+        <section className="relative z-10">
           <Pricing />
-        </section> */}
+        </section>
 
         {/* Contact Section */}
-        <section className="relative z-10 py-12 md:py-20 bg-white/60 backdrop-blur-md border-t border-gray-100">
+        {/* <section className="relative z-10 py-12 md:py-20 bg-white/60 backdrop-blur-md border-t border-gray-100">
           <Contacts />
-        </section>
+        </section> */}
+
+        {/* Final CTA section */}
+        <FinalCTA />
       </main>
       <Footer />
     </div>
   );
 }
-// ...existing code above...
+
 
 export default Home;
