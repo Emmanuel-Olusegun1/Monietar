@@ -32,7 +32,7 @@ export default function ContactPage() {
               Connect With Us
             </span>
             <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
-              We're here to help your <br />business grow.
+              We're here to help your business grow.
             </h1>
             <p className="text-slate-500 text-base sm:text-lg max-w-xl mx-auto leading-relaxed font-normal">
               Have questions about our software platforms, dedicated hardware, or custom business solutions? Reach out and our team will get back to you swiftly.
