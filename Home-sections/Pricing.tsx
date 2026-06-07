@@ -23,6 +23,7 @@ export default function Pricing() {
       cta: 'Join Waitlist — Get Free Access',
       popular: false,
       discounted: false,
+      originalPrice: null,
       url: '#waitlist-section', // Anchor link scrolling to your final waitlist CTA form
     },
     pro: {
