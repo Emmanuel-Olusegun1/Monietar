@@ -18,9 +18,9 @@ export default function BlogPostsGrid() {
         </div>
 
         {/* Premium Coming Soon Placeholder Card */}
-        <div className="bg-white border border-slate-200 p-8 sm:p-16 rounded-3xl shadow-sm text-center max-w-2xl mx-auto">
+        <div className="bg-white border border-slate-200 p-8 sm:p-16 rounded-xl text-center max-w-2xl mx-auto">
           {/* Accent Graphical Emblem */}
-          <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-400">
+          <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center mx-auto mb-6 text-slate-400">
             <Newspaper className="w-6 h-6 stroke-[1.75]" />
           </div>
           
