@@ -26,20 +26,9 @@ export default function CareersHero() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-[1.05] mb-8"
           >
-            Build software that moves <br />
+            Build software that moves 
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">real economic capital.</span>
           </motion.h1>
-
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            onClick={scrollToPositions}
-            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-6 py-3.5 rounded-xl shadow-sm transition-all active:scale-[0.98]"
-          >
-            View Open Roles <ArrowDown className="w-4 h-4" />
-          </motion.button>
-          
         </div>
       </div>
     </section>
