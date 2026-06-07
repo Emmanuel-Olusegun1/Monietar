@@ -7,13 +7,10 @@ export default function AboutWhoWeAre() {
   return (
     <section className="py-10 bg-white border-b border-slate-200/60">
       <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-12 items-start">
           
           {/* Left Title Grid Anchor */}
           <div className="lg:col-span-4 sticky top-24">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 block mb-3">
-              Corporate Overview
-            </span>
             <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
               Who We Are
             </h2>

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 export default function AboutHeroPage() {
   return (
-    <div className="bg-[#FCFCFD] text-slate-900 h-[60vh] font-sans antialiased selection:bg-emerald-500/10 selection:text-emerald-900 flex flex-col justify-between">
+    <div className="bg-[#FCFCFD] text-slate-900 h-[50vh] font-sans antialiased selection:bg-emerald-500/10 selection:text-emerald-900 flex flex-col justify-between">
 
       {/* Main High-Impact Moniepoint-Style Hero Section */}
       <main className="relative flex-grow flex items-center justify-center pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden">
