@@ -61,8 +61,8 @@ export default function Header() {
     {
       label: 'Product',
       dropdown: [
-        { label: 'Monietar TAP', href: '/features' },
-        { label: 'API', href: '/api-info' },
+        { label: 'Monietar TAP', href: '/monietar-tap' },
+        { label: 'API', href: '/api-docs' },
       ],
     },
     {
