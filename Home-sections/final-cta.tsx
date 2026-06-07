@@ -40,7 +40,7 @@ export default function FinalCTA() {
               <>
                 {/* Core Headline String */}
                 <motion.h2
-                  className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-4"
+                  className="text-2xl md:text-5xl font-extrabold text-white tracking-tight mb-4"
                   initial={{ opacity: 0, y: 15 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
@@ -78,7 +78,7 @@ export default function FinalCTA() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your business email address..."
-                className="flex-grow bg-transparent px-4 py-3 text-white text-base placeholder-gray-500 outline-none rounded-xl disabled:opacity-50"
+                className="flex-grow bg-transparent px-4 py-3 tetoxt-white text-base placeholder-gray-500 outline-none rounded-xl disabled:opacity-50"
               />
               <button
                 type="submit"
