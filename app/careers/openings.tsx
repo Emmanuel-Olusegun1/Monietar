@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowUpRight, Mail, Users2 } from 'lucide-react';
+import { ArrowUpRight, Users2 } from 'lucide-react';
 
 export default function CareersOpenings() {
   return (
@@ -37,7 +37,7 @@ export default function CareersOpenings() {
               href="mailto:careers@algoritic.com" 
               className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-6 py-3.5 rounded-xl shadow-sm transition-all active:scale-[0.98]"
             >
-              <Mail className="w-4 h-4 stroke-[2.5]" /> Drop us a general portfolio ping <ArrowUpRight className="w-4 h-4" />
+             Drop us a general portfolio ping <ArrowUpRight className="w-4 h-4" />
             </a>
           </div>
         </div>
