@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 export default function AboutHeroPage() {
   return (
-    <div className="bg-[#FCFCFD] text-slate-900 min-h-screen font-sans antialiased selection:bg-emerald-500/10 selection:text-emerald-900 flex flex-col justify-between">
+    <div className="bg-[#FCFCFD] text-slate-900 h-[60vh] font-sans antialiased selection:bg-emerald-500/10 selection:text-emerald-900 flex flex-col justify-between">
 
       {/* Main High-Impact Moniepoint-Style Hero Section */}
       <main className="relative flex-grow flex items-center justify-center pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden">
@@ -34,21 +34,11 @@ export default function AboutHeroPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-slate-900 tracking-tight leading-[1.05] mb-8"
+              className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-slate-900 tracking-tight leading-[1.05] mb-8"
             >
               Financial happiness <br className="hidden sm:inline" />
               for every enterprise, <span className="text-emerald-600">everywhere.</span>
             </motion.h1>
-
-            {/* Core Descriptive Subtitle */}
-            <motion.p
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-lg sm:text-xl text-slate-600 font-normal max-w-3xl mx-auto leading-relaxed"
-            >
-              Monietar’s financial intelligence technology powers the commercial dreams of growing businesses by providing teams with simple, autonomous tools to track, sync, and control multi-currency capital flows.
-            </motion.p>
             
           </div>
         </div>
