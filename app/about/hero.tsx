@@ -1,13 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+
 
 export default function AboutHeroPage() {
   return (
     <div className="bg-[#FCFCFD] text-slate-900 min-h-screen font-sans antialiased selection:bg-emerald-500/10 selection:text-emerald-900 flex flex-col justify-between">
-      <Header />
 
       {/* Main High-Impact Moniepoint-Style Hero Section */}
       <main className="relative flex-grow flex items-center justify-center pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden">
@@ -55,8 +53,6 @@ export default function AboutHeroPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }
