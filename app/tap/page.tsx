@@ -52,7 +52,7 @@ export default function MonietarTapPage() {
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.1]">
-              Every business deserves <br />powerful ledger visibility.
+              Every business deserves powerful ledger visibility.
             </h1>
             
             <p className="text-slate-500 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed font-normal">
