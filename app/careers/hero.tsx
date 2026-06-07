@@ -9,7 +9,7 @@ export default function CareersHero() {
   };
 
   return (
-    <section className="relative h-[50vh] py-24 overflow-hidden bg-[#FCFCFD]">
+    <section className="relative h-[50vh] py-20 overflow-hidden bg-[#FCFCFD]">
       {/* Background depth blurs */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-emerald-500/[0.02] rounded-full blur-[120px]" />
