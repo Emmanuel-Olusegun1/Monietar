@@ -20,7 +20,7 @@ export default function Pricing() {
         'Weekly AI Voice Report Card (Pidgin or English)',
         'Email Support',
       ],
-      cta: 'Join Waitlist — Get Free Access',
+      cta: 'Join Waitlist - Get Free Access',
       popular: false,
       discounted: false,
       originalPrice: null,
@@ -81,12 +81,12 @@ export default function Pricing() {
   };
 
   return (
-    <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 bg-black relative overflow-hidden">
+    <section id="pricing" className="py-10 px-4 sm:px-6 lg:px-8 bg-black relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
         {/* Luxury Green Gradient Orbs */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/10 to-green-600/5 rounded-lg blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-emerald-400/5 to-green-500/10 rounded-full blur-3xl"></div>
+        {/* <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/10 to-green-600/5 rounded-lg blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-emerald-400/5 to-green-500/10 rounded-full blur-3xl"></div> */}
 
         {/* Grid Pattern */}
         <div className="absolute inset-0 opacity-10">
@@ -94,8 +94,8 @@ export default function Pricing() {
         </div>
 
         {/* Accent Lines */}
-        <div className="absolute top-20 left-10 w-px h-32 bg-gradient-to-b from-emerald-500/40 to-transparent"></div>
-        <div className="absolute bottom-20 right-10 w-px h-32 bg-gradient-to-t from-emerald-500/30 to-transparent"></div>
+        {/* <div className="absolute top-20 left-10 w-px h-32 bg-gradient-to-b from-emerald-500/40 to-transparent"></div>
+        <div className="absolute bottom-20 right-10 w-px h-32 bg-gradient-to-t from-emerald-500/30 to-transparent"></div> */}
       </div>
 
       <div className="container mx-auto max-w-7xl relative z-10">
@@ -119,7 +119,7 @@ export default function Pricing() {
           </motion.div>
 
           <motion.h2
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight"
+            className="text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}

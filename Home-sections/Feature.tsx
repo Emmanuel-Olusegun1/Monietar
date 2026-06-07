@@ -113,13 +113,13 @@ export default function Feature() {
           </motion.div> 
           
           <motion.h2 
-            className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-2 md:mb-6 leading-tight"
+            className="text-3xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-2 md:mb-6 leading-tight"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            The Core Engine For Your Business
+           Core Engines For Your Business
             <span className="text-emerald-800"> Financial Intelligence</span>
           </motion.h2>
           

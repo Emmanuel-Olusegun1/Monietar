@@ -41,7 +41,7 @@ export default function FAQ() {
     }, []);
 
     return (
-        <section id="faqs" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+        <section id="faqs" className="py-10 px-4 sm:px-6 lg:px-8 bg-white">
             <div className="container mx-auto max-w-4xl">
                 {/* Header */}
                 <motion.div 
