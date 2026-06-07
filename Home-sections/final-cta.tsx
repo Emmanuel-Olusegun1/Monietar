@@ -40,7 +40,7 @@ export default function FinalCTA() {
               <>
                 {/* Core Headline String */}
                 <motion.h2
-                  className="text-2xl md:text-5xl font-extrabold text-white tracking-tight mb-4"
+                  className="text-1xl md:text-5xl font-extrabold text-white tracking-tight mb-4"
                   initial={{ opacity: 0, y: 15 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
