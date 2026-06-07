@@ -40,13 +40,13 @@ export default function FinalCTA() {
               <>
                 {/* Core Headline String */}
                 <motion.h2
-                  className="text-1xl md:text-5xl font-extrabold text-white tracking-tight mb-4"
+                  className="text-2xl md:text-5xl font-extrabold text-white tracking-tight mb-4"
                   initial={{ opacity: 0, y: 15 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5 }}
                 >
-                  Take Command of Your Store’s <span className="text-emerald-400 mt-2 block"> Financial Intelligence Today.
+                  Take Command of Your Store’s <span className="text-emerald-400 mt-2"> Financial Intelligence Today.
                   </span>
                 </motion.h2>
 
