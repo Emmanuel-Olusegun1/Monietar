@@ -2,38 +2,38 @@
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Smartphone, ShieldCheck, Cpu, Zap, Wifi, Radio, Eye } from 'lucide-react';
+import { Smartphone, Cpu, CheckCircle, Flame, Layers, BadgePercent } from 'lucide-react';
 
 export default function MonietarTapPage() {
   const specs = [
-    { label: "Display Module", value: "5.5-inch HD Touchscreen Interface (Corning Gorilla Glass)" },
-    { label: "Operating System", value: "Monietar SecureOS (Isolated Ledger Environment)" },
-    { label: "Data Pipelines", value: "Native 4G LTE Connectivity, Dual SIM Architecture & High-Speed Wi-Fi" },
-    { label: "Security Layer", value: "PCI-PTS 6.x Certified, End-to-End Cryptographic Ledger Verification" },
-    { label: "Power Battery", value: "5200mAh Lithium-Ion Core (Built to handle up to 18 operational hours)" },
-    { label: "Weight Metric", value: "340g — Formed for daily micro-handling convenience" }
+    { label: "Hardware Form Factor", value: "Dedicated smartphone-class utility shell optimized for single-application performance" },
+    { label: "Core Operating Layer", value: "Monietar LightOS (Stripped of heavy smartphone background processes to ensure speed)" },
+    { label: "Connectivity Pool", value: "Optimized low-bandwidth 2G/3G/4G cellular configurations & Wi-Fi mesh routing" },
+    { label: "Display Properties", value: "5.0-inch high-clarity transactional LCD matrix (Low power consumption profile)" },
+    { label: "Battery Performance", value: "Extended lithium reservoir engineered to power up to 48 hours of constant passive tracking" },
+    { label: "Ecosystem Pricing", value: "Positioned at a fraction of standard entry-level smartphone commercial costs" }
   ];
 
-  const features = [
+  const valueProps = [
     {
-      icon: <Zap className="w-5 h-5 text-emerald-600" />,
-      title: 'Instant Reconciliation',
-      description: 'Every point-of-sale interaction triggers an automated transaction parsing pipeline, eliminating standard end-of-day bookkeeping tasks.'
+      icon: <BadgePercent className="w-5 h-5 text-emerald-600" />,
+      title: 'Built for Absolute Affordability',
+      description: 'By stripping out expensive camera lenses, high-end graphics chips, and heavy consumer smartphone components, we deliver dedicated hardware at a minimal cost boundary.'
     },
     {
-      icon: <Wifi className="w-5 h-5 text-slate-600" />,
-      title: 'Cellular & Offline Sync',
-      description: 'Equipped with dual-SIM arrays and isolated internal caches. Transactions route seamlessly over cellular pools and log natively even when offline.'
+      icon: <Layers className="w-5 h-5 text-slate-600" />,
+      title: 'Pure Ledger Focus',
+      description: 'Zero distractions, zero bloatware. The hardware boots directly into the Monietar ecosystem workspace, ensuring immediate operational readiness for your business management.'
     },
     {
-      icon: <Radio className="w-5 h-5 text-slate-600" />,
-      title: 'Unified Tap-to-Pay',
-      description: 'Processes contactless cards, virtual digital tokens, and standard local banking transaction nodes natively through highly sensitive internal antennas.'
+      icon: <Flame className="w-5 h-5 text-slate-600" />,
+      title: 'Extreme Thermal & Battery Lifespan',
+      description: 'Optimized internal architectures draw minimal active power, allowing business operators in low-power infrastructure zones to track cash flows for days on a single charge.'
     },
     {
-      icon: <Eye className="w-5 h-5 text-slate-600" />,
-      title: 'Crystal Clear Display',
-      description: 'A brilliant 5.5-inch smartphone screen engineered for robust interaction, delivering legible font sizing even in bright, direct operational sunlight.'
+      icon: <Cpu className="w-5 h-5 text-slate-600" />,
+      title: 'Low-Bandwidth Optimization',
+      description: 'Engineered specifically to sync complex multi-currency ledgers smoothly even across highly congested, volatile, or weak rural cellular signals.'
     }
   ];
 
@@ -42,66 +42,87 @@ export default function MonietarTapPage() {
       <Header />
 
       <main className="flex-grow">
-        {/* --- DEVICE HERO SECTION --- */}
+        
+        {/* --- HARDWARE PURPOSE HERO SECTION --- */}
         <section className="relative pt-32 pb-20 overflow-hidden bg-[#FCFCFD]">
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-[-20%] left-50% -translate-x-1/2 w-[800px] h-[800px] bg-emerald-500/[0.02] rounded-full blur-[140px]" />
+            <div className="absolute top-[-20%] left-50% -translate-x-1/2 w-[800px] h-[800px] bg-emerald-500/[0.015] rounded-full blur-[140px]" />
           </div>
 
           <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
               
+              {/* Left Column: Dedicated Hardware Positioning */}
               <div className="lg:col-span-6 space-y-6 text-center lg:text-left">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 text-white text-[11px] font-bold tracking-wider uppercase mx-auto lg:mx-0">
-                  <Smartphone className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" /> Introducing Monietar TAP
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold tracking-wider uppercase mx-auto lg:mx-0">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" /> Dedicated Workspace Hardware
                 </div>
                 
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.05]">
-                  The smart terminal <br className="hidden sm:inline" />built for standalone <br className="hidden sm:inline" />ledger power.
+                  Every business <br className="hidden sm:inline" />deserves powerful <br className="hidden sm:inline" />ledger visibility.
                 </h1>
                 
                 <p className="text-slate-500 text-sm sm:text-base max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
-                  A premium, smartphone-class hardware terminal crafted for modern African commerce. Accept card payments, instantly log multi-currency variables, and stream synchronized transactions straight to your core cloud ledger over native cellular networks.
+                  Monietar TAP is a dedicated, ultra-affordable hardware terminal engineered specifically for merchants who need robust ledger software without the heavy financial burden of purchasing a consumer smartphone. 
                 </p>
 
-                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2 text-xs font-semibold text-slate-600">
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2 text-xs font-semibold text-slate-600">
                   <span className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-xl">
-                    <Cpu className="w-4 h-4 text-slate-400" /> Custom Secure OS
+                    <CheckCircle className="w-4 h-4 text-emerald-500" /> 100% Dedicated Interface
                   </span>
                   <span className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 px-3 py-2 rounded-xl">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" /> PCI-PTS 6.x Compliant
+                    <CheckCircle className="w-4 h-4 text-emerald-500" /> Fraction of Smartphone Cost
                   </span>
                 </div>
               </div>
 
-              {/* Smartphone Mock Frame Vector */}
+              {/* Right Column: Premium Smartphone-Class Utility Container View */}
               <div className="lg:col-span-6 flex justify-center">
-                <div className="w-64 h-[500px] sm:w-72 sm:h-[560px] bg-slate-950 rounded-[48px] p-3.5 shadow-2xl border-4 border-slate-900 relative ring-1 ring-slate-800 flex flex-col justify-between overflow-hidden select-none">
-                  <div className="absolute top-3.5 left-1/2 -translate-x-1/2 w-24 h-4 bg-slate-900 rounded-full z-20 flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-slate-800/80 absolute left-3" />
-                  </div>
+                <div className="w-64 h-[490px] sm:w-70 sm:h-[540px] bg-slate-900 rounded-[44px] p-3.5 shadow-xl border-2 border-slate-800 relative flex flex-col justify-between overflow-hidden select-none">
+                  
+                  {/* Subtle Cameraless Top Notch */}
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 w-16 h-3 bg-slate-950 rounded-full z-20" />
 
-                  <div className="w-full h-full bg-[#FCFCFD] rounded-[36px] overflow-hidden relative flex flex-col justify-between p-5 pt-8 text-slate-900 font-sans z-10 border border-slate-900/5">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">MONIETAR TAP</span>
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  {/* Internal Operational Software Screen View */}
+                  <div className="w-full h-full bg-[#FCFCFD] rounded-[32px] overflow-hidden relative flex flex-col justify-between p-5 pt-8 text-slate-900 font-sans z-10 border border-slate-950/10">
+                    
+                    {/* Software Top Brand Strip */}
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <span className="text-[10px] font-extrabold tracking-wider text-slate-400 uppercase">MONIETAR LIGHTOS</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold font-mono">STANDALONE</span>
                     </div>
 
-                    <div className="my-auto text-center space-y-1">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">READY TO CHARGE</span>
-                      <div className="text-3xl font-black text-slate-950 tracking-tight">₦75,000.00</div>
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md inline-block">USD Conversion Available</span>
-                    </div>
-
-                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 text-center space-y-2">
-                      <div className="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center mx-auto text-slate-400">
-                        <Smartphone className="w-4 h-4 stroke-[2]" />
+                    {/* Simulated Clean Dashboard View */}
+                    <div className="my-auto space-y-4">
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Tracked Revenue</span>
+                        <div className="text-2xl font-black text-slate-900 tracking-tight">₦420,500.00</div>
                       </div>
-                      <p className="text-[11px] font-bold text-slate-600 leading-tight">
-                        Tap Card or Device to Sync Ledger
+                      
+                      {/* Micro Analytical Simulation Matrix */}
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-400 block uppercase">Cash Flow In</span>
+                          <span className="text-xs font-bold text-emerald-600">₦310K</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-400 block uppercase">Sync Status</span>
+                          <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Online
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Utility Notification Grid */}
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 text-center">
+                      <p className="text-[10px] font-bold text-slate-500 leading-normal">
+                        Monietar Software Active &bull; Secure Storage Locked
                       </p>
                     </div>
+
                   </div>
+
                 </div>
               </div>
 
@@ -109,33 +130,33 @@ export default function MonietarTapPage() {
           </div>
         </section>
 
-        {/* --- CORE FEATURES SECTION --- */}
+        {/* --- VALUES / WHY IT EXISTS SECTION --- */}
         <section className="py-20 bg-slate-50/40 border-t border-slate-200/60">
           <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mb-16">
               <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 block mb-2">
-                Integrated Ecosystem
+                Accessible Inclusions
               </span>
               <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
-                Hardware engineered cleanly <br />for high-intensity commerce.
+                Designed to bridge infrastructure <br />and commercial pricing gaps.
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-              {features.map((feat, index) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+              {valueProps.map((prop, index) => (
                 <div 
                   key={index}
-                  className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col justify-between hover:border-slate-300 transition-colors"
+                  className="bg-white border border-slate-200 p-6 sm:p-8 rounded-2xl shadow-sm flex flex-col justify-between hover:border-slate-300 transition-colors"
                 >
                   <div className="space-y-4">
                     <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-                      {feat.icon}
+                      {prop.icon}
                     </div>
-                    <h3 className="text-base font-bold text-slate-900 tracking-tight">
-                      {feat.title}
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                      {prop.title}
                     </h3>
                     <p className="text-slate-500 text-xs sm:text-sm leading-relaxed font-normal">
-                      {feat.description}
+                      {prop.description}
                     </p>
                   </div>
                 </div>
@@ -149,10 +170,10 @@ export default function MonietarTapPage() {
           <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-2xl mx-auto mb-12">
               <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 block mb-2">
-                Technical Blueprint
+                Hardware Parameters
               </span>
               <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                Hardware Parameters
+                Technical Specifications
               </h2>
             </div>
 
