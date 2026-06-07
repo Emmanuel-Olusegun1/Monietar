@@ -24,7 +24,7 @@ export default function CareersHero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-[1.05]"
+            className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-[1.05] mt-12"
           >
             Build software that moves 
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600"> real economic capital.</span>
