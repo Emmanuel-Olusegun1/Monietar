@@ -5,7 +5,7 @@ import { Target, ShieldCheck, Zap } from 'lucide-react';
 
 export default function AboutWhoWeAre() {
   return (
-    <section className="py-20 bg-white border-b border-slate-200/60">
+    <section className="py-10 bg-white border-b border-slate-200/60">
       <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           
