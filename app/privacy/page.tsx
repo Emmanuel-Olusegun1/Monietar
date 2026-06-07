@@ -129,7 +129,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl text-xs sm:text-sm font-medium text-slate-700 space-y-1">
                 <div><span className="text-slate-400">Entity:</span> Algoritic Inc.</div>
-                <div><span className="text-slate-400">Inquiries Email:</span> legal@algoritic.com</div>
+                <div><span className="text-slate-400">Inquiries Email:</span> info@algoritic.com.ng</div>
                 <div><span className="text-slate-400">Attention:</span> Data Privacy & Compliance Desk</div>
               </div>
             </section>
