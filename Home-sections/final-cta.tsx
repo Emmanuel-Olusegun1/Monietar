@@ -46,7 +46,7 @@ export default function FinalCTA() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5 }}
                 >
-                  Take Command of Your Store’s <br className="hidden sm:inline" />
+                  Take Command of Your Store’s
                   <span className="text-emerald-400 mt-2 block sm:inline">
                     Financial Intelligence Today.
                   </span>
@@ -60,7 +60,7 @@ export default function FinalCTA() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: 0.1 }}
                 >
-                  Join our exclusive early-bird cohort to lock in your 50% lifetime discount and eliminate manual bookkeeping forever. Secure your position in the waitlist now to get first-access tokens when our cross-border engine goes live.
+                  Join our exclusive early-bird cohort to lock in your 6 month 50% discount and eliminate manual bookkeeping forever. Secure your position in the waitlist now to get first-access tokens when our cross-border engine goes live.
                 </motion.p>
 
                 {/* Clean Inline Form Block matching image_c79302.jpg */}
