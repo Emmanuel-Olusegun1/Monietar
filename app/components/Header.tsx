@@ -187,7 +187,7 @@ export default function Header() {
               </motion.a> */}
                 
               <motion.a
-                href="/auth/signup"
+                href="/"
                 className="px-5 py-2.5 bg-emerald-600 text-white font-medium text-sm rounded-full cursor-pointer hover:bg-emerald-800 transition-all duration-200 shadow-sm hover:shadow mx-2"
                 whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.98 }}
