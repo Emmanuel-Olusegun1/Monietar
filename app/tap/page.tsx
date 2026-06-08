@@ -52,7 +52,7 @@ export default function MonietarTapPage() {
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.1]">
-              Every business deserves powerful ledger visibility.
+              Every business deserves powerful ledger <span className="text-emerald-600">visibility.</span>
             </h1>
             
             <p className="text-slate-500 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed font-normal">
@@ -79,8 +79,8 @@ export default function MonietarTapPage() {
               <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 block mb-2">
                 Accessible Inclusions
               </span>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
-                Designed to bridge infrastructure <br className="hidden sm:inline" />and commercial pricing gaps.
+              <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+                Designed to bridge infrastructure and commercial pricing gaps.
               </h2>
             </div>
 
@@ -116,7 +116,7 @@ export default function MonietarTapPage() {
               <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 block mb-2">
                 Hardware Parameters
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
                 Technical Specifications
               </h2>
             </div>

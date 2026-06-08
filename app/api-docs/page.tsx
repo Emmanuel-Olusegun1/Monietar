@@ -30,7 +30,7 @@ export default function PureApiComingSoonPage() {
                   <Code2 className="w-3.5 h-3.5 stroke-[2.5]" /> API Reference
                 </div>
                 
-                <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-[1.15]">
+                <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-[1.15]">
                   Platform protocols <br />are provisioning.
                 </h1>
               </div>

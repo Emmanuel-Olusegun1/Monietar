@@ -128,7 +128,7 @@ export default function TermsOfServicePage() {
               </p>
               <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl text-xs sm:text-sm font-medium text-slate-700 space-y-1">
                 <div><span className="text-slate-400">Company:</span> Algoritic Inc.</div>
-                <div><span className="text-slate-400">Contact Line:</span> info@algoritic.com</div>
+                <div><span className="text-slate-400">Contact Line:</span> info@algoritic.com.ng</div>
                 <div><span className="text-slate-400">Desk:</span> Terms & Corporate Compliance Department</div>
               </div>
             </section>

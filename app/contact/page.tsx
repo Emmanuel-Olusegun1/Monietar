@@ -10,13 +10,13 @@ export default function ContactPage() {
       icon: <Mail className="w-5 h-5 text-emerald-600" />,
       title: 'Email Support',
       description: 'For general inquiries, account assistance, or product support issues.',
-      contact: 'support@algoritic.com'
+      contact: 'info@algoritic.com.ng'
     },
     {
       icon: <MessageSquare className="w-5 h-5 text-emerald-600" />,
       title: 'Partnerships & Press',
       description: 'Looking to partner with us or integrate our digital solutions?',
-      contact: 'hello@algoritic.com'
+      contact: 'press@algoritic.com.ng'
     }
   ];
 
@@ -32,7 +32,7 @@ export default function ContactPage() {
               Connect With Us
             </span>
             <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
-              We're here to help your business grow.
+              We're here to help your<span className="text-emerald-600"> business grow.</span>
             </h1>
             <p className="text-slate-500 text-base sm:text-lg max-w-xl mx-auto leading-relaxed font-normal">
               Have questions about our software platforms, dedicated hardware, or custom business solutions? Reach out and our team will get back to you swiftly.
@@ -61,7 +61,7 @@ export default function ContactPage() {
                   {contactMethods.map((method, index) => (
                     <div 
                       key={index}
-                      className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex gap-4 items-start hover:border-slate-300 transition-colors"
+                      className="bg-white border border-slate-200 p-5 rounded-lg  flex gap-4 items-start hover:border-slate-300 transition-colors"
                     >
                       <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
                         {method.icon}
@@ -91,7 +91,7 @@ export default function ContactPage() {
                 <div className="space-y-4 text-xs text-slate-500">
                   <div className="flex items-center gap-3">
                     <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>Algoritic Inc. &bull; Software Architecture Agency & Solutions</span>
+                    <span>Algoritic Inc. &bull; Smart Solution, Infinit Posibilities</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Clock className="w-4 h-4 text-slate-400 shrink-0" />
@@ -102,7 +102,7 @@ export default function ContactPage() {
 
               {/* RIGHT COLUMN: SECURE INTERACTIVE CONTACT FORM */}
               <div className="lg:col-span-7">
-                <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8">
                   <form onSubmit={(e) => e.preventDefault()} className="space-y-5">
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -176,7 +176,7 @@ export default function ContactPage() {
 
                     <button
                       type="submit"
-                      className="w-full bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-xl shadow-md transition-all active:scale-[0.99]"
+                      className="w-full bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-lg transition-all active:scale-[0.99]"
                     >
                       Send Message
                     </button>

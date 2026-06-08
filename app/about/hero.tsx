@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 export default function AboutHeroPage() {
   return (
-    <div className="bg-[#FCFCFD] text-slate-900 h-[50vh] font-sans antialiased selection:bg-emerald-500/10 selection:text-emerald-900 flex flex-col justify-between">
+    <div className="bg-[#FCFCFD] text-slate-900 min-h-[50vh] font-sans antialiased selection:bg-emerald-500/10 selection:text-emerald-900 flex flex-col justify-between">
 
       {/* Main High-Impact Moniepoint-Style Hero Section */}
       <main className="relative flex-grow flex items-center justify-center pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden">
@@ -15,7 +15,7 @@ export default function AboutHeroPage() {
           <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-slate-200/50 rounded-full blur-[100px]" />
         </div>
 
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="container py-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto">
             
             {/* Subtle Accent Tag */}

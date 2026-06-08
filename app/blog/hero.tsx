@@ -14,12 +14,12 @@ export default function BlogHero() {
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Header */}
-        <div className="max-w-3xl mb-16">
+        <div className="max-w-3xl mt-4 mb-16">
           <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 block mb-2">
             The Monietar Journal
           </span>
           <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight leading-none">
-            Perspectives on automation, ledgers, and scale.
+           <span className="text-emerald-600">Perspectives </span> on automation, ledgers, and scale.
           </h1>
         </div>
        

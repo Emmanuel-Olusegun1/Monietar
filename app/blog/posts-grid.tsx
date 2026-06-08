@@ -12,7 +12,7 @@ export default function BlogPostsGrid() {
           <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 block mb-2">
             The Monietar Editorial Room
           </span>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+          <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
             Latest Articles & Insights
           </h2>
         </div>
