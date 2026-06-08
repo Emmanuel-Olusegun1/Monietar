@@ -1,8 +1,9 @@
 'use client';
 
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll } from 'framer-motion';
 import { useRef, useState } from 'react';
 import { Poppins } from 'next/font/google';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 const PoppinsFont = Poppins({
     subsets: ["latin"],
@@ -14,27 +15,35 @@ export default function Hero() {
     const [email, setEmail] = useState('');
     const [subscribed, setSubscribed] = useState(false);
     const [loading, setLoading] = useState(false);
-    const { scrollYProgress } = useScroll({
-        target: containerRef,
-        offset: ["start start", "end start"]
-    });
+    const [error, setError] = useState('');
 
     const handleEmailSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError('');
+        
         try {
-            // Add your email submission logic here
-            // Example: const response = await fetch('/api/waitlist', { method: 'POST', body: JSON.stringify({ email }) });
+            const response = await fetch('/api/waitlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, source: 'hero' }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || 'Submission failed. Please try again.');
+            }
+
             setSubscribed(true);
             setEmail('');
-            setTimeout(() => setSubscribed(false), 3000);
-        } catch (error) {
-            console.error('Error subscribing:', error);
+            setTimeout(() => setSubscribed(false), 5000);
+        } catch (err: any) {
+            console.error('Error subscribing:', err);
+            setError(err.message || 'Something went wrong. Please check your connection.');
         } finally {
             setLoading(false);
         }
     };
-
 
     return (
         <div ref={containerRef} className="relative bg-[#f1f1f1] overflow-hidden mb-0 pb-0">
@@ -72,23 +81,35 @@ export default function Hero() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
-                                    className="flex-1 px-4 py-3 rounded-full border border-gray-300 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                                    disabled={loading}
+                                    className="flex-1 px-5 py-3 rounded-full border border-gray-300 bg-white text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all disabled:opacity-70"
                                 />
                                 <motion.button
                                     type="submit"
                                     disabled={loading}
-                                    className="bg-emerald-800 text-white font-medium px-6 py-3 rounded-full hover:bg-emerald-700 transition-all duration-200 disabled:opacity-50 cursor-pointer"
+                                    className="bg-emerald-800 text-white font-medium px-6 py-3 rounded-full hover:bg-emerald-700 transition-all duration-200 disabled:opacity-70 cursor-pointer flex items-center justify-center gap-2 min-w-[140px]"
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                 >
-                                    {loading ? 'Joining...' : 'Join Waitlist'}
+                                    {loading ? (
+                                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                    ) : (
+                                        'Join Waitlist'
+                                    )}
                                 </motion.button>
                             </form>
+
+                            {error && (
+                                <p className="text-rose-600 text-xs mt-3 font-semibold flex items-center justify-center gap-1.5">
+                                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {error}
+                                </p>
+                            )}
+
                             {subscribed && (
                                 <motion.p
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="text-emerald-600 text-sm mt-3 font-medium"
+                                    className="text-emerald-700 text-sm mt-3 font-semibold"
                                 >
                                     ✓ Thanks for joining! Check your email soon.
                                 </motion.p>
