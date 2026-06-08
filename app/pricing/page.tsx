@@ -132,13 +132,13 @@ export default function PricingPage() {
               {/* Toggles */}
               <div className="flex flex-col sm:flex-row justify-center items-center gap-6 mt-12">
                 {/* Billing Toggle */}
-                <div className="bg-slate-100 rounded-2xl p-1.5 shadow-sm border border-slate-200 inline-flex">
+                <div className="bg-slate-100 rounded-2xl p-1.5 border border-slate-200 inline-flex">
                   <button
                     type="button"
                     onClick={() => setBillingPeriod('monthly')}
                     className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
                       billingPeriod === 'monthly'
-                        ? 'bg-emerald-600 text-white shadow-md'
+                        ? 'bg-emerald-600 text-white'
                         : 'text-slate-500 hover:text-slate-800 bg-transparent'
                     }`}
                   >
@@ -149,7 +149,7 @@ export default function PricingPage() {
                     onClick={() => setBillingPeriod('yearly')}
                     className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
                       billingPeriod === 'yearly'
-                        ? 'bg-emerald-600 text-white shadow-md'
+                        ? 'bg-emerald-600 text-white'
                         : 'text-slate-500 hover:text-slate-800 bg-transparent'
                     }`}
                   >
@@ -158,7 +158,7 @@ export default function PricingPage() {
                 </div>
 
                 {/* Currency Toggle */}
-                <div className="bg-slate-100 rounded-2xl p-1.5 shadow-sm border border-slate-200 inline-flex">
+                <div className="bg-slate-100 rounded-2xl p-1.5 border border-slate-200 inline-flex">
                   <button
                     type="button"
                     onClick={() => setCurrency('NGN')}
@@ -193,7 +193,7 @@ export default function PricingPage() {
                     {/* Popular Plan Badge */}
                     {plan.popular && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20 whitespace-nowrap">
-                        <div className="bg-gradient-to-r from-emerald-600 to-green-600 text-white text-xs font-black px-6 py-1.5 rounded-full shadow-md tracking-wider">
+                        <div className="bg-gradient-to-r from-emerald-600 to-green-600 text-white text-xs font-black px-6 py-1.5 rounded-full tracking-wider">
                           MOST POPULAR
                         </div>
                       </div>
@@ -202,7 +202,7 @@ export default function PricingPage() {
                     {/* 50% Off Waitlist Identifier Badge */}
                     {plan.discounted && !plan.popular && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20 whitespace-nowrap">
-                        <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-5 py-1.5 rounded-full shadow-sm bg-opacity-10">
+                        <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-5 py-1.5 rounded-full bg-opacity-10">
                           50% WAITLIST OFF
                         </div>
                       </div>
@@ -211,7 +211,7 @@ export default function PricingPage() {
                     <div
                       className={`relative rounded-3xl border-2 transition-all duration-500 overflow-hidden ${
                         plan.popular
-                          ? 'border-emerald-500 bg-white shadow-2xl shadow-emerald-900/5'
+                          ? 'border-emerald-500 bg-white '
                           : 'border-slate-200 bg-slate-50/50 hover:border-emerald-500/40'
                       }`}
                     >
@@ -272,7 +272,7 @@ export default function PricingPage() {
                           href={plan.url}
                           className={`block text-center w-full py-3.5 rounded-xl font-bold text-base transition-all duration-300 ${
                             plan.popular
-                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/15 hover:scale-[1.02]'
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-[1.02]'
                               : 'bg-slate-800 hover:bg-emerald-600 text-white border border-slate-700 hover:border-emerald-600 hover:scale-[1.02]'
                           }`}
                         >
@@ -299,7 +299,7 @@ export default function PricingPage() {
               </p>
             </div>
 
-            <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-md">
+            <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -349,7 +349,7 @@ export default function PricingPage() {
         {/* --- UNIFIED BOTTOM INFOCARD & NOTES --- */}
         <section className="pb-24 pt-4 px-4 sm:px-6 lg:px-8 bg-slate-50">
           <div className="container mx-auto max-w-7xl text-center">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 max-w-3xl mx-auto shadow-sm">
+            <div className="bg-white rounded-2xl p-6 border border-slate-200 max-w-3xl mx-auto">
               <h4 className="text-sm font-bold text-slate-800 tracking-wider uppercase mb-4 flex items-center justify-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" /> All infrastructure accounts include:
               </h4>

@@ -20,7 +20,6 @@ const productLinks: LinkProps[] = [
   { title: 'Monietar TAP', link: '/tap' },
   { title: 'Pricing', link: '/pricing' },
   { title: 'Use Cases', link: '/use-cases' },
-  { title: 'Testimonials', link: '/testimonials' },
   { title: 'API', link: '/api-doc' },
 ];
 
