@@ -17,19 +17,19 @@ const company: LinkProps[] = [
 ];
 
 const productLinks: LinkProps[] = [
-  { title: 'Features', link: '#features' },
-  { title: 'Pricing', link: '#pricing' },
-  { title: 'Use Cases', link: '#use-cases' },
-  { title: 'Testimonials', link: '#testimonials' },
-  { title: 'API', link: '#api' },
+  { title: 'Monietar TAP', link: '/tap' },
+  { title: 'Pricing', link: '/pricing' },
+  { title: 'Use Cases', link: '/use-cases' },
+  { title: 'Testimonials', link: '/testimonials' },
+  { title: 'API', link: '/api-doc' },
 ];
 
 const resourceLinks: LinkProps[] = [
-  { title: 'Blog', link: '#blog' },
+  { title: 'Blog', link: '/blog' },
   { title: 'Doc', link: 'https://monietardoc.hashnode.space/', external: true },
-  { title: 'Webinars', link: '#webinars' },
-  { title: 'Help Center', link: '#help' },
-  { title: 'Community', link: '#community' },
+  { title: 'Webinars', link: '/webinars' },
+  { title: 'Help Center', link: '/help' },
+  { title: 'Community', link: '/community' },
 ];
 
 export default function Footer() {
