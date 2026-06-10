@@ -188,9 +188,9 @@ export default function Signup() {
     if (!cleaned.startsWith('+')) return '+' + cleaned.replace(/[^\d]/g, '');
     const num = cleaned.slice(1).replace(/\D/g, '');
     if (num.length <= 3) return '+' + num;
-    if (num.length <= 6) return `+${num.slice(0,3)} ${num.slice(3,6)} ${num.slice(6)}`;
-    if (num.length <= 9) return `+${num.slice(0,3)} ${num.slice(3,6)} ${num.slice(6,9)} ${num.slice(9)}`;
-    return `+${num.slice(0,3)} ${num.slice(3,6)} ${num.slice(6,9)} ${num.slice(9,13)}`;
+    if (num.length <= 6) return `+${num.slice(0,3)} ${num.slice(3)}(`;
+    if (num.length <= 9) return `+${num.slice(0,3)} ${num.slice(3,6)} ${num.slice(6)}`;
+    return `+${num.slice(0,3)} ${num.slice(3,6)} ${num.slice(6,10)} ${num.slice(10)}`;
   };
 
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -207,7 +207,7 @@ export default function Signup() {
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: { background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' },
+          style: { background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '8px' },
           success: { duration: 3000, iconTheme: { primary: '#059669', secondary: '#fff' } },
           error: { duration: 5000, iconTheme: { primary: '#dc2626', secondary: '#fff' } },
           loading: { duration: Infinity, iconTheme: { primary: '#2563eb', secondary: '#fff' } },
@@ -227,7 +227,7 @@ export default function Signup() {
         
         {/* Value Proposition Content Overlay */}
         <div className="absolute bottom-16 left-16 right-16 z-10 text-white max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-6 backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 mb-6 backdrop-blur-md">
             <Sparkles className="w-4 h-4 text-emerald-400" />
             <span className="text-xs font-semibold text-emerald-300 tracking-wide uppercase">Automated Intelligence</span>
           </div>
@@ -247,7 +247,7 @@ export default function Signup() {
           <button 
             type="button"
             onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-            className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all shadow-sm"
+            className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all"
           >
             <Globe className="h-4 w-4 text-slate-400" />
             <span>{currentLanguage}</span>
@@ -255,12 +255,12 @@ export default function Signup() {
           </button>
 
           {showLanguageDropdown && (
-            <div className="absolute top-full right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 w-44 overflow-hidden p-1">
+            <div className="absolute top-full right-0 mt-2 bg-white border border-slate-200 rounded-lg z-20 w-44 overflow-hidden p-1">
               {languages.map((language) => (
                 <button
                   key={language.code}
                   onClick={() => selectLanguage(language.name)}
-                  className="block w-full text-left px-4 py-2 text-xs font-semibold rounded-xl hover:bg-slate-50 text-slate-700 hover:text-emerald-600 transition-colors"
+                  className="block w-full text-left px-4 py-2 text-xs font-semibold rounded-lg hover:bg-slate-50 text-slate-700 hover:text-emerald-600 transition-colors"
                 >
                   {language.name}
                 </button>
@@ -278,12 +278,12 @@ export default function Signup() {
 
           {/* Authentication Ingestion Segment Toggles */}
           <div className="w-full mb-6">
-            <div className="flex bg-slate-100 rounded-2xl p-1.5 border border-slate-200">
+            <div className="flex bg-slate-100 rounded-lg p-1.5 border border-slate-200">
               <button
                 type="button"
                 onClick={() => setSignupMethod('email')}
-                className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all ${
-                  signupMethod === 'email' ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-500 hover:text-slate-800'
+                className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+                  signupMethod === 'email' ? 'bg-white text-emerald-600' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {getTranslation('signUpWithEmail', 'Email Ingestion')}
@@ -291,8 +291,8 @@ export default function Signup() {
               <button
                 type="button"
                 onClick={() => setSignupMethod('phone')}
-                className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all ${
-                  signupMethod === 'phone' ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-500 hover:text-slate-800'
+                className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+                  signupMethod === 'phone' ? 'bg-white text-emerald-600' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {getTranslation('signUpWithPhone', 'SMS Gateway')}
@@ -317,7 +317,7 @@ export default function Signup() {
                     value={formData.business_name}
                     onChange={handleChange}
                     onBlur={(e) => validateBusinessName(e.target.value)}
-                    className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
+                    className={`w-full px-4 py-2.5 rounded-lg border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
                       formErrors.business_name ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-100'
                     }`}
                     placeholder="e.g. Alata Retail Ltd"
@@ -340,7 +340,7 @@ export default function Signup() {
                     id="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
+                    className={`w-full px-4 py-2.5 rounded-lg border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
                       formErrors.name ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-100'
                     }`}
                     placeholder="Full Name"
@@ -361,7 +361,7 @@ export default function Signup() {
                     id="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
+                    className={`w-full px-4 py-2.5 rounded-lg border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
                       formErrors.email ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-100'
                     }`}
                     placeholder="merchant@company.com"
@@ -377,7 +377,7 @@ export default function Signup() {
                     id="phone"
                     value={formData.phone}
                     onChange={handlePhoneChange}
-                    className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
+                    className={`w-full px-4 py-2.5 rounded-lg border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
                       formErrors.phone ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-100'
                     }`}
                     placeholder={t.phonePlaceholder || "+234 ..."}
@@ -385,9 +385,9 @@ export default function Signup() {
                     maxLength={20}
                   />
                   {formErrors.phone && <p className="text-red-500 text-xs mt-1.5 font-medium">{formErrors.phone}</p>}
-                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs text-slate-500 font-medium leading-relaxed">
+                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-xs text-slate-500 font-medium leading-relaxed">
                     {t.phoneFormatHint || "Enter international routing structure starting with operational corridor country codes."}
-                    <div className="text-emerald-600 mt-1 font-semibold">Corridor Vectors: +234 (NG) | +225 (CI) | +221 (SN)</div>
+                    <div className="text-emerald-600 mt-1 font-semibold">Trade Corridors: +234 (Nigeria) | +229 (Benin Republic)</div>
                   </div>
                 </div>
               )}
@@ -402,7 +402,7 @@ export default function Signup() {
                       id="password"
                       value={formData.password}
                       onChange={handleChange}
-                      className={`w-full px-4 py-2.5 pr-10 rounded-xl border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
+                      className={`w-full px-4 py-2.5 pr-10 rounded-lg border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
                         formErrors.password ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-100'
                       }`}
                       placeholder="••••••••"
@@ -427,7 +427,7 @@ export default function Signup() {
                       id="confirm_password"
                       value={formData.confirm_password}
                       onChange={handleChange}
-                      className={`w-full px-4 py-2.5 pr-10 rounded-xl border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
+                      className={`w-full px-4 py-2.5 pr-10 rounded-lg border bg-slate-50 text-slate-900 font-medium text-sm outline-none transition-all placeholder-slate-400 focus:bg-white focus:ring-2 ${
                         formErrors.confirm_password ? 'border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-100'
                       }`}
                       placeholder="••••••••"
@@ -449,7 +449,7 @@ export default function Signup() {
               <button
                 type="submit"
                 disabled={isSigningup}
-                className="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 text-white disabled:text-slate-400 font-bold py-3 rounded-xl transition-all shadow-md hover:shadow-lg shadow-emerald-600/10 active:scale-[0.99] flex items-center justify-center gap-3 disabled:cursor-not-allowed"
+                className="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 text-white disabled:text-slate-400 font-bold py-3 rounded-lg transition-all active:scale-[0.99] flex items-center justify-center gap-3 disabled:cursor-not-allowed"
               >
                 {isSigningup ? (
                   <>
