@@ -13,15 +13,15 @@ export default function PricingPage() {
   const plans = {
     free: {
       name: 'Retail Starter',
-      description: 'Perfect for everyday retail store owners replacing their paper notebooks with automation.',
+      description: 'Perfect for everyday retail store owners replacing their paper notebooks with a clean digital ledger.',
       price: { NGN: 0, XOF: 0 },
       yearlyPrice: { NGN: 0, XOF: 0 },
       features: [
-        'Auto-log up to 150 bank transfers or cash sales monthly',
-        '1 Connected Core Bank Account',
-        'Independent Physical Cash Vault tracking',
-        'Weekly AI Voice Report Card (Pidgin or English)',
-        'Email Support',
+        'Manual bookkeeping record entries (Unlimited rows)',
+        'Basic Profit & Loss (P&L) manual dashboard views',
+        '1 Independent Physical Cash Vault tracking profile',
+        'Basic local product catalog & sales summary views',
+        'Standard customer care email channels',
       ],
       cta: 'Join Waitlist - Get Free Access',
       popular: false,
@@ -36,12 +36,12 @@ export default function PricingPage() {
       yearlyPrice: { NGN: 75000, XOF: 28000 },
       originalPrice: { NGN: 15000, XOF: 5600 },
       features: [
-        'Auto-log up to 2,500 transactions monthly',
-        'Unlimited Connected Bank Accounts',
-        'Multi-Device Alert Syncing for shop assistants',
-        'Live, instant Profit & Loss (P&L) dashboard views',
-        'Automated Inventory Sourcing & stock alerts',
-        'Priority email & chat support',
+        'Auto-log up to 2,500 bank transfers or cash sales monthly via API listeners',
+        'Unlimited Connected Core Merchant Bank Accounts',
+        'Multi-Device Alert Syncing for shop floor assistants',
+        'Live, instant Profit & Loss (P&L) automated dashboard views',
+        'Automated Inventory Sourcing & running low-stock alerts',
+        'Priority email & developer team chat support',
       ],
       cta: 'Lock In 50% Discount',
       popular: true,
@@ -55,11 +55,12 @@ export default function PricingPage() {
       yearlyPrice: { NGN: 225000, XOF: 85000 },
       originalPrice: { NGN: 45000, XOF: 17000 },
       features: [
-        'Unlimited Monthly Transactions across all channels',
+        'Unlimited Monthly Transactions across all background API tracking channels',
         'Dual-Currency Ledger Engine (Naira ⇄ CFA Franc)',
-        'Automated Parallel Market Rate Auto-Indexing',
+        'Automated Parallel Market Rate Auto-Indexing API synchronization',
         '1-Tap Audit-Ready Financial Statement Exports (PDF/Excel)',
-        'Custom AI Accounting Chatbot assistance',
+        'Custom AI Accounting Chatbot assistance & hands-free parsing analytics',
+        'Weekly AI Voice Report Card summaries (Pidgin or English)',
         'Dedicated account priority channels',
       ],
       cta: 'Lock In 50% Discount',
@@ -70,18 +71,18 @@ export default function PricingPage() {
   };
 
   const comparisonRows = [
-    { feature: 'Monthly Transaction Limit', free: 'Up to 150', pro: 'Up to 2,500', premium: 'Unlimited' },
-    { feature: 'Connected Bank Accounts', free: '1 Account', pro: 'Unlimited', premium: 'Unlimited' },
-    { feature: 'Physical Cash Vault Tracking', free: true, pro: true, premium: true },
-    { feature: 'AI Voice Report Card (Pidgin/Eng)', free: true, pro: true, premium: true },
+    { feature: 'Monthly Transaction Mode', free: 'Manual Entry (Unlimited)', pro: 'Auto-Log up to 2,500', premium: 'Unlimited Automated' },
+    { feature: 'Connected Core Bank Accounts', free: 'None (Manual Vault Only)', pro: 'Unlimited', premium: 'Unlimited' },
+    { feature: 'Physical Cash Vault Tracking', free: '1 Profile', pro: 'Unlimited Profiles', premium: 'Unlimited Profiles' },
+    { feature: 'Profit & Loss (P&L) Dashboard', free: 'Basic Manual Views', pro: 'Live Automated Sync', premium: 'Live Automated Sync' },
     { feature: 'Shop Assistant Multi-Device Sync', free: false, pro: true, premium: true },
-    { feature: 'Live Profit & Loss (P&L) View', free: true, pro: true, premium: true },
     { feature: 'Inventory Sourcing & Alerts', free: false, pro: true, premium: true },
+    { feature: '1-Tap Financial Exports (PDF/Excel)', free: false, pro: true, premium: true },
     { feature: 'Dual-Currency Ledger Engine', free: false, pro: false, premium: 'Naira ⇄ CFA Franc' },
     { feature: 'Parallel Market Auto-Indexing', free: false, pro: false, premium: true },
-    { feature: '1-Tap Financial Exports (PDF/Excel)', free: false, pro: true, premium: true },
     { feature: 'Custom AI Accounting Chatbot', free: false, pro: false, premium: true },
-    { feature: 'Support Tier', free: 'Email Support', pro: 'Priority Email & Chat', premium: 'Dedicated Priority Channels' },
+    { feature: 'Weekly AI Voice Report Card', free: false, pro: false, premium: 'True (Pidgin/English)' },
+    { feature: 'Support Tier', free: 'Standard Email', pro: 'Priority Email & Chat', premium: 'Dedicated Priority Channels' },
   ];
 
   const getPrice = (planKey: keyof typeof plans) => {
@@ -211,7 +212,7 @@ export default function PricingPage() {
                     <div
                       className={`relative rounded-3xl border-2 transition-all duration-500 overflow-hidden ${
                         plan.popular
-                          ? 'border-emerald-500 bg-white '
+                          ? 'border-emerald-500 bg-white shadow-xl shadow-slate-200/50'
                           : 'border-slate-200 bg-slate-50/50 hover:border-emerald-500/40'
                       }`}
                     >
@@ -250,7 +251,7 @@ export default function PricingPage() {
                         </div>
 
                         {/* Features List */}
-                        <ul className="space-y-4 mb-8 min-h-[240px]">
+                        <ul className="space-y-4 mb-8 min-h-[260px]">
                           {plan.features.map((feature, featureIndex) => (
                             <li key={featureIndex} className="flex items-start gap-3">
                               <div
@@ -272,7 +273,7 @@ export default function PricingPage() {
                           href={plan.url}
                           className={`block text-center w-full py-3.5 rounded-xl font-bold text-base transition-all duration-300 ${
                             plan.popular
-                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-[1.02]'
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-[1.02] shadow-md'
                               : 'bg-slate-800 hover:bg-emerald-600 text-white border border-slate-700 hover:border-emerald-600 hover:scale-[1.02]'
                           }`}
                         >
@@ -299,7 +300,7 @@ export default function PricingPage() {
               </p>
             </div>
 
-            <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white">
+            <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -316,21 +317,21 @@ export default function PricingPage() {
                         <td className="p-5 font-bold text-slate-800 tracking-tight">
                           {row.feature}
                         </td>
-                        
+
                         {/* Retail Starter Check/Value */}
                         <td className="p-5 text-center text-slate-500 font-medium">
                           {typeof row.free === 'boolean' ? (
                             row.free ? <Check className="w-4 h-4 text-emerald-600 mx-auto stroke-[3]" /> : <X className="w-4 h-4 text-slate-300 mx-auto" />
                           ) : row.free}
                         </td>
-                        
+
                         {/* Growing Merchant Check/Value */}
                         <td className="p-5 text-center font-semibold bg-emerald-50/[0.15]">
                           {typeof row.pro === 'boolean' ? (
                             row.pro ? <Check className="w-4 h-4 text-emerald-600 mx-auto stroke-[3]" /> : <X className="w-4 h-4 text-slate-300 mx-auto" />
                           ) : row.pro}
                         </td>
-                        
+
                         {/* Borderless Pro Check/Value */}
                         <td className="p-5 text-center font-medium">
                           {typeof row.premium === 'boolean' ? (
@@ -349,7 +350,7 @@ export default function PricingPage() {
         {/* --- UNIFIED BOTTOM INFOCARD & NOTES --- */}
         <section className="pb-24 pt-4 px-4 sm:px-6 lg:px-8 bg-slate-50">
           <div className="container mx-auto max-w-7xl text-center">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 max-w-3xl mx-auto">
+            <div className="bg-white rounded-2xl p-6 border border-slate-200 max-w-3xl mx-auto shadow-sm">
               <h4 className="text-sm font-bold text-slate-800 tracking-wider uppercase mb-4 flex items-center justify-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" /> All infrastructure accounts include:
               </h4>
@@ -360,7 +361,7 @@ export default function PricingPage() {
                 </div>
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-                  Zero transaction manipulation
+                  Zero transaction manipulation architecture
                 </div>
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
