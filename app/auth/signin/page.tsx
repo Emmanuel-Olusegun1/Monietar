@@ -1,4 +1,4 @@
-// app/auth/signin/page.tsx
+// app/auth/signup/page.tsx
 'use client';
 
 import Image from 'next/image';
@@ -7,20 +7,21 @@ import { useState, FormEvent, ChangeEvent, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
-import { translations, languages } from './signintranslations';
+import { translations, languages } from '../signin/signintranslations'; // Reusing your translation structure
 import { Loader2, Eye, EyeOff, Globe, ChevronDown } from 'lucide-react';
 
 // Modern Supabase client (2025+)
 import { supabase } from '@/utils/supabase/client';
 
-export default function Signin() {
-  const [isSigningIn, setIsSigningIn] = useState(false);
+export default function Signup() {
+  const [isSigningUp, setIsSigningUp] = useState(false);
   // const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('English');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [signinMethod, setSigninMethod] = useState<'email' | 'phone'>('email');
+  const [signupMethod, setSignupMethod] = useState<'email' | 'phone'>('email');
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
     phone: '',
     password: '',
@@ -46,29 +47,29 @@ export default function Signin() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setIsSigningIn(true);
-    const loadingToast = toast.loading(signinMethod === 'email' ? 'Signing in...' : 'Sending code...');
+    setIsSigningUp(true);
+    const loadingToast = toast.loading(signupMethod === 'email' ? 'Creating account...' : 'Sending code...');
 
     try {
-      if (signinMethod === 'email') {
-        const { error } = await supabase.auth.signInWithPassword({
+      if (signupMethod === 'email') {
+        const { error } = await supabase.auth.signUp({
           email: formData.email.trim(),
           password: formData.password,
+          options: {
+            data: {
+              full_name: formData.name.trim(),
+            },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
         });
 
         if (error) {
-          toast.error(
-            error.message.includes('Invalid login credentials')
-              ? 'Invalid email or password'
-              : error.message.includes('Email not confirmed')
-              ? 'Please verify your email first'
-              : error.message
-          );
+          toast.error(error.message);
           return;
         }
 
-        toast.success(t.thankYou || 'Welcome back!');
-        setTimeout(() => router.push('/dashboard'), 1000);
+        toast.success('Registration successful! Please check your email for verification.');
+        setFormData({ name: '', email: '', phone: '', password: '' });
       } else {
         let phone = formData.phone.replace(/\s/g, '');
         if (!phone.startsWith('+')) {
@@ -76,7 +77,14 @@ export default function Signin() {
           return;
         }
 
-        const { error } = await supabase.auth.signInWithOtp({ phone });
+        const { error } = await supabase.auth.signInWithOtp({
+          phone,
+          options: {
+            data: {
+              full_name: formData.name.trim(),
+            },
+          },
+        });
 
         if (error) {
           toast.error(error.message);
@@ -85,74 +93,49 @@ export default function Signin() {
 
         toast.success('Verification code sent to your phone!');
         setTimeout(() => {
-          router.push(`/auth/verify-phone?phone=${encodeURIComponent(phone)}`);
+          router.push(`/auth/verify-phone?phone=${encodeURIComponent(phone)}&mode=signup`);
         }, 1500);
       }
     } catch (err) {
       toast.error('Something went wrong. Please try again.');
     } finally {
-      setIsSigningIn(false);
+      setIsSigningUp(false);
       toast.dismiss(loadingToast);
     }
   };
 
-//Signin with google function
-// const signInWithGoogle = async () => {
-//   setIsGoogleLoading(true);
-//   try {
-//     console.log('Starting Google sign-in flow...');
-    
-//     const { data, error } = await supabase.auth.signInWithOAuth({
-//       provider: 'google',
-//       options: {
-//         redirectTo: `${window.location.origin}/auth/callback?source=signin&next=/dashboard`,
-//         queryParams: {
-//           access_type: 'offline',
-//           prompt: 'consent'
-//         }
-//       }
-//     });
-
-//     if (error) {
-//       console.error('Google sign in error:', error);
-//       toast.error(error.message || 'Failed to sign in with Google');
-//       setIsGoogleLoading(false);
-//     } else {
-//       console.log('Google OAuth initiated successfully');
-//       // Don't set loading to false - let redirect handle it
-//       // The callback route will check if user exists and redirect appropriately
-//     }
-//   } catch (error: any) {
-//     console.error('Unexpected error:', error);
-//     toast.error('Something went wrong. Please try again.');
-//     setIsGoogleLoading(false);
-//   }
-// };
-
-  // UPDATED: Redirect to forgot password page instead of handling it here
-  const handleForgotPassword = () => {
-    if (signinMethod !== 'email') {
-      toast.error('Please use email to reset your password');
-      return;
-    }
-
-    if (!formData.email) {
-      // Redirect to forgot password page without email
-      router.push('/auth/forgot-password');
-    } else {
-      // Redirect with email pre-filled
-      router.push(`/auth/forgot-password?email=${encodeURIComponent(formData.email)}`);
-    }
-  };
+  // Sign up with google function
+  // const signUpWithGoogle = async () => {
+  //   setIsGoogleLoading(true);
+  //   try {
+  //     const { error } = await supabase.auth.signInWithOAuth({
+  //       provider: 'google',
+  //       options: {
+  //         redirectTo: `${window.location.origin}/auth/callback?source=signup&next=/dashboard`,
+  //         queryParams: {
+  //           access_type: 'offline',
+  //           prompt: 'consent'
+  //         }
+  //       }
+  //     });
+  //     if (error) {
+  //       toast.error(error.message || 'Failed to connect with Google');
+  //       setIsGoogleLoading(false);
+  //     }
+  //   } catch (error: any) {
+  //     toast.error('Something went wrong. Please try again.');
+  //     setIsGoogleLoading(false);
+  //   }
+  // };
 
   const formatPhoneNumber = (value: string) => {
     const cleaned = value.replace(/[^\d+\s]/g, '');
     if (!cleaned.startsWith('+')) return '+' + cleaned.replace(/[^\d]/g, '');
     const num = cleaned.slice(1).replace(/\D/g, '');
     if (num.length <= 3) return '+' + num;
-    if (num.length <= 6) return `+${num.slice(0,3)} ${num.slice(3)}`;
-    if (num.length <= 9) return `+${num.slice(0,3)} ${num.slice(3,6)} ${num.slice(6)}`;
-    return `+${num.slice(0,3)} ${num.slice(3,6)} ${num.slice(6,10)} ${num.slice(10)}`;
+    if (num.length <= 6) return `+${num.slice(0, 3)} ${num.slice(3)}`;
+    if (num.length <= 9) return `+${num.slice(0, 3)} ${num.slice(3, 6)} ${num.slice(6)}`;
+    return `+${num.slice(0, 3)} ${num.slice(3, 6)} ${num.slice(6, 10)} ${num.slice(10)}`;
   };
 
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -217,17 +200,21 @@ export default function Signin() {
 
         {/* Form Container */}
         <div className="w-full max-w-md py-4 pt-[120px] overflow-y-auto md:pt-8 scrollbar-hide">
-          <h1 className='text-3xl font-bold mb-2 text-center text-white'>{t.welcome}</h1>
-          <p className='mb-6 text-gray-300 text-center'>{t.subtitle}</p>
+          <h1 className='text-3xl font-bold mb-2 text-center text-white'>
+            {(t as any).createAccount || 'Get Started'}
+          </h1>
+          <p className='mb-6 text-gray-300 text-center'>
+            {(t as any).signupSubtitle || 'Create an account to track your finances effortlessly'}
+          </p>
 
           {/* Toggle */}
           <div className="w-full mb-4">
             <div className="flex bg-gray-800 rounded-lg p-1">
               <button
                 type="button"
-                onClick={() => setSigninMethod('email')}
+                onClick={() => setSignupMethod('email')}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                  signinMethod === 'email'
+                  signupMethod === 'email'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-gray-400 hover:text-white'
                 }`}
@@ -236,9 +223,9 @@ export default function Signin() {
               </button>
               <button
                 type="button"
-                onClick={() => setSigninMethod('phone')}
+                onClick={() => setSignupMethod('phone')}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                  signinMethod === 'phone'
+                  signupMethod === 'phone'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-gray-400 hover:text-white'
                 }`}
@@ -255,8 +242,21 @@ export default function Signin() {
             className="w-full"
           >
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Full Name Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  id="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 rounded-sm border-b border-gray-600 focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white"
+                  placeholder={(t as any).fullName || 'Full Name'}
+                  required
+                />
+              </div>
+
               {/* Email or Phone Input */}
-              {signinMethod === 'email' ? (
+              {signupMethod === 'email' ? (
                 <div className="relative">
                   <input
                     type="email"
@@ -290,8 +290,8 @@ export default function Signin() {
                 </div>
               )}
 
-              {/* Password */}
-              {signinMethod === 'email' && (
+              {/* Password (Only required for Email signup method) */}
+              {signupMethod === 'email' && (
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -312,32 +312,19 @@ export default function Signin() {
                 </div>
               )}
 
-              {/* Forgot Password */}
-              {signinMethod === 'email' && (
-                <div className="text-right">
-                  <button
-                    type="button"
-                    onClick={handleForgotPassword}
-                    className="text-sm hover:cursor-pointer text-emerald-400 hover:text-emerald-300 underline"
-                  >
-                    {(t as any).forgotPassword || 'Forgot password?'}
-                  </button>
-                </div>
-              )}
-
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isSigningIn}
+                disabled={isSigningUp}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-medium py-2 rounded-lg transition-colors hover:cursor-pointer flex items-center justify-center gap-3 disabled:cursor-not-allowed"
               >
-                {isSigningIn ? (
+                {isSigningUp ? (
                   <>
                     <Loader2 className="animate-spin h-4 w-4" />
-                    {signinMethod === 'email' ? 'Signing in...' : 'Sending code...'}
+                    {signupMethod === 'email' ? 'Creating account...' : 'Sending code...'}
                   </>
-                ) : signinMethod === 'email' ? (
-                  t.signin || 'Sign In'
+                ) : signupMethod === 'email' ? (
+                  (t as any).signup || 'Sign Up'
                 ) : (
                   t.signInWithPhone || 'Send Code'
                 )}
@@ -356,8 +343,8 @@ export default function Signin() {
               {/* Google Button */}
               {/* <button
                 type="button"
-                onClick={signInWithGoogle}
-                disabled={isSigningIn || isGoogleLoading}
+                onClick={signUpWithGoogle}
+                disabled={isSigningUp || isGoogleLoading}
                 className="w-full flex justify-center hover:cursor-pointer items-center gap-2 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-gray-200 font-medium hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGoogleLoading ? (
@@ -374,16 +361,16 @@ export default function Signin() {
                       <path fill="#4caf50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.9 11.9 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44" />
                       <path fill="#1976d2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
                     </svg>
-                    {t.signInWithGoogle || 'Continue with Google'}
+                    {(t as any).signUpWithGoogle || 'Sign up with Google'}
                   </>
                 )}
               </button> */}
 
-              {/* Sign Up Link */}
+              {/* Sign In Link */}
               <div className="text-center text-sm text-gray-400 pt-2">
-                {t.dontHaveAccount}{' '}
-                <Link href="/auth/signup" className="text-emerald-400 hover:text-emerald-300 font-medium">
-                  {t.createAccount}
+                {t.alreadyHaveAccount || 'Already have an account?'}{' '}
+                <Link href="/auth/signin" className="text-emerald-400 hover:text-emerald-300 font-medium">
+                  {t.signin || 'Sign In'}
                 </Link>
               </div>
             </form>
