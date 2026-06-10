@@ -10,15 +10,15 @@ export default function Pricing() {
   const plans = {
     free: {
       name: 'Retail Starter',
-      description: 'Perfect for everyday retail store owners replacing their paper notebooks with automation.',
+      description: 'Perfect for everyday retail store owners replacing their paper notebooks with a clean digital ledger.',
       price: { NGN: 0, XOF: 0 },
       yearlyPrice: { NGN: 0, XOF: 0 },
       features: [
-        'Auto-log up to 150 bank transfers or cash sales monthly',
-        '1 Connected Core Bank Account',
-        'Independent Physical Cash Vault tracking',
-        'Weekly AI Voice Report Card (Pidgin or English)',
-        'Email Support',
+        'Manual bookkeeping record entries (Unlimited rows)',
+        'Basic Profit & Loss (P&L) manual dashboard views',
+        '1 Independent Physical Cash Vault tracking profile',
+        'Basic local product catalog & sales summary views',
+        'Standard customer care email channels',
       ],
       cta: 'Join Waitlist - Get Free Access',
       popular: false,
@@ -33,12 +33,12 @@ export default function Pricing() {
       yearlyPrice: { NGN: 75000, XOF: 28000 },
       originalPrice: { NGN: 15000, XOF: 5600 },
       features: [
-        'Auto-log up to 2,500 transactions monthly',
-        'Unlimited Connected Bank Accounts',
-        'Multi-Device Alert Syncing for shop assistants',
-        'Live, instant Profit & Loss (P&L) dashboard views',
-        'Automated Inventory Sourcing & stock alerts',
-        'Priority email & chat support',
+        'Auto-log up to 2,500 bank transfers or cash sales monthly via API listeners',
+        'Unlimited Connected Core Merchant Bank Accounts',
+        'Multi-Device Alert Syncing for shop floor assistants',
+        'Live, instant Profit & Loss (P&L) automated dashboard views',
+        'Automated Inventory Sourcing & running low-stock alerts',
+        'Priority email & developer team chat support',
       ],
       cta: 'Lock In 50% Discount',
       popular: true,
@@ -52,11 +52,12 @@ export default function Pricing() {
       yearlyPrice: { NGN: 225000, XOF: 85000 },
       originalPrice: { NGN: 45000, XOF: 17000 },
       features: [
-        'Unlimited Monthly Transactions across all channels',
+        'Unlimited Monthly Transactions across all background API tracking channels',
         'Dual-Currency Ledger Engine (Naira ⇄ CFA Franc)',
-        'Automated Parallel Market Rate Auto-Indexing',
+        'Automated Parallel Market Rate Auto-Indexing API synchronization',
         '1-Tap Audit-Ready Financial Statement Exports (PDF/Excel)',
-        'Custom AI Accounting Chatbot assistance',
+        'Custom AI Accounting Chatbot assistance & hands-free parsing analytics',
+        'Weekly AI Voice Report Card summaries (Pidgin or English)',
         'Dedicated account priority channels',
       ],
       cta: 'Lock In 50% Discount',
@@ -84,18 +85,10 @@ export default function Pricing() {
     <section id="pricing" className="py-10 px-4 sm:px-6 lg:px-8 bg-black relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
-        {/* Luxury Green Gradient Orbs */}
-        {/* <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/10 to-green-600/5 rounded-lg blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-emerald-400/5 to-green-500/10 rounded-full blur-3xl"></div> */}
-
         {/* Grid Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:80px_80px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,black,transparent)]"></div>
         </div>
-
-        {/* Accent Lines */}
-        {/* <div className="absolute top-20 left-10 w-px h-32 bg-gradient-to-b from-emerald-500/40 to-transparent"></div>
-        <div className="absolute bottom-20 right-10 w-px h-32 bg-gradient-to-t from-emerald-500/30 to-transparent"></div> */}
       </div>
 
       <div className="container mx-auto max-w-7xl relative z-10">
