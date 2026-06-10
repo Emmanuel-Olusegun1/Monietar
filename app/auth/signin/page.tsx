@@ -1,4 +1,4 @@
-// app/auth/signup/page.tsx
+// app/auth/signin/page.tsx
 'use client';
 
 import Image from 'next/image';
@@ -7,21 +7,19 @@ import { useState, FormEvent, ChangeEvent, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
-import { translations, languages } from '../signin/signintranslations'; // Reusing your translation structure
+import { translations, languages } from './signintranslations';
 import { Loader2, Eye, EyeOff, Globe, ChevronDown } from 'lucide-react';
 
 // Modern Supabase client (2025+)
 import { supabase } from '@/utils/supabase/client';
 
-export default function Signup() {
-  const [isSigningUp, setIsSigningUp] = useState(false);
-  // const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+export default function Signin() {
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('English');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [signupMethod, setSignupMethod] = useState<'email' | 'phone'>('email');
+  const [signinMethod, setSigninMethod] = useState<'email' | 'phone'>('email');
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     phone: '',
     password: '',
@@ -47,29 +45,29 @@ export default function Signup() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setIsSigningUp(true);
-    const loadingToast = toast.loading(signupMethod === 'email' ? 'Creating account...' : 'Sending code...');
+    setIsSigningIn(true);
+    const loadingToast = toast.loading(signinMethod === 'email' ? 'Signing in...' : 'Sending code...');
 
     try {
-      if (signupMethod === 'email') {
-        const { error } = await supabase.auth.signUp({
+      if (signinMethod === 'email') {
+        const { error } = await supabase.auth.signInWithPassword({
           email: formData.email.trim(),
           password: formData.password,
-          options: {
-            data: {
-              full_name: formData.name.trim(),
-            },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
         });
 
         if (error) {
-          toast.error(error.message);
+          toast.error(
+            error.message.includes('Invalid login credentials')
+              ? 'Invalid email or password'
+              : error.message.includes('Email not confirmed')
+              ? 'Please verify your email first'
+              : error.message
+          );
           return;
         }
 
-        toast.success('Registration successful! Please check your email for verification.');
-        setFormData({ name: '', email: '', phone: '', password: '' });
+        toast.success(t.thankYou || 'Welcome back!');
+        setTimeout(() => router.push('/dashboard'), 1000);
       } else {
         let phone = formData.phone.replace(/\s/g, '');
         if (!phone.startsWith('+')) {
@@ -77,14 +75,7 @@ export default function Signup() {
           return;
         }
 
-        const { error } = await supabase.auth.signInWithOtp({
-          phone,
-          options: {
-            data: {
-              full_name: formData.name.trim(),
-            },
-          },
-        });
+        const { error } = await supabase.auth.signInWithOtp({ phone });
 
         if (error) {
           toast.error(error.message);
@@ -93,40 +84,29 @@ export default function Signup() {
 
         toast.success('Verification code sent to your phone!');
         setTimeout(() => {
-          router.push(`/auth/verify-phone?phone=${encodeURIComponent(phone)}&mode=signup`);
+          router.push(`/auth/verify-phone?phone=${encodeURIComponent(phone)}`);
         }, 1500);
       }
     } catch (err) {
       toast.error('Something went wrong. Please try again.');
     } finally {
-      setIsSigningUp(false);
+      setIsSigningIn(false);
       toast.dismiss(loadingToast);
     }
   };
 
-  // Sign up with google function
-  // const signUpWithGoogle = async () => {
-  //   setIsGoogleLoading(true);
-  //   try {
-  //     const { error } = await supabase.auth.signInWithOAuth({
-  //       provider: 'google',
-  //       options: {
-  //         redirectTo: `${window.location.origin}/auth/callback?source=signup&next=/dashboard`,
-  //         queryParams: {
-  //           access_type: 'offline',
-  //           prompt: 'consent'
-  //         }
-  //       }
-  //     });
-  //     if (error) {
-  //       toast.error(error.message || 'Failed to connect with Google');
-  //       setIsGoogleLoading(false);
-  //     }
-  //   } catch (error: any) {
-  //     toast.error('Something went wrong. Please try again.');
-  //     setIsGoogleLoading(false);
-  //   }
-  // };
+  const handleForgotPassword = () => {
+    if (signinMethod !== 'email') {
+      toast.error('Please use email to reset your password');
+      return;
+    }
+
+    if (!formData.email) {
+      router.push('/auth/forgot-password');
+    } else {
+      router.push(`/auth/forgot-password?email=${encodeURIComponent(formData.email)}`);
+    }
+  };
 
   const formatPhoneNumber = (value: string) => {
     const cleaned = value.replace(/[^\d+\s]/g, '');
@@ -143,45 +123,46 @@ export default function Signup() {
   };
 
   return (
-    <div className='flex w-full md:h-screen bg-gray-900 text-white'>
+    <div className='flex w-full md:h-screen bg-slate-50 text-slate-900'>
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: { background: '#1f2937', color: '#fff', border: '1px solid #374151' },
+          style: { background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' },
           success: { duration: 3000, iconTheme: { primary: '#10b981', secondary: '#fff' } },
           error: { duration: 5000, iconTheme: { primary: '#ef4444', secondary: '#fff' } },
           loading: { duration: Infinity, iconTheme: { primary: '#3b82f6', secondary: '#fff' } },
         }}
       />
 
-      {/* Left Image */}
-      <div className='flex-1 relative hidden md:block shadow-lg h-screen'>
+      {/* Left Image Side */}
+      <div className='flex-1 relative hidden md:block shadow-inner h-screen'>
         <Image
           src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757900862/Finance_Automation_And_Its_Critical_Role_In_Streamlining_Financial_Processes_-_OPEN_Money_Blog_ihfxxe.jpg'
           alt='cashflow image'
           fill
-          className='object-cover rounded-md'
+          className='object-cover'
           priority
         />
-        <div className='absolute inset-0 bg-black/30'></div>
+        <div className='absolute inset-0 bg-slate-900/10'></div>
       </div>
 
-      {/* Right Form */}
-      <div className='flex-1 flex flex-col justify-center items-center p-4 h-screen relative overflow-hidden bg-gray-900'>
-        {/* Language Switcher */}
+      {/* Right Form Side */}
+      <div className='flex-1 flex flex-col justify-center items-center p-4 h-screen relative overflow-hidden bg-white'>
+        
+        {/* Light Mode Language Switcher */}
         <div className="absolute top-4 right-4 z-10">
           <button 
             onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-            className="flex items-center gap-1 text-sm text-gray-300 hover:text-white px-3 py-1 rounded-md bg-gray-800 hover:bg-gray-700 border border-gray-700 transition"
+            className="flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 transition font-medium"
           >
-            <Globe className="h-5 w-5" />
+            <Globe className="h-4 w-4 text-slate-500" />
             <span>{currentLanguage}</span>
-            <ChevronDown className={`h-4 w-4 transition-transform ${showLanguageDropdown ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-3.5 w-3.5 text-slate-500 transition-transform ${showLanguageDropdown ? 'rotate-180' : ''}`} />
           </button>
 
           {showLanguageDropdown && (
-            <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-700 rounded shadow-lg z-20 w-40">
+            <div className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-20 w-40 overflow-hidden">
               {languages.map((language) => (
                 <button
                   key={language.code}
@@ -189,7 +170,7 @@ export default function Signup() {
                     setCurrentLanguage(language.name);
                     setShowLanguageDropdown(false);
                   }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 text-white"
+                  className="block w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 text-slate-700 hover:text-slate-900 transition-colors"
                 >
                   {language.name}
                 </button>
@@ -198,36 +179,32 @@ export default function Signup() {
           )}
         </div>
 
-        {/* Form Container */}
+        {/* Clean Light Form Container */}
         <div className="w-full max-w-md py-4 pt-[120px] overflow-y-auto md:pt-8 scrollbar-hide">
-          <h1 className='text-3xl font-bold mb-2 text-center text-white'>
-            {(t as any).createAccount || 'Get Started'}
-          </h1>
-          <p className='mb-6 text-gray-300 text-center'>
-            {(t as any).signupSubtitle || 'Create an account to track your finances effortlessly'}
-          </p>
+          <h1 className='text-3xl font-extrabold mb-2 text-center text-slate-900 tracking-tight'>{t.welcome}</h1>
+          <p className='mb-6 text-slate-500 text-center text-sm'>{t.subtitle}</p>
 
-          {/* Toggle */}
-          <div className="w-full mb-4">
-            <div className="flex bg-gray-800 rounded-lg p-1">
+          {/* Light Mode Method Switch Toggle */}
+          <div className="w-full mb-5">
+            <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200/60">
               <button
                 type="button"
-                onClick={() => setSignupMethod('email')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                  signupMethod === 'email'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-white'
+                onClick={() => setSigninMethod('email')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  signinMethod === 'email'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {t.signInWithEmail || 'Email'}
               </button>
               <button
                 type="button"
-                onClick={() => setSignupMethod('phone')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                  signupMethod === 'phone'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-white'
+                onClick={() => setSigninMethod('phone')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  signinMethod === 'phone'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {t.signInWithPhone || 'Phone'}
@@ -238,139 +215,104 @@ export default function Signup() {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.4 }}
             className="w-full"
           >
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Full Name Input */}
-              <div className="relative">
-                <input
-                  type="text"
-                  id="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 rounded-sm border-b border-gray-600 focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white"
-                  placeholder={(t as any).fullName || 'Full Name'}
-                  required
-                />
-              </div>
-
-              {/* Email or Phone Input */}
-              {signupMethod === 'email' ? (
+              
+              {/* Inputs converted from raw dark gray boxes to clean, bordered slate designs */}
+              {signinMethod === 'email' ? (
                 <div className="relative">
                   <input
                     type="email"
                     id="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 rounded-sm border-b border-gray-600 focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-400 text-slate-900 text-sm"
                     placeholder={t.email}
                     required
                   />
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="relative">
                     <input
                       type="tel"
                       id="phone"
                       value={formData.phone}
                       onChange={handlePhoneChange}
-                      className="w-full px-3 py-2 rounded-sm border-b border-gray-600 focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white"
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-400 text-slate-900 text-sm"
                       placeholder={t.phonePlaceholder || '+234 801 234 5678'}
                       required
                       maxLength={20}
                     />
                   </div>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-slate-500 leading-relaxed pl-1">
                     {t.phoneFormatHint || "Enter your full international phone number with country code"}
                     <br />
-                    <span className="text-emerald-400">Examples: +234 908 567 8900, +229 7911 123456</span>
+                    <span className="text-emerald-600 font-medium">Examples: +234 908 567 8900, +229 7911 123456</span>
                   </p>
                 </div>
               )}
 
-              {/* Password (Only required for Email signup method) */}
-              {signupMethod === 'email' && (
+              {/* Password Input Context */}
+              {signinMethod === 'email' && (
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     id="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 pr-10 rounded-sm border-b border-gray-600 focus:ring-1 focus:ring-emerald-200 outline-none transition-all placeholder-gray-300 bg-gray-800 text-white"
+                    className="w-full px-3.5 py-2.5 pr-10 rounded-lg border border-slate-300 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-400 text-slate-900 text-sm"
                     placeholder={t.password}
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
                 </div>
               )}
 
-              {/* Submit Button */}
+              {/* Forgot Password Link styling refinement */}
+              {signinMethod === 'email' && (
+                <div className="text-right pr-0.5">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-500 transition-colors underline underline-offset-2"
+                  >
+                    {(t as any).forgotPassword || 'Forgot password?'}
+                  </button>
+                </div>
+              )}
+
+              {/* Primary Emerald Button */}
               <button
                 type="submit"
-                disabled={isSigningUp}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-medium py-2 rounded-lg transition-colors hover:cursor-pointer flex items-center justify-center gap-3 disabled:cursor-not-allowed"
+                disabled={isSigningIn}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-700/80 text-white font-semibold py-2.5 rounded-lg shadow-sm shadow-emerald-600/10 hover:shadow-md transition-all flex items-center justify-center gap-2.5 disabled:cursor-not-allowed cursor-pointer text-sm"
               >
-                {isSigningUp ? (
+                {isSigningIn ? (
                   <>
-                    <Loader2 className="animate-spin h-4 w-4" />
-                    {signupMethod === 'email' ? 'Creating account...' : 'Sending code...'}
+                    <Loader2 className="animate-spin h-4 w-4 text-white" />
+                    {signinMethod === 'email' ? 'Signing in...' : 'Sending code...'}
                   </>
-                ) : signupMethod === 'email' ? (
-                  (t as any).signup || 'Sign Up'
+                ) : signinMethod === 'email' ? (
+                  t.signin || 'Sign In'
                 ) : (
                   t.signInWithPhone || 'Send Code'
                 )}
               </button>
 
-              {/* Divider */}
-              {/* <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-600"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-gray-900 text-gray-400">{t.orContinue}</span>
-                </div>
-              </div> */}
-
-              {/* Google Button */}
-              {/* <button
-                type="button"
-                onClick={signUpWithGoogle}
-                disabled={isSigningUp || isGoogleLoading}
-                className="w-full flex justify-center hover:cursor-pointer items-center gap-2 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-gray-200 font-medium hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGoogleLoading ? (
-                  <>
-                    <Loader2 className="animate-spin h-4 w-4" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 48 48">
-                      <rect width="48" height="48" fill="none" />
-                      <path fill="#ffc107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917" />
-                      <path fill="#ff3d00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691" />
-                      <path fill="#4caf50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.9 11.9 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44" />
-                      <path fill="#1976d2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
-                    </svg>
-                    {(t as any).signUpWithGoogle || 'Sign up with Google'}
-                  </>
-                )}
-              </button> */}
-
-              {/* Sign In Link */}
-              <div className="text-center text-sm text-gray-400 pt-2">
-                {t.alreadyHaveAccount || 'Already have an account?'}{' '}
-                <Link href="/auth/signin" className="text-emerald-400 hover:text-emerald-300 font-medium">
-                  {t.signin || 'Sign In'}
+              {/* Navigation Redirect footer option */}
+              <div className="text-center text-sm text-slate-500 pt-3">
+                {t.dontHaveAccount}{' '}
+                <Link href="/auth/signup" className="text-emerald-600 hover:text-emerald-500 font-semibold underline underline-offset-2 transition-colors">
+                  {t.createAccount}
                 </Link>
               </div>
             </form>
@@ -378,7 +320,7 @@ export default function Signup() {
         </div>
       </div>
 
-      {/* Hide Scrollbar */}
+      {/* Global utilities wrapper logic */}
       <style jsx global>{`
         .scrollbar-hide {
           -ms-overflow-style: none;
