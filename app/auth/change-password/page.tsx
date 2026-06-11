@@ -1,4 +1,3 @@
-// app/auth/change-password/page.tsx
 'use client'
 
 import { useState } from 'react';
@@ -69,6 +68,22 @@ export default function ChangePasswordPage() {
       ...formData,
       [e.target.id]: e.target.value
     });
+  };
+
+  const toggleCurrentPasswordVisibility = () => {
+    setShowCurrentPassword(!showCurrentPassword);
+  };
+
+  const toggleNewPasswordVisibility = () => {
+    setShowNewPassword(!showNewPassword);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
+
+  const handleGoToSignIn = () => {
+    router.push('/auth/signin');
   };
 
   const validateCurrentPassword = () => {
@@ -336,7 +351,7 @@ export default function ChangePasswordPage() {
 
                   <div className="flex flex-col sm:flex-row gap-3 pt-1">
                     <button
-                      onClick={() => router.push('/auth/signin')}
+                      onClick={handleGoToSignIn}
                       className="flex-1 cursor-pointer order-2 sm:order-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2.5 rounded-lg text-sm transition-colors text-center"
                     >
                       Cancel
