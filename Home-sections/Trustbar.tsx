@@ -15,10 +15,6 @@ const trustbars: TrustbarProps[] = [
     alt: 'Mono'
   },
   {  
-    image: 'https://cdn.brandfetch.io/idxHEQM_d9/theme/dark/logo.svg?c=1dxbfHSJFAPEGdCLU4o5B',
-    alt: 'Okra'
-  },
-  {  
     image: 'https://cdn.brandfetch.io/idSJbgjvJl/w/400/h/400/theme/dark/icon.jpeg?c=1dxbfHSJFAPEGdCLU4o5B',
     alt: 'Stitch'
   },
