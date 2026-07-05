@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Bell,
@@ -15,7 +16,8 @@ import {
   Globe,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  Sparkles
 } from 'lucide-react'
 import { useSettings } from '@/contexts/SettingsContext'
 import { toast } from 'react-hot-toast'
@@ -182,8 +184,19 @@ export function Header({
   return (
     <header className="fixed top-0 left-0 right-0 h-16 border-b border-gray-800 bg-gray-900 z-40 lg:left-64">
       <div className="flex items-center justify-between h-full px-4 sm:px-6">
-        {/* Left Section - Breadcrumb */}
+        
+        {/* Left Section - Logo & Breadcrumb */}
         <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            {/* Added Image Logo */}
+            <Image 
+              src="/logo.png" 
+              alt="Logo" 
+              width={28} 
+              height={28} 
+              className="object-contain"
+            />
+          </div>
           <div className="hidden sm:flex items-center space-x-2">
             <span className="text-sm text-gray-400">
               Dashboard
@@ -209,8 +222,18 @@ export function Header({
           </div>
         </div>
 
-        {/* Right Section - Controls */}
+        {/* Right Section - Controls & Upgrade Action */}
         <div className="flex items-center space-x-2 sm:space-x-4">
+          
+          {/* Prominent Upgrade Button */}
+          <button 
+            onClick={() => toast.success('Redirecting to checkout...')}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-md transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Upgrade</span>
+          </button>
+
           {/* Currency Selector - Hidden on mobile, moved to user menu */}
           <div className="relative hidden md:block">
             <button

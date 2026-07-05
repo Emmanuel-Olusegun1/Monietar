@@ -6,8 +6,6 @@ import Image from 'next/image'
 import { 
   Home, 
   CreditCard, 
-  PieChart, 
-  FileText, 
   BarChart3, 
   Settings,
   Menu,
@@ -15,13 +13,20 @@ import {
   LogOut,
   ChevronDown,
   Bell,
-  Crown,
   Sun,
   Moon,
   Eye,
   EyeOff,
   Languages,
-  Currency
+  Currency,
+  HelpCircle,
+  RefreshCw,
+  Coins,
+  Boxes,
+  FileSpreadsheet,
+  TrendingUp,
+  MessageSquareText,
+  Sparkles
 } from 'lucide-react'
 import { useSettings } from '@/contexts/SettingsContext'
 import { CURRENCIES, LANGUAGES } from '@/app/utils/constants'
@@ -30,7 +35,11 @@ interface NavigationItem {
   id: string
   label: string
   icon: React.ComponentType<any>
-  badge?: 'new' | 'pro'
+}
+
+interface SidebarGroup {
+  title: string
+  items: NavigationItem[]
 }
 
 interface UserInfo {
@@ -54,18 +63,38 @@ interface SidebarProps {
   showBalance: boolean
   setShowBalance: (show: boolean) => void
   realTimeAlerts: Array<any>
-  isDecrypting?: boolean;
-  encryptionEnabled?: boolean;
 }
 
-const navigationItems: NavigationItem[] = [
-  { id: 'overview', label: 'Overview', icon: Home },
-  { id: 'transactions', label: 'Transactions', icon: CreditCard },
-  { id: 'budgets', label: 'Budgets', icon: PieChart},
-  { id: 'connect account', label: 'Connect Account', icon: CreditCard },
-  { id: 'reports', label: 'Reports', icon: FileText, badge: 'pro' },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: 'pro' },
-  { id: 'settings', label: 'Settings', icon: Settings}
+const navigationGroups: SidebarGroup[] = [
+  {
+    title: 'MAIN',
+    items: [
+      { id: 'overview', label: 'Overview', icon: Home },
+      { id: 'transactions', label: 'Transactions', icon: CreditCard },
+      { id: 'analytics', label: 'Analytics', icon: BarChart3 }
+    ]
+  },
+  {
+    title: 'INTELLIGENCE',
+    items: [
+      { id: 'dual-currency', label: 'Dual-Currency Ledger', icon: Coins },
+      { id: 'inventory', label: 'Inventory Tracking', icon: Boxes }
+    ]
+  },
+  {
+    title: 'REPORTS',
+    items: [
+      { id: 'precompiled-statements', label: 'Pre-compiled Statements', icon: FileSpreadsheet },
+      { id: 'pl-reports', label: 'P&L Reports', icon: TrendingUp }
+    ]
+  },
+  {
+    title: 'SETTINGS',
+    items: [
+      { id: 'settings', label: 'Settings', icon: Settings },
+      { id: 'help', label: 'Help', icon: HelpCircle }
+    ]
+  }
 ]
 
 export function Sidebar({ 
@@ -84,61 +113,36 @@ export function Sidebar({
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false)
   const [isLanguageOpen, setIsLanguageOpen] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [chatInput, setChatInput] = useState('')
 
-  // Use settings from context
   const { settings, updateSettings, isLoading } = useSettings()
 
+  // Clean Light Mode Palette mirroring the reference dashboard design context
   const themeClasses = {
-    sidebar: 'bg-gray-900 border-gray-800',
-    sidebarText: 'text-gray-300',
-    sidebarHover: 'hover:bg-gray-800 hover:text-white',
-    sidebarActive: 'bg-emerald-900/20 text-white border-l-4 border-emerald-400',
-    border: 'border-gray-800',
-    topBar: 'bg-gray-900 border-gray-800'
+    sidebar: 'bg-[#F8F9FA] border-[#E9ECEF]',
+    sidebarText: 'text-[#6C757D] hover:text-[#212529]',
+    sidebarHover: 'hover:bg-[#E9ECEF]',
+    sidebarActive: 'bg-[#E2E8F0] text-[#1A365D] font-bold border-l-4 border-[#2D3748]',
+    groupTitle: 'text-[#A0AEC0] text-[10px] font-bold tracking-wider px-4 mb-1.5 mt-4',
+    border: 'border-[#E2E8F0]',
+    topBar: 'bg-white border-[#E2E8F0]'
   }
 
-  const getBadgeStyles = (type: 'new' | 'pro') => {
-    if (type === 'new') {
-      return 'border border-emerald-300 text-white'
-    }
-    return 'border border-emerald-300 text-white'
-  }
-
-  const getBadgeContent = (type: 'new' | 'pro') => {
-    if (type === 'new') {
-      return 'New'
-    }
-    return (
-      <div className="flex items-center space-x-1">
-        <Crown className="w-3 h-3" />
-        <span>Pro</span>
-      </div>
-    )
-  }
-
-  const handleLogoutConfirm = () => {
-    setShowLogoutConfirm(true)
-  }
-
+  const handleLogoutConfirm = () => setShowLogoutConfirm(true)
   const handleLogout = () => {
     setShowLogoutConfirm(false)
     onLogout()
   }
 
-  const getCurrentLanguage = () => {
-    return LANGUAGES.find(lang => lang.value === settings?.language)?.label || 'English'
-  }
-
-  const getCurrentCurrency = () => {
-    return CURRENCIES.find(curr => curr.value === settings?.currency)?.label || 'NGN'
-  }
+  const getCurrentLanguage = () => LANGUAGES.find(lang => lang.value === settings?.language)?.label || 'English'
+  const getCurrentCurrency = () => CURRENCIES.find(curr => curr.value === settings?.currency)?.label || 'NGN'
 
   const handleCurrencyChange = async (newCurrency: string) => {
     try {
       await updateSettings({ currency: newCurrency })
       setIsCurrencyOpen(false)
     } catch (error) {
-      console.error('Error updating currency:', error)
+      console.error(error)
     }
   }
 
@@ -147,7 +151,7 @@ export function Sidebar({
       await updateSettings({ language: newLanguage })
       setIsLanguageOpen(false)
     } catch (error) {
-      console.error('Error updating language:', error)
+      console.error(error)
     }
   }
 
@@ -157,50 +161,83 @@ export function Sidebar({
     updateSettings({ theme: newDarkMode ? 'dark' : 'light' })
   }
 
+  const handleChatSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!chatInput.trim()) return
+    setChatInput('')
+  }
+
+  const renderNavLinks = (onItemClick?: () => void) => (
+    <div className="flex-1 overflow-y-auto px-3 space-y-3">
+      {navigationGroups.map((group) => (
+        <div key={group.title} className="flex flex-col">
+          <p className={themeClasses.groupTitle}>{group.title}</p>
+          <div className="space-y-0.5">
+            {group.items.map((item) => {
+              const Icon = item.icon
+              const isActive = activeTab === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id)
+                    if (onItemClick) onItemClick()
+                  }}
+                  className={`flex items-center px-4 py-2.5 text-xs rounded-xl w-full transition-all duration-150 cursor-pointer ${
+                    isActive ? themeClasses.sidebarActive : `${themeClasses.sidebarText} ${themeClasses.sidebarHover}`
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 mr-3 transition-colors ${isActive ? 'text-[#1A365D]' : 'text-[#A0AEC0]'}`} />
+                  {item.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
   return (
     <>
-      {/* Top Navigation Bar - Enhanced with Toggles */}
+      {/* Top Navigation Bar */}
       <div className={`fixed top-0 left-0 right-0 h-16 border-b z-40 lg:left-64 ${themeClasses.topBar}`}>
         <div className="flex items-center justify-between h-full px-4 lg:px-6">
-          
-          {/* Left Section - Only mobile menu button */}
-          <div className="flex items-center">
+          <div className="flex items-center space-x-2">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
-              className="p-2 rounded-lg lg:hidden text-gray-400 hover:cursor-pointer hover:bg-gray-800 hover:text-white transition-colors"
+              className="p-2 rounded-lg lg:hidden text-[#6C757D] hover:bg-[#E9ECEF] transition-colors"
             >
               <Menu className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Enhanced Right Section with Functional Toggles */}
           <div className="flex items-center space-x-3">
-            {/* Currency Selector */}
+            {/* Currency Dropdown Selector */}
             <div className="relative hidden md:block">
               <button
                 onClick={() => setIsCurrencyOpen(!isCurrencyOpen)}
-                className="flex items-center space-x-2 px-3 py-2 hover:cursor-pointer rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
+                className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-white border border-[#E2E8F0] text-xs font-medium text-[#4A5568] transition-colors"
                 disabled={isLoading}
               >
-                <Currency className="w-4 h-4" />
-                <span className="text-sm">{getCurrentCurrency()}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isCurrencyOpen ? 'rotate-180' : ''}`} />
+                <Currency className="w-3.5 h-3.5 text-[#718096]" />
+                <span>{getCurrentCurrency()}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isCurrencyOpen ? 'rotate-180' : ''}`} />
               </button>
-
               <AnimatePresence>
                 {isCurrencyOpen && !isLoading && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full right-0 mt-2 w-32 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
+                    exit={{ opacity: 0, y: 8 }}
+                    className="absolute top-full right-0 mt-2 w-32 bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-50 p-1"
                   >
                     {CURRENCIES.map((curr) => (
                       <button
                         key={curr.value}
                         onClick={() => handleCurrencyChange(curr.value)}
-                        className={`w-full px-3 py-2 text-sm text-left hover:cursor-pointer hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                          settings?.currency === curr.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
+                        className={`w-full px-3 py-2 text-xs text-left cursor-pointer hover:bg-[#F7FAFC] rounded-lg transition-colors ${
+                          settings?.currency === curr.value ? 'text-[#2B6CB0] bg-[#EBF8FF] font-semibold' : 'text-[#4A5568]'
                         }`}
                       >
                         {curr.label}
@@ -211,149 +248,53 @@ export function Sidebar({
               </AnimatePresence>
             </div>
 
-            {/* Theme Toggle */}
-            <button
-              onClick={handleThemeToggle}
-              className="p-2 rounded-lg bg-gray-800 hover:cursor-pointer hover:bg-gray-700 transition-colors text-gray-300"
-              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-              ) : darkMode ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
+            {/* Utility Toggles */}
+            <button onClick={handleThemeToggle} className="p-2 rounded-lg bg-white border border-[#E2E8F0] text-[#718096] hover:text-[#2D3748] transition-colors">
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            {/* Balance Visibility */}
-            <button
-              onClick={() => setShowBalance(!showBalance)}
-              className="p-2 rounded-lg bg-gray-800 hover:cursor-pointer hover:bg-gray-700 transition-colors text-gray-300"
-              title={showBalance ? 'Hide balance' : 'Show balance'}
-            >
-              {showBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            <button onClick={() => setShowBalance(!showBalance)} className="p-2 rounded-lg bg-white border border-[#E2E8F0] text-[#718096] hover:text-[#2D3748] transition-colors">
+              {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
 
-            {/* Language Selector */}
-            <div className="relative hidden md:block">
-              <button
-                onClick={() => setIsLanguageOpen(!isLanguageOpen)}
-                className="flex items-center space-x-2 px-3 py-2 hover:cursor-pointer rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
-                disabled={isLoading}
-              >
-                <Languages className="w-4 h-4" />
-                <span className="text-sm">{getCurrentLanguage()}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isLanguageOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              <AnimatePresence>
-                {isLanguageOpen && !isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full right-0 mt-2 w-32 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
-                  >
-                    {LANGUAGES.map((lang) => (
-                      <button
-                        key={lang.value}
-                        onClick={() => handleLanguageChange(lang.value)}
-                        className={`w-full px-3 py-2 text-sm hover:cursor-pointer text-left hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                          settings?.language === lang.value ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-300'
-                        }`}
-                      >
-                        {lang.label}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Notifications */}
-            <button className="p-2 rounded-lg relative hover:cursor-pointer text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
-              <Bell className="w-5 h-5" />
-              {realTimeAlerts.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-900"></span>
-              )}
+            <button className="p-2 rounded-lg bg-white border border-[#E2E8F0] text-[#718096] hover:text-[#2D3748] relative transition-colors">
+              <Bell className="w-4 h-4" />
+              {realTimeAlerts.length > 0 && <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full" />}
             </button>
 
-            {/* User Menu */}
+            {/* Account Information View Control */}
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center space-x-3 p-2 hover:cursor-pointer rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
+                className="flex items-center space-x-2.5 p-1.5 rounded-xl border border-[#E2E8F0] bg-white text-[#2D3748] hover:bg-[#F7FAFC] transition-colors"
               >
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="text-left hidden sm:block">
-                    <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {user.businessName}
-                    </p>
-                  </div>
+                <div className="w-7 h-7 bg-gradient-to-br from-[#4A5568] to-[#2D3748] rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                  {user.name.charAt(0).toUpperCase()}
                 </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${
-                  isUserMenuOpen ? 'rotate-180' : ''
-                }`} />
+                <div className="text-left hidden sm:block">
+                  <p className="text-xs font-semibold leading-none mb-0.5 text-[#2D3748]">{user.name}</p>
+                  <p className="text-[10px] text-[#718096] leading-none">{user.businessName}</p>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-[#A0AEC0]" />
               </button>
-
               <AnimatePresence>
                 {isUserMenuOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute right-0 top-full mt-2 w-64 rounded-xl border shadow-lg bg-gray-800 border-gray-700 z-50"
+                    exit={{ opacity: 0, y: 8 }}
+                    className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-[#E2E8F0] shadow-xl bg-white z-50 p-1"
                   >
-                    <div className="p-4 border-b border-gray-700">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold">
-                          {user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">
-                            {user.name}
-                          </p>
-                          <p className="text-xs text-gray-400 truncate">
-                            {user.email}
-                          </p>
-                          <div className="flex items-center gap-1 mt-1">
-                            <span className="text-xs text-emerald-400">
-                              {settings?.currency || 'USD'}
-                            </span>
-                            <span className="text-xs text-gray-600">•</span>
-                            <span className="text-xs text-blue-400">
-                              {getCurrentLanguage()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                    <div className="p-3 border-b border-[#E2E8F0]">
+                      <p className="text-xs font-semibold text-[#2D3748] truncate">{user.name}</p>
+                      <p className="text-[11px] text-[#718096] truncate mb-2.5">{user.email}</p>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[#EDF2F7] text-[#4A5568]">
+                        {user.plan}
+                      </span>
                     </div>
-
-                    <div className="p-2">
-                      <div className="flex items-center px-3 py-2 rounded-lg mb-2 bg-gray-700">
-                        <p className="text-sm text-emerald-400">
-                          {user.businessName}
-                        </p>
-                      </div>
-                      <div className="flex items-center px-3 py-2 rounded-lg bg-gray-700">
-                        <p className="text-sm text-emerald-400">
-                          {user.plan}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="p-2 border-t border-gray-700">
-                      <button
-                        onClick={handleLogoutConfirm}
-                        className="flex items-center w-full px-3 hover:cursor-pointer py-2 text-sm text-red-400 rounded-lg hover:bg-red-900/20 transition-colors"
-                      >
-                        <LogOut className="w-4 h-4 mr-2" />
+                    <div className="p-1">
+                      <button onClick={handleLogoutConfirm} className="flex items-center w-full px-3 py-2 text-xs text-red-600 rounded-lg hover:bg-red-50/60 transition-colors text-left font-medium">
+                        <LogOut className="w-3.5 h-3.5 mr-2" />
                         Sign Out
                       </button>
                     </div>
@@ -365,69 +306,76 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar Layout */}
       <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30">
-        <div className={`flex flex-col flex-grow ${themeClasses.sidebar} pt-8 pb-6 overflow-hidden border-r ${themeClasses.border}`}>
-          {/* Logo - Removed from header but kept in sidebar */}
-          <div className="flex items-center justify-center flex-shrink-0 px-6 pb-8">
-            <div className="w-[180px] flex items-center justify-center relative">
+        <div className={`flex flex-col flex-grow ${themeClasses.sidebar} pt-6 pb-4 overflow-hidden border-r`}>
+          
+          {/* Logo Container Section */}
+          <div className="flex items-center justify-between px-6 pb-4 border-b border-[#E2E8F0]">
+            <div className="w-[140px] flex items-center relative h-10">
               <Image
                 src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
                 alt="Monietar Logo"
-                width={260}
-                height={40}
+                width={140}
+                height={32}
                 className="object-contain"
+                priority
               />
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 space-y-2 overflow-visible mb-4">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex hover:cursor-pointer items-center justify-between px-4 py-3 text-sm font-medium rounded-xl w-full transition-all duration-200 group ${
-                    activeTab === item.id
-                      ? `${themeClasses.sidebarActive} shadow-lg`
-                      : `${themeClasses.sidebarText} ${themeClasses.sidebarHover} border-transparent`
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <Icon className="w-5 h-5 mr-3" />
-                    {item.label}
-                  </div>
-                  {item.badge && (
-                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${getBadgeStyles(item.badge)}`}>
-                      {getBadgeContent(item.badge)}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          {/* Premium Account Elevation Upgrade Trigger Banner */}
+          <div className="px-4 pt-4 pb-1">
+            <button className="w-full flex items-center justify-between bg-gradient-to-r from-[#1A365D] to-[#2A4365] text-white p-3 rounded-xl shadow-sm hover:shadow-md transition-all group text-left">
+              <div>
+                <p className="text-[11px] font-bold text-white/90 tracking-wide flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-400 fill-amber-400" />
+                  UPGRADE PLAN
+                </p>
+                <p className="text-[9px] text-[#E2E8F0] mt-0.5 font-medium">Unlock Borderless Pro Engine</p>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-[#E2E8F0] -rotate-90 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+
+          {/* Core Functional Module Links */}
+          <nav className="flex-1 mt-2 space-y-1 overflow-y-auto">
+            {renderNavLinks()}
           </nav>
 
-          {/* Logout Section */}
-          <div className={`flex-shrink-0 border-t ${themeClasses.border} p-3`}>
-            <div className="flex flex-col space-y-4">
-              {/* Logout Button */}
-              <button
-                onClick={handleLogoutConfirm}
-                className="group relative bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white hover:cursor-pointer py-3 px-4 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <div className="flex hover:cursor-pointer items-center justify-center space-x-2">
-                  <LogOut className="w-4 h-4" />
-                  <span>Sign Out</span>
-                </div>
-              </button>
+          {/* Embedded AI Financial Agent Intelligence Input Box */}
+          <div className="p-3 border-t border-[#E2E8F0]">
+            <div className="bg-white border border-[#E2E8F0] rounded-xl p-3 shadow-xs">
+              <div className="flex items-center space-x-2 mb-2">
+                <MessageSquareText className="w-3.5 h-3.5 text-[#4A5568]" />
+                <span className="text-[11px] font-bold text-[#2D3748]">AI Accounting Assistant</span>
+              </div>
+              <form onSubmit={handleChatSubmit} className="relative flex items-center">
+                <input
+                  type="text"
+                  placeholder="Ask me anything financial..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  className="w-full bg-[#F7FAFC] border border-[#E2E8F0] rounded-lg pl-2.5 pr-8 py-1.5 text-xs text-[#2D3748] placeholder-[#A0AEC0] focus:outline-none focus:border-[#4A5568]"
+                />
+                <button type="submit" className="absolute right-1.5 p-1 rounded-md text-[#A0AEC0] hover:text-[#4A5568] transition-colors">
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              </form>
+              <div className="grid grid-cols-2 gap-1.5 mt-2">
+                <button type="button" className="text-[10px] font-semibold bg-[#F7FAFC] hover:bg-[#EDF2F7] border border-[#E2E8F0] text-[#4A5568] py-1 px-1.5 rounded-md text-center transition-colors">
+                  Voice Report
+                </button>
+                <button type="button" className="text-[10px] font-semibold bg-[#F7FAFC] hover:bg-[#EDF2F7] border border-[#E2E8F0] text-[#4A5568] py-1 px-1.5 rounded-md text-center transition-colors">
+                  Audit Check
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu Viewport Context Panels */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
@@ -435,78 +383,41 @@ export function Sidebar({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 lg:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <motion.div
-              initial={{ x: -300 }}
+              initial={{ x: -280 }}
               animate={{ x: 0 }}
-              exit={{ x: -300 }}
-              transition={{ type: "spring", damping: 30 }}
-              className={`fixed inset-y-0 left-0 w-80 ${themeClasses.sidebar} text-white z-50 lg:hidden border-r ${themeClasses.border}`}
+              exit={{ x: -280 }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className={`fixed inset-y-0 left-0 w-72 ${themeClasses.sidebar} z-50 lg:hidden flex flex-col border-r shadow-2xl`}
             >
-              <div className={`flex items-center justify-between p-6 border-b ${themeClasses.border}`}>
-                <div className="flex items-center">
-                  <div className="w-[120px] h-10 rounded-xl flex items-center justify-center relative overflow-hidden p-2">
-                    <Image
-                      src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
-                      alt="Monietar Logo"
-                      width={160}
-                      height={40}
-                      className="object-contain"
-                    />
-                  </div>
+              <div className="flex items-center justify-between p-4 border-b border-[#E2E8F0] bg-white">
+                <div className="w-[110px] flex items-center relative h-8">
+                  <Image
+                    src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
+                    alt="Monietar Logo"
+                    width={110}
+                    height={26}
+                    className="object-contain"
+                  />
                 </div>
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 rounded-md text-gray-300 hover:text-white hover:cursor-pointer"
-                >
-                  <X className="w-6 h-6" />
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 rounded-lg text-[#6C757D] hover:bg-[#E9ECEF]">
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <nav className="mt-8 px-4 space-y-2">
-                {navigationItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveTab(item.id);
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`flex items-center hover:cursor-pointer justify-between px-4 py-3 text-sm font-medium rounded-xl w-full transition-all border ${
-                        activeTab === item.id
-                          ? `${themeClasses.sidebarActive} shadow-lg border-emerald-700`
-                          : `${themeClasses.sidebarText} ${themeClasses.sidebarHover} border-transparent hover:cursor-pointer`
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <Icon className="w-5 h-5 mr-3" />
-                        {item.label}
-                      </div>
-                      {item.badge && (
-                        <span className={`px-2 py-1 text-xs rounded-full font-medium ${getBadgeStyles(item.badge)}`}>
-                          {getBadgeContent(item.badge)}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+              <nav className="flex-1 mt-2 space-y-1 overflow-y-auto">
+                {renderNavLinks(() => setIsMobileMenuOpen(false))}
               </nav>
 
-              {/* Mobile Logout Section */}
-              <div className={`absolute bottom-0 left-0 right-0 p-3 border-t ${themeClasses.border}`}>
-                <div className="flex flex-col space-y-4">
-                  {/* Logout Button */}
-                  <button
-                    onClick={handleLogoutConfirm}
-                    className="group relative bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white hover:cursor-pointer py-3 px-4 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
-                  >
-                    <div className="flex hover:cursor-pointer items-center justify-center space-x-2">
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </div>
+              <div className="p-3 border-t border-[#E2E8F0] bg-white">
+                <div className="bg-[#F7FAFC] border border-[#E2E8F0] p-2.5 rounded-xl text-center">
+                  <p className="text-xs font-bold text-[#2D3748] mb-1.5">{user.businessName}</p>
+                  <button onClick={handleLogoutConfirm} className="w-full text-[#6C757D] hover:text-red-600 py-1.5 border border-[#E2E8F0] rounded-lg text-xs font-semibold bg-white transition-colors flex items-center justify-center space-x-1">
+                    <LogOut className="w-3 h-3" />
+                    <span>Sign Out</span>
                   </button>
                 </div>
               </div>
@@ -515,55 +426,26 @@ export function Sidebar({
         )}
       </AnimatePresence>
 
-      {/* Logout Confirmation Modal */}
+      {/* Account Disconnect Security Action Overlays */}
       <AnimatePresence>
         {showLogoutConfirm && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-              onClick={() => setShowLogoutConfirm(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-gray-800 rounded-xl p-6 max-w-sm w-full border border-gray-700"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
-                    <LogOut className="w-5 h-5 text-red-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">Sign Out</h3>
-                    <p className="text-sm text-gray-400">Are you sure you want to sign out?</p>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setShowLogoutConfirm(false)}
-                    className="flex-1 px-4 py-2 text-sm hover:cursor-pointer font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="flex-1 px-4 py-2 text-sm hover:cursor-pointer font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              </motion.div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/30 backdrop-blur-xs" onClick={() => setShowLogoutConfirm(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white border border-[#E2E8F0] rounded-2xl p-5 max-w-xs w-full relative z-10 shadow-xl">
+              <h3 className="text-sm font-bold text-[#2D3748] mb-1">Confirm Sign Out</h3>
+              <p className="text-xs text-[#718096] mb-4">Are you sure you want to log out of your retail portal manager?</p>
+              <div className="flex space-x-2">
+                <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 px-3 py-2 text-xs font-semibold text-[#4A5568] bg-[#EDF2F7] rounded-xl transition-colors">
+                  Cancel
+                </button>
+                <button onClick={handleLogout} className="flex-1 px-3 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors">
+                  Sign Out
+                </button>
+              </div>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
-
-      {/* Spacer for top navigation */}
       <div className="h-16 lg:hidden" />
     </>
   )
