@@ -5,12 +5,18 @@ import { motion } from 'framer-motion';
 import { useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Poppins } from 'next/font/google';
 import { translations, languages } from './signuptranslations';
 import { Toaster, toast } from 'react-hot-toast';
 import { Loader2, Eye, EyeOff, Globe, ChevronDown, Sparkles } from 'lucide-react';
 
 // Modern Supabase client
 import { supabase } from '@/utils/supabase/client';
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+});
 
 export default function Signup() {
   const [isSigningup, setIsSigningup] = useState(false);
@@ -202,7 +208,7 @@ export default function Signup() {
   };
 
   return (
-    <div className='flex w-full flex-row-reverse md:h-screen bg-slate-50 text-slate-700 font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-700'>
+    <div className={`flex w-full flex-row-reverse md:h-screen bg-[#f1f1f1] text-slate-700 antialiased selection:bg-emerald-500/20 selection:text-emerald-700 ${poppins.className}`}>
       <Toaster
         position="top-right"
         toastOptions={{
@@ -227,15 +233,12 @@ export default function Signup() {
         
         {/* Value Proposition Content Overlay */}
         <div className="absolute bottom-16 left-16 right-16 z-10 text-white max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 mb-6 backdrop-blur-md">
-            <Sparkles className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs font-semibold text-emerald-300 tracking-wide uppercase">Automated Intelligence</span>
-          </div>
+         
           <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-4 leading-tight">
-            Stop replacing notebooks.<br/>Start scaling capital.
+            Track sales, profits, and cash flow. Automatically.
           </h2>
           <p className="text-slate-300 text-sm lg:text-base leading-relaxed font-medium">
-            Join thousands of modern merchants running dual-currency ledgers, instant P&L reporting loops, and automated cross-border parallel market syncing models.
+            Connect bank transfers, cash sales, and cross-border currency flows into one ledger so your business runs on clear numbers, not manual math.
           </p>
         </div>
       </div>
@@ -272,8 +275,8 @@ export default function Signup() {
         {/* Workspace Card Wrapper */}
         <div className="w-full max-w-md px-2 pt-[60px] overflow-y-auto md:pt-0 scrollbar-hide flex flex-col justify-center">
           <div className="text-center mb-8">
-            <h1 className='text-3xl font-black mb-2 text-slate-900 tracking-tight'>{t.welcome}</h1>
-            <p className='text-sm text-slate-500 font-medium px-4'>{t.subtitle}</p>
+            <h1 className='text-3xl font-black mb-2 text-slate-900 tracking-tight'>{getTranslation('welcome', 'Create your Monietar account')}</h1>
+            <p className='text-sm text-slate-500 font-medium px-4'>Start automating your daily sales, profit, and cash-flow tracking in one workspace.</p>
           </div>
 
           {/* Authentication Ingestion Segment Toggles */}
@@ -286,7 +289,7 @@ export default function Signup() {
                   signupMethod === 'email' ? 'bg-white text-emerald-600' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {getTranslation('signUpWithEmail', 'Email Ingestion')}
+                {getTranslation('signUpWithEmail', 'Use Email')}
               </button>
               <button
                 type="button"
@@ -295,7 +298,7 @@ export default function Signup() {
                   signupMethod === 'phone' ? 'bg-white text-emerald-600' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {getTranslation('signUpWithPhone', 'SMS Gateway')}
+                {getTranslation('signUpWithPhone', 'Use Phone')}
               </button>
             </div>
           </div>
@@ -371,7 +374,7 @@ export default function Signup() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Phone Number Address</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Phone Number</label>
                   <input
                     type="tel"
                     id="phone"
@@ -386,8 +389,8 @@ export default function Signup() {
                   />
                   {formErrors.phone && <p className="text-red-500 text-xs mt-1.5 font-medium">{formErrors.phone}</p>}
                   <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-xs text-slate-500 font-medium leading-relaxed">
-                    {t.phoneFormatHint || "Enter international routing structure starting with operational corridor country codes."}
-                    <div className="text-emerald-600 mt-1 font-semibold">Trade Corridors: +234 (Nigeria) | +229 (Benin Republic)</div>
+                    {t.phoneFormatHint || 'Use your active WhatsApp or SMS line with country code to secure account verification.'}
+                    <div className="text-emerald-600 mt-1 font-semibold">Example: +234 (Nigeria) | +229 (Benin Republic)</div>
                   </div>
                 </div>
               )}
@@ -454,17 +457,17 @@ export default function Signup() {
                 {isSigningup ? (
                   <>
                     <Loader2 className="animate-spin h-4 w-4" />
-                    <span>{getTranslation('creatingAccount', 'Provisioning Profile...')}</span>
+                    <span>{getTranslation('creatingAccount', 'Creating your account...')}</span>
                   </>
                 ) : (
-                  signupMethod === 'email' ? t.createAccount : getTranslation('createAccountWithPhone', 'Register via SMS Gateway')
+                  signupMethod === 'email' ? t.createAccount : getTranslation('createAccountWithPhone', 'Create account with phone')
                 )}
               </button>
             </form>
             
             {/* Redirect Matrix Link */}
             <div className="mt-6 text-center text-xs font-medium text-slate-500">
-              Already configuring ledger states?{' '}
+              Already using Monietar?{' '}
               <Link href="/auth/signin" className="text-emerald-600 hover:text-emerald-700 font-bold underline underline-offset-4">
                 Sign in to workspace
               </Link>
