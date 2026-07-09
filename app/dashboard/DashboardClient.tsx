@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo, Dispatch, SetStateAction } from 'react';
 import Image from 'next/image';
-import { Sun, Moon, Bot } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 
 import { Sidebar } from './Sidebar';
+import { Header } from './Header';
 import { TokenStatus } from './components/TokenStatus';
 import { OverviewPage } from './components/pages/OverviewPage';
 import { TransactionsPage } from './components/pages/TransactionsPage';
@@ -30,22 +31,26 @@ import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type AllowedPeriodDisplay = 'Monthly' | 'Yearly' | 'Quarterly';
 
 const toDisplayPeriod = (period: string): AllowedPeriodDisplay => {
   const map: Record<string, AllowedPeriodDisplay> = {
     monthly: 'Monthly',
     yearly: 'Yearly',
-    quarterly: 'Quarterly'
+    quarterly: 'Quarterly',
   };
   return map[period.toLowerCase()] || 'Monthly';
 };
 
-const toDbPeriod = (period: AllowedPeriodDisplay): 'monthly' | 'yearly' | 'quarterly' => {
+const toDbPeriod = (
+  period: AllowedPeriodDisplay
+): 'monthly' | 'yearly' | 'quarterly' => {
   const map: Record<AllowedPeriodDisplay, 'monthly' | 'yearly' | 'quarterly'> = {
     Monthly: 'monthly',
     Yearly: 'yearly',
-    Quarterly: 'quarterly'
+    Quarterly: 'quarterly',
   };
   return map[period];
 };
@@ -83,7 +88,8 @@ interface DashboardClientProps {
   initialSession?: any;
 }
 
-// Main Dashboard Client Component
+// ─── Dashboard content ────────────────────────────────────────────────────────
+
 function DashboardContent({ initialSession }: DashboardClientProps = {}) {
   const [activeTab, setActiveTab] = useState('overview');
   const [darkMode, setDarkMode] = useState(true);
@@ -120,59 +126,49 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
   const [availableBackups, setAvailableBackups] = useState<BackupRecord[]>([]);
   const [selectedBackup, setSelectedBackup] = useState('');
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
-  const handleShowDeleteAccountDialog = (show: boolean) => setShowDeleteAccountDialog(show);
+  const handleShowDeleteAccountDialog = (show: boolean) =>
+    setShowDeleteAccountDialog(show);
   const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
 
-  // Transaction form data
+  // Form data
   const [transactionFormData, setTransactionFormData] = useState({
     amount: '',
     category: '',
     description: '',
-    date: ''
+    date: '',
   });
 
-  // Budget form data
   const [budgetFormData, setBudgetFormData] = useState<{
     category: string;
     budget_limit: string;
     period: AllowedPeriodDisplay;
-  }>({
-    category: '',
-    budget_limit: '',
-    period: 'Monthly'
-  });
+  }>({ category: '', budget_limit: '', period: 'Monthly' });
 
-  // Edit budget form data
   const [editBudgetFormData, setEditBudgetFormData] = useState<{
     category: string;
     budget_limit: string;
     period: AllowedPeriodDisplay;
-  }>({
-    category: '',
-    budget_limit: '',
-    period: 'Monthly'
-  });
+  }>({ category: '', budget_limit: '', period: 'Monthly' });
 
-  // Edit transaction form data
   const [editFormData, setEditFormData] = useState({
     amount: '',
     category: '',
     description: '',
-    date: ''
+    date: '',
   });
 
-  // Editing and deletion states
+  // Edit / delete state
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [editingBudget, setEditingBudget] = useState<EnhancedBudget | null>(null);
   const [deleteTransactionId, setDeleteTransactionId] = useState<string | null>(null);
   const [deleteBudgetId, setDeleteBudgetId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // FIXED: User state - includes id property
+  // User state
   const [user, setUser] = useState<UserInfo>({
     id: '',
     name: 'User',
@@ -180,7 +176,7 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
     businessName: 'My Business',
     avatar: '/api/placeholder/40/40',
     plan: 'Free Plan',
-    joinedDate: new Date().toISOString().split('T')[0]
+    joinedDate: new Date().toISOString().split('T')[0],
   });
 
   // Financial data
@@ -192,127 +188,140 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
     budgets: [],
     alerts: [],
     aiRecommendations: ['Add transactions to get insights'],
-    cashFlowForecast: []
+    cashFlowForecast: [],
   });
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [realTimeAlerts, setRealTimeAlerts] = useState<any[]>([]);
-  
   const router = useRouter();
 
-  // Income categories
+  // ── Category lists ────────────────────────────────────────────────────────
+
   const incomeCategories = [
-    'Sales Money', 'Service Income', 'Bank Interest', 'Share Dividends', 'Rent from Property',
-    'Consulting Fees', 'Subscription Money', 'Commission Earned',
-    'Advertising Money', 'Sponsorship Funds', 'Grants & Donations',
-    'Investment Profits', 'Royalty Payments', 'Property Sale Profits',
-    'Crop Sales (Coffee/Cocoa)', 'Crop Sales (Maize/Cassava)', 'Animal Sales',
-    'Fish Sales', 'Government Salary', 'Market Trading Income',
-    'Small Import Business', 'Export Raw Materials', 'Export Finished Goods',
-    'Online Freelance Work', 'Taxi/Ride Income', 'Motorcycle Taxi Income',
-    'Truck Transport Income', 'Bus/Minibus Income', 'Small Shop Sales',
-    'Handwork/Skills Income', 'Professional Fees', 'Tech Business Income',
-    'House/Room Rent', 'Shop/Office Rent', 'Equipment Rent',
-    'Farm Land Rent', 'Money from Abroad', 'Mobile Money Fees',
-    'Airtime/Data Business', 'Music/Events Income', 'Tourism Income',
-    'Small Mining Income', 'Large Mining Income', 'Solar Energy Sales',
-    'Internet/Phone Services', 'Franchise Fees', 'Brand License Fees',
-    'NGO/Government Grants', 'Loan Interest Income', 'Crypto Trading',
-    'Clothing Business', 'Handicraft Sales', 'Other Income'
+    'Sales Money', 'Service Income', 'Bank Interest', 'Share Dividends',
+    'Rent from Property', 'Consulting Fees', 'Subscription Money',
+    'Commission Earned', 'Advertising Money', 'Sponsorship Funds',
+    'Grants & Donations', 'Investment Profits', 'Royalty Payments',
+    'Property Sale Profits', 'Crop Sales (Coffee/Cocoa)',
+    'Crop Sales (Maize/Cassava)', 'Animal Sales', 'Fish Sales',
+    'Government Salary', 'Market Trading Income', 'Small Import Business',
+    'Export Raw Materials', 'Export Finished Goods', 'Online Freelance Work',
+    'Taxi/Ride Income', 'Motorcycle Taxi Income', 'Truck Transport Income',
+    'Bus/Minibus Income', 'Small Shop Sales', 'Handwork/Skills Income',
+    'Professional Fees', 'Tech Business Income', 'House/Room Rent',
+    'Shop/Office Rent', 'Equipment Rent', 'Farm Land Rent',
+    'Money from Abroad', 'Mobile Money Fees', 'Airtime/Data Business',
+    'Music/Events Income', 'Tourism Income', 'Small Mining Income',
+    'Large Mining Income', 'Solar Energy Sales', 'Internet/Phone Services',
+    'Franchise Fees', 'Brand License Fees', 'NGO/Government Grants',
+    'Loan Interest Income', 'Crypto Trading', 'Clothing Business',
+    'Handicraft Sales', 'Other Income',
   ];
 
-  // Expense categories
   const expenseCategories = [
-    'Food & Eating Out', 'Transport Costs', 'Bills (Water/Light)', 'Rent Payment', 'Fun/Entertainment',
-    'Medical Costs', 'School Fees', 'Shopping', 'Travel Costs', 'Miscellaneous',
-    'Generator Fuel', 'Vehicle Fuel', 'Machine Fuel', 'Phone Credit/Data',
+    'Food & Eating Out', 'Transport Costs', 'Bills (Water/Light)',
+    'Rent Payment', 'Fun/Entertainment', 'Medical Costs', 'School Fees',
+    'Shopping', 'Travel Costs', 'Miscellaneous', 'Generator Fuel',
+    'Vehicle Fuel', 'Machine Fuel', 'Phone Credit/Data',
     'Money Transfer Fees', 'Market Daily Fees', 'Company Taxes',
-    'Import Taxes', 'Market Stall Fees', 'Farm Supplies',
-    'Shop/Office Rent', 'House Rent', 'Market Stall Rent',
-    'Generator Repairs', 'Car/Truck Repairs', 'Motorcycle Repairs',
-    'Staff Transport', 'Goods Transport', 'Port/Customs Fees',
-    'Electricity Bill', 'Solar System Cost', 'Water Bill',
-    'Security Costs', 'Daily Worker Pay', 'Staff Salaries',
-    'Family Support', 'Local Materials', 'Imported Materials',
-    'Stock Purchase', 'Packaging Materials', 'Refrigeration Costs',
-    'Union/Group Fees', 'Business Permits', 'Medical Costs (Staff)',
-    'Community Contributions', 'Radio/Newspaper Ads', 'Social Media Ads',
-    'Customer Phone Credit', 'Staff Generator Fuel', 'Other Expenses'
+    'Import Taxes', 'Market Stall Fees', 'Farm Supplies', 'Shop/Office Rent',
+    'House Rent', 'Market Stall Rent', 'Generator Repairs',
+    'Car/Truck Repairs', 'Motorcycle Repairs', 'Staff Transport',
+    'Goods Transport', 'Port/Customs Fees', 'Electricity Bill',
+    'Solar System Cost', 'Water Bill', 'Security Costs',
+    'Daily Worker Pay', 'Staff Salaries', 'Family Support',
+    'Local Materials', 'Imported Materials', 'Stock Purchase',
+    'Packaging Materials', 'Refrigeration Costs', 'Union/Group Fees',
+    'Business Permits', 'Medical Costs (Staff)', 'Community Contributions',
+    'Radio/Newspaper Ads', 'Social Media Ads', 'Customer Phone Credit',
+    'Staff Generator Fuel', 'Other Expenses',
   ];
 
-  // Check authentication on component mount
+  // ── Auth & data loading ───────────────────────────────────────────────────
+
   useEffect(() => {
-    // If initialSession is provided, use it
     if (initialSession) {
       setUser({
         id: initialSession.id,
-        name: initialSession.user_metadata?.full_name || initialSession.email?.split('@')[0] || 'User',
+        name:
+          initialSession.user_metadata?.full_name ||
+          initialSession.email?.split('@')[0] ||
+          'User',
         email: initialSession.email || '',
-        businessName: initialSession.user_metadata?.business_name || 'My Business',
-        avatar: initialSession.user_metadata?.avatar_url || '/api/placeholder/40/40',
+        businessName:
+          initialSession.user_metadata?.business_name || 'My Business',
+        avatar:
+          initialSession.user_metadata?.avatar_url || '/api/placeholder/40/40',
         plan: 'Free Plan',
-        joinedDate: new Date(initialSession.created_at || Date.now()).toISOString().split('T')[0]
+        joinedDate: new Date(
+          initialSession.created_at || Date.now()
+        )
+          .toISOString()
+          .split('T')[0],
       });
       loadData(initialSession.id);
       setLoading(false);
     } else {
-      // Otherwise check auth
       checkAuth();
     }
   }, [initialSession]);
 
-  // Check OpenRouter status on component mount
   useEffect(() => {
     checkOpenRouterStatus();
   }, []);
 
-  // Check user authentication
   const checkAuth = async () => {
     try {
-      const { data: { user: authUser }, error } = await supabase.auth.getUser();
-      
+      const {
+        data: { user: authUser },
+        error,
+      } = await supabase.auth.getUser();
+
       if (error || !authUser) {
-        console.error('Authentication error:', error);
         router.push('/auth/signin');
         return;
       }
 
-      // Set user data
       setUser({
         id: authUser.id,
-        name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
+        name:
+          authUser.user_metadata?.full_name ||
+          authUser.email?.split('@')[0] ||
+          'User',
         email: authUser.email || '',
-        businessName: authUser.user_metadata?.business_name || 'My Business',
-        avatar: authUser.user_metadata?.avatar_url || '/api/placeholder/40/40',
+        businessName:
+          authUser.user_metadata?.business_name || 'My Business',
+        avatar:
+          authUser.user_metadata?.avatar_url || '/api/placeholder/40/40',
         plan: 'Free Plan',
-        joinedDate: new Date(authUser.created_at || Date.now()).toISOString().split('T')[0]
+        joinedDate: new Date(authUser.created_at || Date.now())
+          .toISOString()
+          .split('T')[0],
       });
 
-      // Load user data
       await loadData(authUser.id);
-      
-    } catch (error) {
-      console.error('Auth check failed:', error);
+    } catch {
       router.push('/auth/signin');
     } finally {
       setLoading(false);
     }
   };
 
-  // Real-time enhanced budgets
+  // ── Derived budgets ───────────────────────────────────────────────────────
+
   const budgetsWithRealTimeTracking: EnhancedBudget[] = useMemo(() => {
-    if (!financialData.budgets || financialData.budgets.length === 0) {
-      return [];
-    }
-    
+    if (!financialData.budgets?.length) return [];
+
     return financialData.budgets.map((budget: any): EnhancedBudget => {
       const spent = financialData.transactions
-        .filter((t: any) => t.type === 'expense' && t.category === budget.category)
+        .filter(
+          (t: any) => t.type === 'expense' && t.category === budget.category
+        )
         .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
 
-      const percentage = budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
-
-      const period = (budget.period || 'monthly').toLowerCase() as EnhancedBudget['period'];
+      const percentage =
+        budget.budget_limit > 0 ? (spent / budget.budget_limit) * 100 : 0;
+      const period = (
+        budget.period || 'monthly'
+      ).toLowerCase() as EnhancedBudget['period'];
 
       return {
         id: budget.id,
@@ -323,304 +332,183 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
         period,
         created_at: budget.created_at,
         user_id: budget.user_id || user.id || '',
-        type: 'expense'
+        type: 'expense',
       };
     });
   }, [financialData.budgets, financialData.transactions, user.id]);
 
-  // Format currency for display
+  // ── Formatting helpers ────────────────────────────────────────────────────
+
   const formatCurrency = (amount: number): string => {
     if (!showBalance && amount !== 0) return '••••••';
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
-      currency: 'NGN'
+      currency: 'NGN',
     }).format(amount);
   };
 
-  // Format currency for AI context
-  const formatCurrencyForAI = (amount: number): string => {
-    return new Intl.NumberFormat('en-NG', {
+  const formatCurrencyForAI = (amount: number): string =>
+    new Intl.NumberFormat('en-NG', {
       style: 'currency',
       currency: 'NGN',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     }).format(amount);
-  };
 
-  // Generate financial context for AI
-  const generateFinancialContext = (): string => {
-    const hasTransactions = financialData.transactions && financialData.transactions.length > 0;
-    const hasBudgets = financialData.budgets && financialData.budgets.length > 0;
-    const hasData = hasTransactions || hasBudgets;
-    
-    if (!hasData) {
-      return `NO FINANCIAL DATA: User has not added any transactions or budgets yet. They need to track finances first.`;
-    }
+  // ── OpenRouter ────────────────────────────────────────────────────────────
 
-    // Core metrics
-    const keyMetrics = `FINANCIAL METRICS:
-• Total Income: ${formatCurrencyForAI(financialData.income)}
-• Total Expenses: ${formatCurrencyForAI(financialData.expenses)}
-• Net ${financialData.profit >= 0 ? 'Profit' : 'Loss'}: ${formatCurrencyForAI(Math.abs(financialData.profit))}
-• Profit Margin: ${financialData.income > 0 ? ((financialData.profit / financialData.income) * 100).toFixed(1) : 0}%
-• Transaction Count: ${hasTransactions ? financialData.transactions.length : 0}
-• Active Budgets: ${hasBudgets ? financialData.budgets.length : 0}`;
-
-    // Expense breakdown
-    let expenseBreakdown = '';
-    const expenseTransactions = financialData.transactions.filter((t: any) => t.type === 'expense');
-    
-    if (expenseTransactions.length > 0) {
-      const expenseByCategory = expenseTransactions.reduce((acc: Record<string, number>, t: any) => {
-        acc[t.category] = (acc[t.category] || 0) + (Number(t.amount) || 0);
-        return acc;
-      }, {});
-      
-      const sortedExpenses = Object.entries(expenseByCategory)
-        .sort(([, a], [, b]) => b - a);
-      
-      if (sortedExpenses.length > 0) {
-        expenseBreakdown = `EXPENSE BREAKDOWN (Top 5):\n${sortedExpenses.slice(0, 5).map(([cat, amt], i) => {
-          const percentage = financialData.expenses > 0 ? ((amt / financialData.expenses) * 100).toFixed(1) : '0';
-          return `${i+1}. ${cat}: ${formatCurrencyForAI(amt)} (${percentage}%)`;
-        }).join('\n')}`;
-      }
-    }
-
-    // Income breakdown
-    let incomeBreakdown = '';
-    const incomeTransactions = financialData.transactions.filter((t: any) => t.type === 'income');
-    
-    if (incomeTransactions.length > 0) {
-      const incomeByCategory = incomeTransactions.reduce((acc: Record<string, number>, t: any) => {
-        acc[t.category] = (acc[t.category] || 0) + (Number(t.amount) || 0);
-        return acc;
-      }, {});
-      
-      const sortedIncome = Object.entries(incomeByCategory)
-        .sort(([, a], [, b]) => b - a);
-      
-      if (sortedIncome.length > 0) {
-        incomeBreakdown = `INCOME SOURCES:\n${sortedIncome.slice(0, 3).map(([cat, amt], i) => {
-          const percentage = financialData.income > 0 ? ((amt / financialData.income) * 100).toFixed(1) : '0';
-          return `${i+1}. ${cat}: ${formatCurrencyForAI(amt)} (${percentage}%)`;
-        }).join('\n')}`;
-      }
-    }
-
-    // Budget analysis
-    let budgetAnalysis = '';
-    if (hasBudgets && financialData.budgets.length > 0) {
-      const budgetItems = financialData.budgets.map((b: any) => {
-        const spent = financialData.transactions
-          .filter((t: any) => t.type === 'expense' && t.category === b.category)
-          .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
-        const percentage = b.budget_limit > 0 ? (spent / b.budget_limit) * 100 : 0;
-        const remaining = b.budget_limit - spent;
-        const status = percentage > 100 ? '❌ OVER' : percentage > 90 ? '⚠️ NEAR LIMIT' : percentage > 70 ? '📊 WATCHING' : '✅ OK';
-        return `• ${b.category}: ${status} - ${percentage.toFixed(1)}% used (${formatCurrencyForAI(spent)} / ${formatCurrencyForAI(b.budget_limit)}) - Remaining: ${formatCurrencyForAI(remaining > 0 ? remaining : 0)}`;
-      });
-      budgetAnalysis = `BUDGET ANALYSIS:\n${budgetItems.join('\n')}`;
-    }
-
-    // Recent activity
-    let recentActivity = '';
-    const recentTransactions = financialData.transactions.slice(0, 5);
-    if (recentTransactions.length > 0) {
-      recentActivity = `RECENT TRANSACTIONS:\n${recentTransactions.map((t: any, i: number) => 
-        `${i+1}. ${t.date}: ${t.type === 'income' ? '📈 INCOME' : '📉 EXPENSE'} - ${t.category} - ${formatCurrencyForAI(t.amount)}${t.description ? ` (${t.description})` : ''}`
-      ).join('\n')}`;
-    }
-
-    // Financial health indicators
-    const savingsRate = financialData.income > 0 ? ((financialData.profit / financialData.income) * 100).toFixed(1) : '0';
-    const emergencyFundMonths = financialData.expenses > 0 ? (0 / financialData.expenses).toFixed(1) : '0';
-    
-    const healthIndicators = `FINANCIAL HEALTH:
-• Savings Rate: ${savingsRate}% ${Number(savingsRate) >= 20 ? '✅' : Number(savingsRate) >= 10 ? '⚠️' : '❌'}
-• Emergency Fund: ${emergencyFundMonths} months coverage (Goal: 3-6 months)
-• Expense-to-Income Ratio: ${financialData.income > 0 ? ((financialData.expenses / financialData.income) * 100).toFixed(1) : '0'}%`;
-
-    return `${keyMetrics}\n\n${healthIndicators}\n\n${expenseBreakdown}\n\n${incomeBreakdown}\n\n${budgetAnalysis}\n\n${recentActivity}`.trim();
-  };
-
-  // Check OpenRouter status
   const checkOpenRouterStatus = async () => {
     try {
-      console.log('🔄 Checking OpenRouter for AI models...');
       setAiStatus('checking');
       setCurrentModel('Checking availability...');
-      
       const response = await fetch('/api/chat', { method: 'GET' });
-      if (!response.ok) {
-        throw new Error(`Health check failed: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error();
       const data = await response.json();
-      console.log('📊 OpenRouter Status:', data);
-      
+
       if (data.status === 'ok') {
         setOpenRouterAvailable(true);
         setAiStatus('openrouter');
         setCurrentModel('Amazon Nova Lite');
         setModelIntelligence('Medium');
-        
-        toast.success(`✅ OpenRouter AI Enabled: Amazon Nova Lite`, {
+        toast.success('✅ OpenRouter AI Enabled: Amazon Nova Lite', {
           duration: 3000,
-          icon: '🚀'
+          icon: '🚀',
         });
-        
-        console.log(`✅ OpenRouter ready. Free model: Amazon Nova Lite`);
       } else {
         setOpenRouterAvailable(false);
         setAiStatus('standard');
         setCurrentModel('Not Available');
         setModelIntelligence('Basic');
-        
-        console.warn('⚠️ OpenRouter not properly configured:', data.message);
         toast.error('OpenRouter AI not available. Check API setup.', {
-          duration: 4000
+          duration: 4000,
         });
       }
-      
-    } catch (error: any) {
-      console.error('❌ OpenRouter Health check failed:', error);
+    } catch {
       setAiStatus('standard');
       setOpenRouterAvailable(false);
       setCurrentModel('Offline');
       setModelIntelligence('Basic');
-      
       toast.error('AI services offline. Using fallback mode.', {
-        duration: 3000
+        duration: 3000,
       });
     }
   };
 
-  // AI Chat handler for OpenRouter
-  const handleSendMessage = async (message: string, files?: File[]): Promise<string> => {
+  const handleSendMessage = async (
+    message: string,
+    files?: File[]
+  ): Promise<string> => {
     const formData = new FormData();
     formData.append('message', message);
     formData.append('style', 'balanced');
-    
-    if (files) {
-      files.forEach(file => formData.append('files', file));
-    }
+    files?.forEach((file) => formData.append('files', file));
 
     const response = await fetch('/api/chat', {
       method: 'POST',
       body: formData,
     });
-
     const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to get response');
-    }
-
+    if (!data.success) throw new Error(data.error || 'Failed to get response');
     return data.response;
   };
 
-  // Load user data
-const loadData = async (userId: string) => {
-  try {
-    console.log('🔄 Loading user data for:', userId);
-    const [{ data: txs }, { data: budgets }] = await Promise.all([
-      supabase.from('transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-      supabase.from('budgets').select('*').eq('user_id', userId)
-    ]);
+  // ── Data loading ──────────────────────────────────────────────────────────
 
-    let transactions = txs || [];
-    
-    const budgetsArray = budgets || [];
-    
-    const income = transactions
-      .filter((t: any) => t.type === 'income')
-      .reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
-    
-    const expenses = transactions
-      .filter((t: any) => t.type === 'expense')
-      .reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
-    
-    const profit = income - expenses;
-
-    setFinancialData({
-      income,
-      expenses,
-      profit,
-      transactions,
-      budgets: budgetsArray,
-      alerts: [],
-      aiRecommendations: [],
-      cashFlowForecast: []
-    });
-
-    setAiInsightsLoading(true);
+  const loadData = async (userId: string) => {
     try {
-      const insightsResponse = await fetch('/api/insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          currency: 'NGN',
-          income,
-          expenses,
-          profit,
-          transactions: transactions.slice(0, 50),
-          budgets: budgetsArray
-        })
+      const [{ data: txs }, { data: budgets }] = await Promise.all([
+        supabase
+          .from('transactions')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false }),
+        supabase.from('budgets').select('*').eq('user_id', userId),
+      ]);
+
+      const transactions = txs || [];
+      const budgetsArray = budgets || [];
+
+      const income = transactions
+        .filter((t: any) => t.type === 'income')
+        .reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
+
+      const expenses = transactions
+        .filter((t: any) => t.type === 'expense')
+        .reduce((a: number, t: any) => a + (Number(t.amount) || 0), 0);
+
+      const profit = income - expenses;
+
+      setFinancialData({
+        income,
+        expenses,
+        profit,
+        transactions,
+        budgets: budgetsArray,
+        alerts: [],
+        aiRecommendations: [],
+        cashFlowForecast: [],
       });
 
-      const insightsData = await insightsResponse.json();
-      if (insightsData?.success && Array.isArray(insightsData.insights)) {
-        setFinancialData((prev) => ({
-          ...prev,
-          aiRecommendations: insightsData.insights
-        }));
+      setAiInsightsLoading(true);
+      try {
+        const insightsResponse = await fetch('/api/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            currency: 'NGN',
+            income,
+            expenses,
+            profit,
+            transactions: transactions.slice(0, 50),
+            budgets: budgetsArray,
+          }),
+        });
+        const insightsData = await insightsResponse.json();
+        if (insightsData?.success && Array.isArray(insightsData.insights)) {
+          setFinancialData((prev) => ({
+            ...prev,
+            aiRecommendations: insightsData.insights,
+          }));
+        }
+      } catch (insightsError) {
+        console.error('AI insights error:', insightsError);
+      } finally {
+        setAiInsightsLoading(false);
       }
-    } catch (insightsError) {
-      console.error('❌ AI insights error:', insightsError);
-    } finally {
-      setAiInsightsLoading(false);
-    }
-    
-    setDataLoaded(true); // Add this line
-    console.log('✅ Data loaded successfully');
-    
-  } catch (err: any) {
-    console.error('❌ Error loading data:', err);
-    toast.error('Failed to load your data');
-    setDataLoaded(true); // Still set to true even on error
-  }
-};
 
-  // Handle exporting data
+      setDataLoaded(true);
+    } catch (err: any) {
+      console.error('Error loading data:', err);
+      toast.error('Failed to load your data');
+      setDataLoaded(true);
+    }
+  };
+
+  // ── Export & backup ───────────────────────────────────────────────────────
+
   const handleExportData = async () => {
     try {
-      if (!user.id) {
-        toast.error('Not authenticated');
-        return;
-      }
+      if (!user.id) return toast.error('Not authenticated');
 
-      // Fetch all user data
       const [
         { data: transactions },
         { data: budgets },
         { data: accounts },
-        { data: settings }
+        { data: settings },
       ] = await Promise.all([
         supabase.from('transactions').select('*').eq('user_id', user.id),
         supabase.from('budgets').select('*').eq('user_id', user.id),
         supabase.from('accounts').select('*').eq('user_id', user.id),
-        supabase.from('user_settings').select('*').eq('user_id', user.id)
+        supabase.from('user_settings').select('*').eq('user_id', user.id),
       ]);
 
-      // Create export object
       const exportData = {
         exportDate: new Date().toISOString(),
         user: {
           email: user.email,
           businessName: user.businessName,
-          plan: user.plan
+          plan: user.plan,
         },
         transactions: transactions || [],
         budgets: budgets || [],
@@ -631,27 +519,26 @@ const loadData = async (userId: string) => {
           totalExpenses: financialData.expenses,
           netProfit: financialData.profit,
           totalTransactions: financialData.transactions.length,
-          activeBudgets: financialData.budgets.length
-        }
+          activeBudgets: financialData.budgets.length,
+        },
       };
 
-      // Convert to JSON string
       const dataStr = JSON.stringify(exportData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-
-      // Create download link
-      const url = URL.createObjectURL(dataBlob);
+      const url = URL.createObjectURL(
+        new Blob([dataStr], { type: 'application/json' })
+      );
       const link = document.createElement('a');
       link.href = url;
-      link.download = `monietar-export-${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `monietar-export-${
+        new Date().toISOString().split('T')[0]
+      }.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
       toast.success('Data exported successfully!');
-    } catch (error: any) {
-      console.error('Error exporting data:', error);
+    } catch {
       toast.error('Failed to export data');
     }
   };
@@ -664,29 +551,21 @@ const loadData = async (userId: string) => {
         .select('id, created_at, file_size, backup_name, backup_date')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       setAvailableBackups(data || []);
-    } catch (error) {
-      console.error('Failed to load backups:', error);
+    } catch {
       toast.error('Failed to load backups');
     }
   };
 
   useEffect(() => {
-    if (showRestoreDialog) {
-      loadBackups();
-    }
+    if (showRestoreDialog) loadBackups();
   }, [showRestoreDialog, user.id]);
 
-  // Handle data backup
   const handleBackup = async () => {
     try {
       setIsBackingUp(true);
-      if (!user.id) {
-        toast.error('Not authenticated');
-        return;
-      }
+      if (!user.id) return toast.error('Not authenticated');
 
       const backupPayload = {
         timestamp: new Date().toISOString(),
@@ -695,39 +574,38 @@ const loadData = async (userId: string) => {
         budgets: financialData.budgets,
         income: financialData.income,
         expenses: financialData.expenses,
-        profit: financialData.profit
+        profit: financialData.profit,
       };
 
-      const payloadJson = JSON.stringify(backupPayload);
-      const fileSize = new Blob([payloadJson]).size;
+      const fileSize = new Blob([JSON.stringify(backupPayload)]).size;
 
-      const { error } = await supabase
-        .from('backups')
-        .insert({
-          user_id: user.id,
-          backup_data: backupPayload,
-          backup_type: 'full',
-          backup_name: `Backup ${new Date().toLocaleString()}`,
-          backup_date: new Date().toISOString(),
-          backup_size: fileSize,
-          file_size: fileSize,
-          user_email: user.email || null,
-          metadata: {
-            transactions: Array.isArray(backupPayload.transactions) ? backupPayload.transactions.length : 0,
-            budgets: Array.isArray(backupPayload.budgets) ? backupPayload.budgets.length : 0
-          },
-          data: {}
-        });
+      const { error } = await supabase.from('backups').insert({
+        user_id: user.id,
+        backup_data: backupPayload,
+        backup_type: 'full',
+        backup_name: `Backup ${new Date().toLocaleString()}`,
+        backup_date: new Date().toISOString(),
+        backup_size: fileSize,
+        file_size: fileSize,
+        user_email: user.email || null,
+        metadata: {
+          transactions: Array.isArray(backupPayload.transactions)
+            ? backupPayload.transactions.length
+            : 0,
+          budgets: Array.isArray(backupPayload.budgets)
+            ? backupPayload.budgets.length
+            : 0,
+        },
+        data: {},
+      });
 
       if (error) throw error;
-
       await loadBackups();
       toast.success('Backup created successfully!', {
         icon: '💾',
-        duration: 3000
+        duration: 3000,
       });
-    } catch (error) {
-      console.error('Backup failed:', error);
+    } catch {
       toast.error('Failed to create backup');
     } finally {
       setIsBackingUp(false);
@@ -736,7 +614,6 @@ const loadData = async (userId: string) => {
 
   const handleRestoreBackup = async (backupId: string) => {
     if (!user.id || !backupId) return;
-
     try {
       setIsRestoringBackup(true);
 
@@ -747,45 +624,38 @@ const loadData = async (userId: string) => {
         .eq('user_id', user.id)
         .single();
 
-      if (error || !data?.backup_data) {
-        throw error || new Error('Backup not found');
-      }
+      if (error || !data?.backup_data) throw error || new Error('Not found');
 
       const backupData = data.backup_data as any;
 
       await supabase.from('transactions').delete().eq('user_id', user.id);
       await supabase.from('budgets').delete().eq('user_id', user.id);
 
-      const transactionsToInsert = Array.isArray(backupData.transactions)
-        ? backupData.transactions.map((tx: any) => ({
-            ...tx,
-            user_id: user.id
-          }))
+      const txToInsert = Array.isArray(backupData.transactions)
+        ? backupData.transactions.map((tx: any) => ({ ...tx, user_id: user.id }))
         : [];
-
       const budgetsToInsert = Array.isArray(backupData.budgets)
-        ? backupData.budgets.map((budget: any) => ({
-            ...budget,
-            user_id: user.id
-          }))
+        ? backupData.budgets.map((b: any) => ({ ...b, user_id: user.id }))
         : [];
 
-      if (transactionsToInsert.length > 0) {
-        const { error: txError } = await supabase.from('transactions').insert(transactionsToInsert);
-        if (txError) throw txError;
+      if (txToInsert.length > 0) {
+        const { error: txErr } = await supabase
+          .from('transactions')
+          .insert(txToInsert);
+        if (txErr) throw txErr;
       }
-
       if (budgetsToInsert.length > 0) {
-        const { error: budgetError } = await supabase.from('budgets').insert(budgetsToInsert);
-        if (budgetError) throw budgetError;
+        const { error: bErr } = await supabase
+          .from('budgets')
+          .insert(budgetsToInsert);
+        if (bErr) throw bErr;
       }
 
       await loadData(user.id);
       setSelectedBackup('');
       setShowRestoreDialog(false);
       toast.success('Backup restored successfully!');
-    } catch (error) {
-      console.error('Restore failed:', error);
+    } catch {
       toast.error('Failed to restore backup');
     } finally {
       setIsRestoringBackup(false);
@@ -794,69 +664,50 @@ const loadData = async (userId: string) => {
 
   const handleRenameBackup = async (backupId: string, newName: string) => {
     if (!user.id || !backupId || !newName.trim()) return;
-
     try {
       const { error } = await supabase
         .from('backups')
         .update({
           backup_name: newName.trim(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', backupId)
         .eq('user_id', user.id);
-
       if (error) throw error;
-
       await loadBackups();
       toast.success('Backup renamed');
-    } catch (error) {
-      console.error('Rename failed:', error);
+    } catch {
       toast.error('Failed to rename backup');
     }
   };
 
+  // ── Settings actions ──────────────────────────────────────────────────────
+
   const handleChangePasswordSubmit = async () => {
-    if (!user?.email) {
-      toast.error('User email not found');
-      return;
-    }
-
+    if (!user?.email) return toast.error('User email not found');
     const { currentPassword, newPassword, confirmPassword } = passwordData;
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.error('Please fill in all password fields');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match');
-      return;
-    }
+    if (!currentPassword || !newPassword || !confirmPassword)
+      return toast.error('Please fill in all password fields');
+    if (newPassword !== confirmPassword)
+      return toast.error('New passwords do not match');
 
     try {
       setIsSubmitting(true);
-
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email,
-        password: currentPassword
+        password: currentPassword,
       });
-
-      if (signInError) {
-        toast.error('Current password is incorrect');
-        return;
-      }
+      if (signInError) return toast.error('Current password is incorrect');
 
       const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
+        password: newPassword,
       });
-
       if (updateError) throw updateError;
 
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setShowChangePasswordDialog(false);
       toast.success('Password updated successfully');
-    } catch (error) {
-      console.error('Password update failed:', error);
+    } catch {
       toast.error('Failed to update password');
     } finally {
       setIsSubmitting(false);
@@ -864,15 +715,10 @@ const loadData = async (userId: string) => {
   };
 
   const handleDeleteAccount = async () => {
-    if (!user.id) {
-      toast.error('Not authenticated');
-      return;
-    }
-
+    if (!user.id) return toast.error('Not authenticated');
     try {
       setIsSubmitting(true);
-
-      const deletionResults = await Promise.all([
+      const results = await Promise.all([
         supabase.from('transactions').delete().eq('user_id', user.id),
         supabase.from('budgets').delete().eq('user_id', user.id),
         supabase.from('backups').delete().eq('user_id', user.id),
@@ -880,18 +726,16 @@ const loadData = async (userId: string) => {
         supabase.from('user_accounts').delete().eq('user_id', user.id),
         supabase.from('feedback').delete().eq('user_id', user.id),
         supabase.from('user_ai_tokens').delete().eq('user_id', user.id),
-        supabase.from('users').delete().eq('id', user.id)
+        supabase.from('users').delete().eq('id', user.id),
       ]);
-
-      const firstError = deletionResults.find((result) => result.error)?.error;
-      if (firstError) throw firstError;
+      const firstErr = results.find((r) => r.error)?.error;
+      if (firstErr) throw firstErr;
 
       await supabase.auth.signOut();
       setShowDeleteAccountDialog(false);
       toast.success('Account deleted successfully');
       router.push('/auth/signin');
-    } catch (error) {
-      console.error('Delete account failed:', error);
+    } catch {
       toast.error('Failed to delete account');
       setShowDeleteAccountDialog(false);
     } finally {
@@ -900,23 +744,16 @@ const loadData = async (userId: string) => {
   };
 
   const handleClearData = async () => {
-    if (!user.id) {
-      toast.error('Not authenticated');
-      return;
-    }
-
+    if (!user.id) return toast.error('Not authenticated');
     try {
       setIsSubmitting(true);
-
       const [txResult, budgetsResult, backupsResult] = await Promise.all([
         supabase.from('transactions').delete().eq('user_id', user.id),
         supabase.from('budgets').delete().eq('user_id', user.id),
-        supabase.from('backups').delete().eq('user_id', user.id)
+        supabase.from('backups').delete().eq('user_id', user.id),
       ]);
-
-      if (txResult.error || budgetsResult.error || backupsResult.error) {
+      if (txResult.error || budgetsResult.error || backupsResult.error)
         throw txResult.error || budgetsResult.error || backupsResult.error;
-      }
 
       setFinancialData({
         income: 0,
@@ -926,61 +763,51 @@ const loadData = async (userId: string) => {
         budgets: [],
         alerts: [],
         aiRecommendations: [],
-        cashFlowForecast: []
+        cashFlowForecast: [],
       });
-
       setAvailableBackups([]);
       setSelectedBackup('');
       setShowClearDataDialog(false);
       toast.success('All data cleared successfully.');
-    } catch (error) {
-      console.error('Clear data failed:', error);
+    } catch {
       toast.error('Failed to clear data');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Transaction handlers
+  // ── Transaction handlers ──────────────────────────────────────────────────
+
   const handleSubmitTransaction = async () => {
     if (!user.id) return toast.error('Please sign in');
     setIsSubmitting(true);
-    
     try {
       const type = showIncomeForm ? 'income' : 'expense';
       const amount = parseFloat(transactionFormData.amount);
-      
-      if (isNaN(amount)) {
-        toast.error('Please enter a valid amount');
-        return;
-      }
-      
-      const transactionData: any = {
-        amount,
-        category: transactionFormData.category,
-        description: transactionFormData.description,
-        date: transactionFormData.date || new Date().toISOString().split('T')[0],
-        type,
-        user_id: user.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      
-      const { error } = await supabase
-        .from('transactions')
-        .insert([transactionData]);
+      if (isNaN(amount)) return toast.error('Please enter a valid amount');
 
+      const { error } = await supabase.from('transactions').insert([
+        {
+          amount,
+          category: transactionFormData.category,
+          description: transactionFormData.description,
+          date:
+            transactionFormData.date ||
+            new Date().toISOString().split('T')[0],
+          type,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ]);
       if (error) throw error;
-      
+
       toast.success(`${type === 'income' ? 'Income' : 'Expense'} added!`);
       setTransactionFormData({ amount: '', category: '', description: '', date: '' });
       setShowIncomeForm(false);
       setShowExpenseForm(false);
-      
       await loadData(user.id);
-      
     } catch (error: any) {
-      console.error('Transaction error:', error);
       toast.error(error.message || 'Failed to add transaction');
     } finally {
       setIsSubmitting(false);
@@ -993,7 +820,7 @@ const loadData = async (userId: string) => {
       amount: transaction.amount?.toString() || '',
       category: transaction.category,
       description: transaction.description || '',
-      date: transaction.date
+      date: transaction.date,
     });
     setShowEditModal(true);
   };
@@ -1002,21 +829,16 @@ const loadData = async (userId: string) => {
     if (!editingTransaction) return;
     setIsSubmitting(true);
     try {
-      const amount = parseFloat(editFormData.amount);
-      
-      const updateData: any = {
-        amount: amount,
-        category: editFormData.category,
-        description: editFormData.description,
-        date: editFormData.date,
-        updated_at: new Date().toISOString()
-      };
-      
       const { error } = await supabase
         .from('transactions')
-        .update(updateData)
+        .update({
+          amount: parseFloat(editFormData.amount),
+          category: editFormData.category,
+          description: editFormData.description,
+          date: editFormData.date,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', editingTransaction.id);
-
       if (error) throw error;
       toast.success('Transaction updated!');
       setShowEditModal(false);
@@ -1029,26 +851,44 @@ const loadData = async (userId: string) => {
     }
   };
 
-  const handleSubmitBudget = async () => {
-    if (!user.id) {
-      toast.error('Not authenticated');
-      return;
-    }
+  const handleStartDeleteTransaction = (id: string) => {
+    setDeleteTransactionId(id);
+    setShowDeleteModal(true);
+  };
 
+  const handleDeleteTransaction = async () => {
+    if (!deleteTransactionId) return;
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase
-        .from('budgets')
-        .insert({
-          category: budgetFormData.category,
-          budget_limit: parseFloat(budgetFormData.budget_limit) || 0,
-          period: toDbPeriod(budgetFormData.period),
-          user_id: user.id,
-        })
-        .select();
-
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', deleteTransactionId);
       if (error) throw error;
+      toast.success('Transaction deleted!');
+      setShowDeleteModal(false);
+      setDeleteTransactionId(null);
+      await loadData(user.id);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
+  // ── Budget handlers ───────────────────────────────────────────────────────
+
+  const handleSubmitBudget = async () => {
+    if (!user.id) return toast.error('Not authenticated');
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('budgets').insert({
+        category: budgetFormData.category,
+        budget_limit: parseFloat(budgetFormData.budget_limit) || 0,
+        period: toDbPeriod(budgetFormData.period),
+        user_id: user.id,
+      });
+      if (error) throw error;
       toast.success('Budget created!');
       setBudgetFormData({ category: '', budget_limit: '', period: 'Monthly' });
       setShowBudgetForm(false);
@@ -1065,7 +905,7 @@ const loadData = async (userId: string) => {
     setEditBudgetFormData({
       category: budget.category,
       budget_limit: budget.budget_limit.toString(),
-      period: toDisplayPeriod(budget.period)
+      period: toDisplayPeriod(budget.period),
     });
     setShowEditBudgetModal(true);
   };
@@ -1080,10 +920,9 @@ const loadData = async (userId: string) => {
           category: editBudgetFormData.category,
           budget_limit: parseFloat(editBudgetFormData.budget_limit),
           period: toDbPeriod(editBudgetFormData.period),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', editingBudget.id);
-
       if (error) throw error;
       toast.success('Budget updated!');
       setShowEditBudgetModal(false);
@@ -1096,7 +935,9 @@ const loadData = async (userId: string) => {
     }
   };
 
-  const handleStartDeleteBudget: Dispatch<SetStateAction<string | null>> = (value) => {
+  const handleStartDeleteBudget: Dispatch<SetStateAction<string | null>> = (
+    value
+  ) => {
     const id = typeof value === 'function' ? value(deleteBudgetId) : value;
     setDeleteBudgetId(id);
     if (id) setShowDeleteBudgetModal(true);
@@ -1106,7 +947,10 @@ const loadData = async (userId: string) => {
     if (!deleteBudgetId) return;
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('budgets').delete().eq('id', deleteBudgetId);
+      const { error } = await supabase
+        .from('budgets')
+        .delete()
+        .eq('id', deleteBudgetId);
       if (error) throw error;
       toast.success('Budget deleted!');
       setShowDeleteBudgetModal(false);
@@ -1119,118 +963,77 @@ const loadData = async (userId: string) => {
     }
   };
 
-  const handleStartDeleteTransaction = (id: string) => {
-    setDeleteTransactionId(id);
-    setShowDeleteModal(true);
-  };
+  // ── Logout ────────────────────────────────────────────────────────────────
 
-  const handleDeleteTransaction = async () => {
-    if (!deleteTransactionId) return;
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase.from('transactions').delete().eq('id', deleteTransactionId);
-      if (error) throw error;
-      toast.success('Transaction deleted!');
-      setShowDeleteModal(false);
-      setDeleteTransactionId(null);
-      await loadData(user.id);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Logout handler
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = '/auth/signin';
   };
 
-  // Theme classes
+  // ── Theme ─────────────────────────────────────────────────────────────────
+
   const themeClasses = {
     container: darkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900',
     card: darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
     text: {
       primary: darkMode ? 'text-gray-200' : 'text-gray-800',
       secondary: darkMode ? 'text-gray-400' : 'text-gray-500',
-      muted: darkMode ? 'text-gray-400' : 'text-gray-500'
+      muted: darkMode ? 'text-gray-400' : 'text-gray-500',
     },
     border: darkMode ? 'border-gray-700' : 'border-gray-200',
-    input: darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+    input: darkMode
+      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500',
   };
 
- // Update the loading check:
-if (loading || !user.id || !dataLoaded) {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
-      <div className="flex flex-col items-center gap-4">
-        <Image
-          src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
-          alt="Monietar"
-          width={220}
-          height={50}
-          className="animate-ping"
-          priority
-        />
+  // ── Loading screen ────────────────────────────────────────────────────────
+
+  if (loading || !user.id || !dataLoaded) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+        <div className="flex flex-col items-center gap-4">
+          <Image
+            src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
+            alt="Monietar"
+            width={220}
+            height={50}
+            className="animate-ping"
+            priority
+          />
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} flex`}>
       <Toaster position="top-right" />
 
+      {/* ── Sidebar (owns its own mobile drawer + hamburger trigger) ── */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         user={user}
-        darkMode={darkMode}
         onLogout={handleLogout}
-        setDarkMode={setDarkMode}
-        showBalance={showBalance}
-        setShowBalance={setShowBalance}
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
-        realTimeAlerts={realTimeAlerts}
       />
 
-      <div className="flex-1 flex flex-col md:ml-64">
-        <header className="bg-gray-900/90 backdrop-blur border-b border-gray-800 sticky top-0 z-30">
-          <div className="flex items-center justify-between px-6 h-16">
-            <div className="flex items-center gap-4">
-              <TokenStatus
-                tokenStatus={{ 
-                  tokensRemaining: tokens, 
-                  totalTokens: 100, 
-                  resetTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                  percentage: (tokens / 100) * 100 
-                }}
-                darkMode={darkMode}
-                onUpgradeClick={() => setShowTokenModal(true)}
-              />
-              {openRouterAvailable && (
-                <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-purple-900/30 border border-purple-700/50">
-                  <div className={`w-2 h-2 rounded-full ${
-                    modelIntelligence === 'High' || modelIntelligence === 'Highest' ? 'bg-purple-500' :
-                    modelIntelligence.includes('Medium') ? 'bg-blue-500' : 'bg-green-500'
-                  }`} />
-                  <span className="text-xs font-medium text-purple-300">
-                    {currentModel.replace('Claude 3 ', '').replace('Amazon ', '').replace('Gemini ', '')}
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setDarkMode(d => !d)} className="p-2 rounded-lg hover:bg-gray-800 transition">
-                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-        </header>
+      {/* ── Main area: offset by sidebar width on desktop ── */}
+      <div className="flex-1 flex flex-col lg:ml-64 min-w-0">
 
-        <main className="flex-1 p-6 overflow-y-auto">
+        {/* ── Header ── */}
+        <Header
+          user={user}
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
+          showBalance={showBalance}
+          setShowBalance={setShowBalance}
+        />
+
+        {/* ── Page content: push down by header height ── */}
+        <main className="flex-1 overflow-y-auto pt-16 px-4 sm:px-6 pb-6">
+
           {activeTab === 'overview' && (
             <OverviewPage
               financialData={financialData}
@@ -1256,12 +1059,12 @@ if (loading || !user.id || !dataLoaded) {
               setShowExpenseForm={setShowExpenseForm}
               setShowBudgetForm={() => setShowBudgetForm(true)}
               CustomTooltip={() => null}
-              budgets={budgetsWithRealTimeTracking.map((budget) => ({
-                id: budget.id,
-                category: budget.category,
-                budget_limit: budget.budget_limit,
-                spent: budget.spent,
-                period: budget.period
+              budgets={budgetsWithRealTimeTracking.map((b) => ({
+                id: b.id,
+                category: b.category,
+                budget_limit: b.budget_limit,
+                spent: b.spent,
+                period: b.period,
               }))}
             />
           )}
@@ -1278,7 +1081,11 @@ if (loading || !user.id || !dataLoaded) {
               deleteTransactionId={deleteTransactionId}
               darkMode={darkMode}
               themeClasses={themeClasses}
-              EmptyState={() => <div className="text-center py-12 text-gray-500">No transactions yet</div>}
+              EmptyState={() => (
+                <div className="text-center py-12 text-gray-500">
+                  No transactions yet
+                </div>
+              )}
             />
           )}
 
@@ -1297,11 +1104,11 @@ if (loading || !user.id || !dataLoaded) {
           )}
 
           {activeTab === 'connect account' && (
-            <AccountsPage 
+            <AccountsPage
               user={user as any}
-              darkMode={darkMode} 
-              showToast={toast} 
-              themeClasses={themeClasses} 
+              darkMode={darkMode}
+              showToast={toast}
+              themeClasses={themeClasses}
             />
           )}
 
@@ -1320,12 +1127,17 @@ if (loading || !user.id || !dataLoaded) {
           )}
 
           {(activeTab === 'reports' || activeTab === 'analytics') && (
-            <ComingSoonPage activeTab={activeTab} darkMode={darkMode} themeClasses={themeClasses} />
+            <ComingSoonPage
+              activeTab={activeTab}
+              darkMode={darkMode}
+              themeClasses={themeClasses}
+            />
           )}
         </main>
       </div>
 
-      {/* All Modals */}
+      {/* ── Modals ─────────────────────────────────────────────────────────── */}
+
       <AddTransactionModal
         isOpen={showIncomeForm}
         onClose={() => setShowIncomeForm(false)}
@@ -1363,19 +1175,29 @@ if (loading || !user.id || !dataLoaded) {
 
       <EditTransactionModal
         isOpen={showEditModal}
-        onClose={() => { setShowEditModal(false); setEditingTransaction(null); }}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingTransaction(null);
+        }}
         transaction={editingTransaction}
         formData={editFormData}
         onFormDataChange={setEditFormData}
         onSubmit={handleUpdateTransaction}
-        categories={editingTransaction?.type === 'income' ? incomeCategories : expenseCategories}
+        categories={
+          editingTransaction?.type === 'income'
+            ? incomeCategories
+            : expenseCategories
+        }
         darkMode={darkMode}
         isLoading={isSubmitting}
       />
 
       <EditBudgetModal
         isOpen={showEditBudgetModal}
-        onClose={() => { setShowEditBudgetModal(false); setEditingBudget(null); }}
+        onClose={() => {
+          setShowEditBudgetModal(false);
+          setEditingBudget(null);
+        }}
         budget={editingBudget as any}
         formData={editBudgetFormData}
         onFormDataChange={setEditBudgetFormData}
@@ -1387,7 +1209,10 @@ if (loading || !user.id || !dataLoaded) {
 
       <DeleteConfirmationModal
         isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setDeleteTransactionId(null); }}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteTransactionId(null);
+        }}
         onConfirm={handleDeleteTransaction}
         title="Delete Transaction"
         description="Are you sure? This cannot be undone."
@@ -1399,7 +1224,10 @@ if (loading || !user.id || !dataLoaded) {
 
       <DeleteConfirmationModal
         isOpen={showDeleteBudgetModal}
-        onClose={() => { setShowDeleteBudgetModal(false); setDeleteBudgetId(null); }}
+        onClose={() => {
+          setShowDeleteBudgetModal(false);
+          setDeleteBudgetId(null);
+        }}
         onConfirm={handleDeleteBudget}
         title="Delete Budget"
         description="Are you sure you want to delete this budget?"
@@ -1411,7 +1239,10 @@ if (loading || !user.id || !dataLoaded) {
 
       <RestoreBackupModal
         isOpen={showRestoreDialog}
-        onClose={() => { setShowRestoreDialog(false); setSelectedBackup(''); }}
+        onClose={() => {
+          setShowRestoreDialog(false);
+          setSelectedBackup('');
+        }}
         availableBackups={availableBackups}
         selectedBackup={selectedBackup}
         onSelectedBackupChange={setSelectedBackup}
@@ -1431,7 +1262,11 @@ if (loading || !user.id || !dataLoaded) {
         isOpen={showChangePasswordDialog}
         onClose={() => {
           setShowChangePasswordDialog(false);
-          setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+          setPasswordData({
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+          });
         }}
         passwordData={passwordData}
         onPasswordDataChange={setPasswordData}
@@ -1448,9 +1283,10 @@ if (loading || !user.id || !dataLoaded) {
         isLoading={isSubmitting}
       />
 
+      {/* ── Floating AI chat button ─────────────────────────────────────────── */}
       <button
         onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-emerald-600 to-green-500 rounded-full shadow-2xl hover:scale-110 transition-all z-40 flex items-center justify-center group"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-emerald-600 to-green-500 rounded-full shadow-2xl hover:scale-110 transition-all z-40 flex items-center justify-center"
         title="Smart AI Assistant"
       >
         <Bot className="w-7 h-7 text-white" />
@@ -1471,17 +1307,17 @@ if (loading || !user.id || !dataLoaded) {
           dailyLimit: 50,
           monthlyTokens: 15000,
           monthlyLimit: 1000000,
-          responseTime: 1200
+          responseTime: 1200,
         }}
       />
 
       <TokenModal
         isOpen={showTokenModal}
         onClose={() => setShowTokenModal(false)}
-        tokenStatus={{ 
-          tokensRemaining: tokens, 
-          totalTokens: 100, 
-          resetTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        tokenStatus={{
+          tokensRemaining: tokens,
+          totalTokens: 100,
+          resetTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         }}
         darkMode={darkMode}
       />
@@ -1489,8 +1325,11 @@ if (loading || !user.id || !dataLoaded) {
   );
 }
 
-// Main export with SettingsProvider wrapper
-export default function DashboardClient({ initialSession }: DashboardClientProps = {}) {
+// ─── Export with SettingsProvider ─────────────────────────────────────────────
+
+export default function DashboardClient({
+  initialSession,
+}: DashboardClientProps = {}) {
   return (
     <SettingsProvider userId={initialSession?.id}>
       <DashboardContent initialSession={initialSession} />

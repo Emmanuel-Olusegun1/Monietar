@@ -1,27 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Image from 'next/image'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
+import {
   Bell,
-  Search,
-  ChevronDown,
-  LogOut,
-  Settings,
-  User,
-  HelpCircle,
   Moon,
   Sun,
-  Globe,
   Eye,
   EyeOff,
-  Loader2,
-  Sparkles
+  Settings,
+  HelpCircle,
+ ArrowUpCircle,
 } from 'lucide-react'
-import { useSettings } from '@/contexts/SettingsContext'
-import { toast } from 'react-hot-toast'
-import { CURRENCIES, LANGUAGES, getCurrencySymbol } from '@/app/utils/constants'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface UserInfo {
   name: string
@@ -30,7 +22,6 @@ interface UserInfo {
   avatar: string
   plan: string
   joinedDate: string
-  id?: string
 }
 
 interface Notification {
@@ -44,13 +35,15 @@ interface Notification {
 }
 
 interface HeaderProps {
-  activeTab: string
   user: UserInfo
   darkMode: boolean
   setDarkMode: (darkMode: boolean) => void
-  onLogout: () => void
-  navigationItems: Array<{ id: string; label: string }>
+  showBalance: boolean
+  setShowBalance: (show: boolean) => void
+  onUpgradeClick?: () => void
 }
+
+// ─── Mock notifications ───────────────────────────────────────────────────────
 
 const mockNotifications: Notification[] = [
   {
@@ -60,496 +53,294 @@ const mockNotifications: Notification[] = [
     message: 'Payment received from Client Co.',
     time: '2 min ago',
     read: false,
-    amount: 2500
+    amount: 2500,
   },
   {
     id: '2',
     type: 'budget',
     title: 'Budget Alert',
-    message: 'You have exceeded your marketing budget',
+    message: 'You have exceeded your marketing budget.',
     time: '1 hour ago',
-    read: false
+    read: false,
   },
   {
     id: '3',
     type: 'system',
     title: 'System Update',
-    message: 'New features available in Reports',
+    message: 'New features available in Reports.',
     time: '3 hours ago',
-    read: true
+    read: true,
   },
   {
     id: '4',
     type: 'alert',
     title: 'Security Notice',
-    message: 'New device logged into your account',
+    message: 'New device logged into your account.',
     time: '1 day ago',
-    read: true
-  }
+    read: true,
+  },
 ]
 
-export function Header({ 
-  activeTab, 
-  user, 
-  darkMode, 
-  setDarkMode, 
-  onLogout, 
-  navigationItems 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getNotificationDot(type: Notification['type']) {
+  switch (type) {
+    case 'transaction': return 'bg-green-400'
+    case 'budget':      return 'bg-yellow-400'
+    case 'alert':       return 'bg-red-400'
+    default:            return 'bg-blue-400'
+  }
+}
+
+function getNotificationIcon(type: Notification['type']) {
+  switch (type) {
+    case 'budget': return Settings
+    case 'alert':  return HelpCircle
+    default:       return Bell
+  }
+}
+
+// ─── Theme token helper ───────────────────────────────────────────────────────
+// Returns the right Tailwind classes for each slot based on darkMode.
+
+function useTheme(darkMode: boolean) {
+  return {
+    // Header bar
+    header:       darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-[#E2E8F0]',
+
+    // Avatar
+    avatarBg:     darkMode ? 'from-emerald-600 to-teal-700' : 'from-[#4A5568] to-[#2D3748]',
+
+    // Text
+    namePrimary:  darkMode ? 'text-gray-100' : 'text-[#2D3748]',
+    nameSecond:   darkMode ? 'text-gray-400' : 'text-[#718096]',
+
+    // Icon buttons (theme / visibility)
+    iconBtn:      darkMode
+      ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-100 hover:bg-gray-700'
+      : 'bg-white border-[#E2E8F0] text-[#718096] hover:text-[#2D3748] hover:bg-[#F7FAFC]',
+
+    // Notification panel
+    panel:        darkMode ? 'bg-gray-800 border-gray-700 shadow-2xl' : 'bg-white border-[#E2E8F0] shadow-xl',
+    panelHeader:  darkMode ? 'border-gray-700' : 'border-[#E2E8F0]',
+    panelTitle:   darkMode ? 'text-gray-100' : 'text-[#2D3748]',
+    panelMarkAll: darkMode ? 'text-gray-400 hover:text-gray-100' : 'text-[#4A5568] hover:text-[#2D3748]',
+    panelDivide:  darkMode ? 'divide-gray-700/60' : 'divide-[#F7FAFC]',
+    panelFooter:  darkMode ? 'border-gray-700' : 'border-[#E2E8F0]',
+
+    // Notification row
+    rowUnread:    darkMode ? 'bg-emerald-900/20' : 'bg-blue-50/40',
+    rowHover:     darkMode ? 'hover:bg-gray-700/50' : 'hover:bg-[#F7FAFC]',
+    rowIconUnread:darkMode ? 'bg-gray-700' : 'bg-[#EDF2F7]',
+    rowIconRead:  darkMode ? 'bg-gray-700/50' : 'bg-[#F7FAFC]',
+    rowTitle:     darkMode ? 'text-gray-100' : 'text-[#2D3748]',
+    rowMsg:       darkMode ? 'text-gray-400' : 'text-[#718096]',
+    rowTime:      darkMode ? 'text-gray-500' : 'text-[#A0AEC0]',
+    rowMarkRead:  darkMode ? 'text-gray-500 hover:text-gray-200' : 'text-[#718096] hover:text-[#2D3748]',
+
+    // Panel footer button
+    footerBtn:    darkMode
+      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+      : 'bg-[#EDF2F7] hover:bg-[#E2E8F0] text-[#4A5568]',
+  }
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
+
+export function Header({
+  user,
+  darkMode,
+  setDarkMode,
+  showBalance,
+  setShowBalance,
+  onUpgradeClick,
 }: HeaderProps) {
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
-  const [isCurrencyOpen, setIsCurrencyOpen] = useState(false)
-  const [isLanguageOpen, setIsLanguageOpen] = useState(false)
-  const [showBalance, setShowBalance] = useState(true)
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
-  
-  // Get settings from context
-  const { settings, updateSettings, isLoading } = useSettings()
 
-  // Safe settings with defaults
-  const safeSettings = {
-    currency: settings?.currency || 'USD',
-    language: settings?.language || 'en',
-    notifications: settings?.notifications || {},
-    profile: settings?.profile || {}
-  }
+  const t = useTheme(darkMode)
+  const unreadCount = notifications.filter((n) => !n.read).length
 
-  const getNotificationIcon = (type: Notification['type']) => {
-    switch (type) {
-      case 'transaction': return Bell
-      case 'budget': return Settings
-      case 'alert': return HelpCircle
-      default: return Bell
-    }
-  }
+  const markAsRead = (id: string) =>
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    )
 
-  const getNotificationColor = (type: Notification['type']) => {
-    switch (type) {
-      case 'transaction': return 'text-green-400'
-      case 'budget': return 'text-yellow-400'
-      case 'alert': return 'text-red-400'
-      default: return 'text-blue-400'
-    }
-  }
-
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map(notification => 
-      notification.id === id ? { ...notification, read: true } : notification
-    ))
-  }
-
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(notification => ({ ...notification, read: true })))
-  }
-
-  const updateCurrency = async (currency: string) => {
-    try {
-      await updateSettings({ currency })
-      toast.success(`Currency updated to ${currency}`, {
-        icon: '💱',
-        duration: 2000
-      })
-    } catch (error) {
-      console.error('Error updating currency:', error)
-      toast.error('Failed to update currency')
-    }
-  }
-
-  const updateLanguage = async (languageValue: string) => {
-    try {
-      await updateSettings({ language: languageValue })
-      toast.success(`Language updated`, {
-        icon: '🌐',
-        duration: 2000
-      })
-    } catch (error) {
-      console.error('Error updating language:', error)
-      toast.error('Failed to update language')
-    }
-  }
-
-  // Handle theme change and update settings
-  const handleThemeToggle = () => {
-    const newDarkMode = !darkMode
-    setDarkMode(newDarkMode)
-    updateSettings({ theme: newDarkMode ? 'dark' : 'light' })
-  }
-
-  const unreadCount = notifications.filter(n => !n.read).length
-
-  // Find current currency and language labels
-  const currentCurrency = CURRENCIES.find(c => c.value === safeSettings.currency)
-  const currentLanguage = LANGUAGES.find(l => l.value === safeSettings.language)
+  const markAllAsRead = () =>
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 border-b border-gray-800 bg-gray-900 z-40 lg:left-64">
+    <header
+      className={`fixed top-0 left-0 right-0 h-16 border-b z-30 lg:left-64 transition-colors duration-200 ${t.header}`}
+    >
       <div className="flex items-center justify-between h-full px-4 sm:px-6">
-        
-        {/* Left Section - Logo & Breadcrumb */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            {/* Added Image Logo */}
-            <Image 
-              src="/logo.png" 
-              alt="Logo" 
-              width={28} 
-              height={28} 
-              className="object-contain"
-            />
-          </div>
-          <div className="hidden sm:flex items-center space-x-2">
-            <span className="text-sm text-gray-400">
-              Dashboard
-            </span>
-            <span className="text-sm text-gray-600">
-              /
-            </span>
-            <span className="text-sm font-medium text-white">
-              {navigationItems.find(item => item.id === activeTab)?.label}
-            </span>
-          </div>
-        </div>
 
-        {/* Center Section - Search */}
-        <div className="flex-1 max-w-md mx-4">
-          <div className="relative rounded-xl bg-gray-800">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search transactions, reports..."
-              className="w-full py-2 pl-10 pr-4 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-800 text-white placeholder-gray-500 transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* Right Section - Controls & Upgrade Action */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          
-          {/* Prominent Upgrade Button */}
-          <button 
-            onClick={() => toast.success('Redirecting to checkout...')}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-md transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+        {/* ── Left: user identity ──────────────────────────────────────── */}
+        <div className="flex items-center space-x-3 min-w-0">
+          <div
+            className={`w-8 h-8 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 ${t.avatarBg}`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Upgrade</span>
-          </button>
-
-          {/* Currency Selector - Hidden on mobile, moved to user menu */}
-          <div className="relative hidden md:block">
-            <button
-              onClick={() => setIsCurrencyOpen(!isCurrencyOpen)}
-              className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <Globe className="w-4 h-4" />
-                  <span className="text-sm">{safeSettings.currency} {getCurrencySymbol(safeSettings.currency)}</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isCurrencyOpen ? 'rotate-180' : ''}`} />
-                </>
-              )}
-            </button>
-
-            <AnimatePresence>
-              {isCurrencyOpen && !isLoading && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
-                >
-                  <div className="p-3 border-b border-gray-700">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Currency</h4>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto">
-                    {CURRENCIES.map((currency) => (
-                      <button
-                        key={currency.value}
-                        onClick={() => {
-                          updateCurrency(currency.value)
-                          setIsCurrencyOpen(false)
-                        }}
-                        className={`w-full px-4 py-3 text-sm text-left hover:bg-gray-700 transition-colors flex items-center justify-between ${
-                          safeSettings.currency === currency.value 
-                            ? 'text-emerald-400 bg-emerald-500/10' 
-                            : 'text-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">{getCurrencySymbol(currency.value)}</span>
-                          <div>
-                            <div className="font-medium">{currency.value}</div>
-                            <div className="text-xs text-gray-500">{currency.label.split('(')[1]?.replace(')', '')}</div>
-                          </div>
-                        </div>
-                        {safeSettings.currency === currency.value && (
-                          <span className="text-emerald-400 ml-2">✓</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {user.name.charAt(0).toUpperCase()}
           </div>
 
-          {/* Theme Toggle - Always visible */}
+          {/* sm+ : name + business */}
+          <div className="min-w-0 hidden sm:block">
+            <p className={`text-sm font-semibold leading-none truncate ${t.namePrimary}`}>
+              {user.name}
+            </p>
+            <p className={`text-xs leading-none mt-0.5 truncate ${t.nameSecond}`}>
+              {user.businessName}
+            </p>
+          </div>
+
+          {/* xs: name only */}
+          <p className={`text-sm font-semibold leading-none truncate sm:hidden ${t.namePrimary}`}>
+            {user.name}
+          </p>
+        </div>
+
+        {/* ── Right: controls ──────────────────────────────────────────── */}
+        <div className="flex items-center space-x-2">
+
+          {/* Upgrade button */}
           <button
-            onClick={handleThemeToggle}
-            className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
-            aria-label="Toggle theme"
-            disabled={isLoading}
+            onClick={onUpgradeClick}
+             className={`flex items-center gap-1.5 px-3 py-1.5 p-2 rounded-lg border transition-colors ${t.iconBtn}`}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+           
           >
-            {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : darkMode ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon className="w-5 h-5" />
-            )}
+            <ArrowUpCircle className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Upgrade</span>
           </button>
 
-          {/* Balance Visibility - Always visible */}
+          {/* Theme toggle */}
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className={`p-2 rounded-lg border transition-colors ${t.iconBtn}`}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
+          {/* Balance visibility */}
           <button
             onClick={() => setShowBalance(!showBalance)}
-            className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300"
-            aria-label={showBalance ? "Hide balance" : "Show balance"}
+            className={`p-2 rounded-lg border transition-colors ${t.iconBtn}`}
+            aria-label={showBalance ? 'Hide balances' : 'Show balances'}
           >
-            {showBalance ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+            {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
           </button>
 
-          {/* Notifications - Always visible */}
+          {/* Notifications */}
           <div className="relative">
-            <button 
-              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-300 relative"
+            <button
+              onClick={() => setIsNotificationOpen((v) => !v)}
+              className={`relative p-2 rounded-lg border transition-colors ${t.iconBtn}`}
               aria-label="Notifications"
+              aria-expanded={isNotificationOpen}
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-900"></span>
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
               )}
             </button>
 
             <AnimatePresence>
               {isNotificationOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50"
-                >
-                  {/* Header */}
-                  <div className="p-4 border-b border-gray-700">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-white">Notifications</h3>
-                      <div className="flex items-center space-x-2">
-                        {unreadCount > 0 && (
-                          <button
-                            onClick={markAllAsRead}
-                            className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
-                          >
-                            Mark all read
-                          </button>
-                        )}
-                        <button className="text-xs text-gray-400 hover:text-gray-300 transition-colors">
-                          View all
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                <>
+                  {/* Click-away */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsNotificationOpen(false)}
+                  />
 
-                  {/* Notifications List */}
-                  <div className="max-h-96 overflow-y-auto">
-                    {notifications.map((notification) => {
-                      const Icon = getNotificationIcon(notification.type)
-                      return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                    className={`absolute right-0 top-full mt-2 w-80 sm:w-96 border rounded-xl z-50 ${t.panel}`}
+                  >
+                    {/* Panel header */}
+                    <div className={`flex items-center justify-between px-4 py-3 border-b ${t.panelHeader}`}>
+                      <h3 className={`text-sm font-semibold ${t.panelTitle}`}>
+                        Notifications
+                        {unreadCount > 0 && (
+                          <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </h3>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllAsRead}
+                          className={`text-xs font-medium transition-colors ${t.panelMarkAll}`}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    {/* List */}
+                    <div className={`max-h-96 overflow-y-auto divide-y ${t.panelDivide}`}>
+                      {notifications.map((notification) => (
                         <div
                           key={notification.id}
-                          className={`p-4 border-b border-gray-700/50 last:border-b-0 hover:bg-gray-700/50 transition-colors ${
-                            !notification.read ? 'bg-emerald-500/5' : ''
+                          className={`flex items-start gap-3 px-4 py-3 transition-colors ${t.rowHover} ${
+                            !notification.read ? t.rowUnread : ''
                           }`}
                         >
-                          <div className="flex items-start space-x-3">
-                            <div className={`p-2 rounded-lg bg-gray-700 ${getNotificationColor(notification.type)}`}>
-                              <Icon className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between">
-                                <p className="text-sm font-medium text-white">{notification.title}</p>
-                                {!notification.read && (
-                                  <button
-                                    onClick={() => markAsRead(notification.id)}
-                                    className="p-1 rounded-lg hover:bg-gray-600 transition-colors ml-2"
-                                    aria-label="Mark as read"
-                                  >
-                                    <span className="w-3 h-3 text-gray-400">✓</span>
-                                  </button>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-300 mt-1">{notification.message}</p>
-                              {notification.amount && (
-                                <p className="text-sm text-emerald-400 font-medium mt-1">
-                                  {getCurrencySymbol(safeSettings.currency)}{notification.amount.toLocaleString()}
-                                </p>
-                              )}
-                              <div className="flex items-center mt-2">
-                                <span className="text-xs text-gray-500">{notification.time}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="p-4 border-t border-gray-700">
-                    <button className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-medium transition-colors">
-                      View All Notifications
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* User Menu - Always visible */}
-          <div className="relative">
-            <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center space-x-2 p-2 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors min-w-0"
-            >
-              <div className="flex items-center space-x-2 min-w-0">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="text-left hidden sm:block min-w-0">
-                  <p className="text-sm font-medium truncate">{user.name}</p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {user.businessName}
-                  </p>
-                </div>
-              </div>
-              <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${
-                isUserMenuOpen ? 'rotate-180' : ''
-              }`} />
-            </button>
-
-            <AnimatePresence>
-              {isUserMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="absolute right-0 top-full mt-2 w-64 rounded-xl border shadow-lg bg-gray-800 border-gray-700 z-50"
-                >
-                  <div className="p-4 border-b border-gray-700">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">
-                          {user.name}
-                        </p>
-                        <p className="text-xs text-gray-400 truncate">
-                          {user.email}
-                        </p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-xs text-emerald-400 font-medium">
-                            {currentCurrency?.value || 'USD'} {getCurrencySymbol(safeSettings.currency)}
-                          </span>
-                          <span className="text-xs text-gray-600">•</span>
-                          <span className="text-xs text-blue-400">
-                            {currentLanguage?.label || 'English'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-2">
-                    {/* Currency Selector for Mobile */}
-                    <div className="md:hidden">
-                      <div className="px-3 py-2 text-xs text-gray-500 uppercase font-semibold">
-                        Currency
-                      </div>
-                      <div className="grid grid-cols-3 gap-1 px-2 mb-2">
-                        {CURRENCIES.map((currency) => (
-                          <button
-                            key={currency.value}
-                            onClick={() => {
-                              updateCurrency(currency.value)
-                              setIsUserMenuOpen(false)
-                            }}
-                            className={`px-2 py-1 text-xs rounded-lg transition-colors flex items-center justify-between ${
-                              safeSettings.currency === currency.value 
-                                ? 'text-emerald-400 bg-emerald-500/10' 
-                                : 'text-gray-300 hover:bg-gray-700'
+                          {/* Colour dot */}
+                          <div
+                            className={`mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              !notification.read ? t.rowIconUnread : t.rowIconRead
                             }`}
                           >
-                            <span>{currency.value}</span>
-                            {safeSettings.currency === currency.value && (
-                              <span className="text-emerald-400 ml-1">✓</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                            <span className={`w-2 h-2 rounded-full ${getNotificationDot(notification.type)}`} />
+                          </div>
 
-                    {/* Language Selector */}
-                    <div>
-                      <div className="px-3 py-2 text-xs text-gray-500 uppercase font-semibold">
-                        Language
-                      </div>
-                      {LANGUAGES.map((language) => (
-                        <button
-                          key={language.value}
-                          onClick={() => {
-                            updateLanguage(language.value)
-                            setIsUserMenuOpen(false)
-                          }}
-                          className={`w-full px-3 py-2 text-sm rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-between ${
-                            safeSettings.language === language.value 
-                              ? 'text-emerald-400 bg-emerald-500/10' 
-                              : 'text-gray-300'
-                          }`}
-                        >
-                          <span>{language.label}</span>
-                          {safeSettings.language === language.value && (
-                            <span className="text-emerald-400">✓</span>
-                          )}
-                        </button>
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={`text-xs font-semibold leading-snug ${t.rowTitle}`}>
+                                {notification.title}
+                              </p>
+                              {!notification.read && (
+                                <button
+                                  onClick={() => markAsRead(notification.id)}
+                                  className={`text-[10px] flex-shrink-0 transition-colors ${t.rowMarkRead}`}
+                                  aria-label="Mark as read"
+                                >
+                                  ✓
+                                </button>
+                              )}
+                            </div>
+                            <p className={`text-xs mt-0.5 leading-snug ${t.rowMsg}`}>
+                              {notification.message}
+                            </p>
+                            {notification.amount != null && (
+                              <p className="text-xs font-semibold text-emerald-500 mt-0.5">
+                                +{notification.amount.toLocaleString()}
+                              </p>
+                            )}
+                            <p className={`text-[10px] mt-1 ${t.rowTime}`}>
+                              {notification.time}
+                            </p>
+                          </div>
+                        </div>
                       ))}
                     </div>
 
-                    <button className="flex items-center w-full px-3 py-2 mt-2 text-sm text-gray-300 rounded-lg hover:bg-gray-700 transition-colors">
-                      <User className="w-4 h-4 mr-2" />
-                      Profile Settings
-                    </button>
-                    <button className="flex items-center w-full px-3 py-2 text-sm text-gray-300 rounded-lg hover:bg-gray-700 transition-colors">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Preferences
-                    </button>
-                    <button className="flex items-center w-full px-3 py-2 text-sm text-gray-300 rounded-lg hover:bg-gray-700 transition-colors">
-                      <HelpCircle className="w-4 h-4 mr-2" />
-                      Help & Support
-                    </button>
-                  </div>
-
-                  <div className="p-2 border-t border-gray-700">
-                    <button
-                      onClick={onLogout}
-                      className="flex items-center w-full px-3 py-2 text-sm text-red-400 rounded-lg hover:bg-red-900/20 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
-                    </button>
-                  </div>
-                </motion.div>
+                    {/* Panel footer */}
+                    <div className={`px-4 py-3 border-t ${t.panelFooter}`}>
+                      <button
+                        className={`w-full py-2 rounded-lg text-xs font-semibold transition-colors ${t.footerBtn}`}
+                      >
+                        View all notifications
+                      </button>
+                    </div>
+                  </motion.div>
+                </>
               )}
             </AnimatePresence>
           </div>
