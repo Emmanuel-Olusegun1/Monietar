@@ -77,7 +77,7 @@ export default function Signin() {
         }
 
         toast.success(t.thankYou || 'Welcome back!');
-        setTimeout(() => router.push('/dashboard'), 1000);
+        router.push('/dashboard');
       } else {
         let phone = formData.phone.replace(/\s/g, '');
         if (!phone.startsWith('+')) {

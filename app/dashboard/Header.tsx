@@ -209,7 +209,7 @@ export function Header({
             aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
            
           >
-            <ArrowUpCircle className="w-3.5 h-3.5" />
+            <ArrowUpCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Upgrade</span>
           </button>
 
