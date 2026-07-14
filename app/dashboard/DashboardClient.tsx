@@ -1278,7 +1278,7 @@ function DashboardContent({ initialSession }: DashboardClientProps = {}) {
       <DeleteAccountModal
         isOpen={showDeleteAccountDialog}
         onClose={() => setShowDeleteAccountDialog(false)}
-        onConfirm={handleDeleteAccount}
+        onConfirm={async () => { await handleDeleteAccount(); }}
         darkMode={darkMode}
         isLoading={isSubmitting}
       />
