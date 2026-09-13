@@ -48,14 +48,16 @@ function Home() {
           <Testimonials />
         </section> */}
 
-        {/* FAQ Section */}
-        <section className="relative z-10 bg-white/60 backdrop-blur-md border-t border-b border-gray-100">
-          <Faqs />
-        </section>
+      
 
         {/* Pricing Section */}
         <section className="relative z-10">
           <Pricing />
+        </section>
+
+          {/* FAQ Section */}
+        <section className="relative z-10 bg-white/60 backdrop-blur-md border-t border-b border-gray-100">
+          <Faqs />
         </section>
 
         {/* Contact Section */}

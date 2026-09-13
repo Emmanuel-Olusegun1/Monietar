@@ -25,7 +25,11 @@ const productLinks: LinkProps[] = [
 
 const resourceLinks: LinkProps[] = [
   { title: 'Blog', link: '/blog' },
-  { title: 'Doc', link: 'https://monietardoc.hashnode.space/', external: true },
+  {
+    title: 'Doc',
+    link: 'https://monietardoc.hashnode.space/',
+    external: true,
+  },
   { title: 'Webinars', link: '/webinars' },
   { title: 'Help Center', link: '/help' },
   { title: 'Community', link: '/community' },
@@ -33,106 +37,135 @@ const resourceLinks: LinkProps[] = [
 
 export default function Footer() {
   return (
-    <footer className="bg-zinc-950 text-zinc-400 relative overflow-hidden border-t border-zinc-900/60">
-      {/* Soft Ambient Background Elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute -top-40 -right-20 w-80 h-80 bg-zinc-800/10 rounded-full blur-3xl"></div>
-      </div>
+    <footer className="relative overflow-hidden bg-[#f1f1f1] text-gray-500">
+      <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12">
 
-      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 relative z-10">
-        
-        {/* Main Grid: Responsive Menu Layout */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
-          {/* Brand/Product Philosophy Statement */}
-          <div className="col-span-2 md:col-span-1 pr-4">
-            <h3 className="text-xl font-extrabold text-white mb-4 tracking-tight">Monietar.</h3>
-            <p className="text-zinc-500 text-sm leading-relaxed">
-            Safely link your shop’s bank transfers, physical cash box, and cross-border currency pools into one hands-free ledger. No manual math, No missing flow.
-            </p>
+        {/* Top rule */}
+        <div className="border-t border-gray-300" />
+
+        {/* Main footer */}
+        <div className="grid grid-cols-2 gap-x-8 gap-y-12 py-12 sm:py-16 md:grid-cols-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr] lg:gap-12 lg:py-20">
+
+          {/* Brand */}
+          <div className="col-span-2 max-w-sm md:col-span-1">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+            >
+               {/* Logo */}
+                          <motion.a
+                            href="/"
+                            className="flex items-center"
+                            whileHover={{ y: -1 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <img
+                              src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
+                              alt="Monietar Logo"
+                              className="h-20 w-auto object-contain md:h-20"
+                            />
+                          </motion.a>
+              
+
+              <p className="mt-5 max-w-xs text-sm leading-6 text-gray-500">
+                Safely link your shop’s bank transfers, physical
+                cash box, and cross-border currency pools into one
+                hands-free ledger. No manual math, no missing flow.
+              </p>
+            </motion.div>
           </div>
 
-          {/* Product Links */}
-          <div className="flex flex-col justify-start">
-            <h4 className="text-sm font-semibold text-white tracking-wider uppercase mb-4 text-zinc-300">Product</h4>
-            <ul className="space-y-2.5 text-sm">
-              {productLinks.map((link) => (
-                <li key={link.title}>
-                  <a href={link.link} className="hover:text-white transition-colors duration-200">
-                    {link.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Product */}
+          <FooterColumn
+            title="Product"
+            links={productLinks}
+          />
 
-          {/* Company Links */}
-          <div className="flex flex-col justify-start">
-            <h4 className="text-sm font-semibold text-white tracking-wider uppercase mb-4 text-zinc-300">Company</h4>
-            <ul className="space-y-2.5 text-sm">
-              {company.map((link) => (
-                <li key={link.title}>
-                  <a href={link.link} className="hover:text-white transition-colors duration-200">
-                    {link.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Company */}
+          <FooterColumn
+            title="Company"
+            links={company}
+          />
 
-          {/* Resources Links */}
-          <div className="flex flex-col justify-start">
-            <h4 className="text-sm font-semibold text-white tracking-wider uppercase mb-4 text-zinc-300">Resources</h4>
-            <ul className="space-y-2.5 text-sm">
-              {resourceLinks.map((link) => (
-                <li key={link.title}>
-                  <a 
-                    href={link.link} 
-                    target={link.external ? '_blank' : undefined}
-                    rel={link.external ? 'noopener noreferrer' : undefined}
-                    className="hover:text-white transition-colors duration-200"
-                  >
-                    {link.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Resources */}
+          <FooterColumn
+            title="Resources"
+            links={resourceLinks}
+          />
         </div>
 
-        {/* Bottom Metadata Bar - Directly mirrors the structure visible at the base of image_c79302.jpg */}
+        {/* Bottom metadata */}
         <motion.div
-          className="border-t border-zinc-900 pt-8 mt-8"
+          className="border-t border-gray-300 py-5"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
         >
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            
-            {/* Split Bottom Brand / Copyright Identity Layout */}
-            <div className="flex items-center gap-3 text-xs text-zinc-600">
-              <span className="font-black tracking-tight text-zinc-500 text-sm">Monietar.</span>
-              <span>•</span>
-              <span>© {new Date().getFullYear()} All rights reserved.</span>
-            </div>
-            
-            {/* Engineering Attributions */}
-            <div className="text-xs text-zinc-600">
-              <a 
-                href="https://algoritic.com.ng" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover:text-zinc-400 transition-colors duration-200"
-              >
-                Powered By Algoritic Inc
-              </a>
+          <div className="flex flex-col gap-4 text-[9px] font-medium uppercase tracking-[0.16em] text-gray-400 sm:flex-row sm:items-center sm:justify-between sm:text-[10px]">
+
+
+ <a
+              href="https://algoritic.com.ng"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors duration-200 hover:text-emerald-800"
+            >
+              Powered by Algoritic Inc
+            </a>
+
+            <div className="flex items-center gap-3">
+              <span>
+                © {new Date().getFullYear()} All rights reserved.
+              </span>
             </div>
 
+           
           </div>
         </motion.div>
-
       </div>
     </footer>
+  );
+}
+
+function FooterColumn({
+  title,
+  links,
+}: {
+  title: string;
+  links: LinkProps[];
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+    >
+      <h4 className="mb-5 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+        {title}
+      </h4>
+
+      <ul className="space-y-3">
+        {links.map((link) => (
+          <li key={link.title}>
+            <a
+              href={link.link}
+              target={link.external ? '_blank' : undefined}
+              rel={
+                link.external
+                  ? 'noopener noreferrer'
+                  : undefined
+              }
+              className="text-sm text-gray-600 transition-colors duration-200 hover:text-emerald-900"
+            >
+              {link.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </motion.div>
   );
 }

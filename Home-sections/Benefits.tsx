@@ -145,7 +145,7 @@ export default function Benefits() {
             <motion.div
               key={index}
               variants={itemVariants}
-              className="group p-6 md:p-8 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+              className="group p-6 md:p-8 rounded-xl bg-white border border-gray-200 hover:shadow-sm transition-all duration-300"
               whileHover={{ y: -4 }}
             >
               <motion.div 
