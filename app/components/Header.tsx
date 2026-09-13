@@ -55,7 +55,7 @@ const DropdownIcons: Record<string, React.ReactNode> = {
     </svg>
   ),
 
-  Blog: (
+  Journal: (
     <svg
       className="h-5 w-5"
       fill="none"
@@ -200,8 +200,8 @@ export default function Header() {
           external: true,
         },
         {
-          label: 'Blog',
-          href: '/blog',
+          label: 'Journal',
+          href: '/journal',
         },
         {
           label: 'Privacy',

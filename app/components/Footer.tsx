@@ -1,6 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import {
+  Instagram,
+  Linkedin,
+  MessageCircle,
+} from 'lucide-react';
+import { SiTiktok, SiX } from 'react-icons/si';
 
 type LinkProps = {
   title: string;
@@ -24,7 +30,7 @@ const productLinks: LinkProps[] = [
 ];
 
 const resourceLinks: LinkProps[] = [
-  { title: 'Blog', link: '/blog' },
+  { title: 'Journal', link: '/journal' },
   {
     title: 'Doc',
     link: 'https://monietardoc.hashnode.space/',
@@ -33,6 +39,34 @@ const resourceLinks: LinkProps[] = [
   { title: 'Webinars', link: '/webinars' },
   { title: 'Help Center', link: '/help' },
   { title: 'Community', link: '/community' },
+];
+
+const socialLinks = [
+  {
+    title: 'X',
+    link: 'https://x.com/monietar',
+    icon: SiX,
+  },
+  {
+    title: 'Instagram',
+    link: 'https://instagram.com/monietar',
+    icon: Instagram,
+  },
+  {
+    title: 'LinkedIn',
+    link: 'https://linkedin.com/company/monietar',
+    icon: Linkedin,
+  },
+  {
+    title: 'TikTok',
+    link: 'https://tiktok.com/@monietar',
+    icon: SiTiktok,
+  },
+  {
+    title: 'WhatsApp',
+    link: 'https://wa.me/2340000000000',
+    icon: MessageCircle,
+  },
 ];
 
 export default function Footer() {
@@ -54,26 +88,54 @@ export default function Footer() {
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
             >
-               {/* Logo */}
-                          <motion.a
-                            href="/"
-                            className="flex items-center"
-                            whileHover={{ y: -1 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <img
-                              src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
-                              alt="Monietar Logo"
-                              className="h-20 w-auto object-contain md:h-20"
-                            />
-                          </motion.a>
-              
+              {/* Logo */}
+              <motion.a
+                href="/"
+                className="flex items-center"
+                whileHover={{ y: -1 }}
+                transition={{ duration: 0.2 }}
+              >
+                <img
+                  src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
+                  alt="Monietar Logo"
+                  className="h-20 w-auto object-contain md:h-20"
+                />
+              </motion.a>
 
               <p className="mt-5 max-w-xs text-sm leading-6 text-gray-500">
                 Safely link your shop’s bank transfers, physical
                 cash box, and cross-border currency pools into one
                 hands-free ledger. No manual math, no missing flow.
               </p>
+
+              {/* Social media */}
+              <div className="mt-7">
+                <p className="mb-4 text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+                  Follow Monietar
+                </p>
+
+                <div className="flex items-center gap-2">
+                  {socialLinks.map((social) => {
+                    const Icon = social.icon;
+
+                    return (
+                      <motion.a
+                        key={social.title}
+                        href={social.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={social.title}
+                        title={social.title}
+                        whileHover={{ y: -2 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex h-9 w-9 items-center justify-center border border-gray-300 text-gray-500 transition-colors duration-200 hover:border-emerald-900 hover:bg-emerald-900 hover:text-white"
+                      >
+                        <Icon className="h-4 w-4" />
+                      </motion.a>
+                    );
+                  })}
+                </div>
+              </div>
             </motion.div>
           </div>
 
@@ -106,8 +168,7 @@ export default function Footer() {
         >
           <div className="flex flex-col gap-4 text-[9px] font-medium uppercase tracking-[0.16em] text-gray-400 sm:flex-row sm:items-center sm:justify-between sm:text-[10px]">
 
-
- <a
+            <a
               href="https://algoritic.com.ng"
               target="_blank"
               rel="noopener noreferrer"
@@ -122,7 +183,6 @@ export default function Footer() {
               </span>
             </div>
 
-           
           </div>
         </motion.div>
       </div>
