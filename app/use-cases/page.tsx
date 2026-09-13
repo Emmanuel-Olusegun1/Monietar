@@ -2,14 +2,13 @@
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { 
-  Store, 
+import { motion } from 'framer-motion';
+import {
+  Store,
   Globe2,
-  Users, 
+  Users,
   Check,
-  ArrowRight,
-  Sparkles,
-  Bot
+  ArrowUpRight,
 } from 'lucide-react';
 
 export default function UseCasesPage() {
@@ -17,168 +16,351 @@ export default function UseCasesPage() {
     {
       id: 'retail-merchants',
       icon: Store,
+      number: '01',
       badge: 'Local Retail',
-      title: 'Ditching the Paper Ledger for Real-Time Automation',
-      description: 'For busy retail shop owners who manually record every customer bank transfer and cash payment into a physical notebook.',
-      painPoint: 'Missed credit alerts, fake transfer scams, and hours spent calculating daily sales at closing time.',
-      solution: 'Monietar listens to incoming notifications securely and auto-logs daily sales up to 150 transactions for free, keeping an independent vault track for physical cash balances.',
-      benefits: ['Eliminates manual bookkeeping errors', 'Instant notification verification', 'Zero-friction daily closing math']
+      title: 'From daily transactions to a clearer picture of the business.',
+      description:
+        'For retail merchants who still rely on notebooks, screenshots, memory, or scattered records to keep track of daily sales and cash movement.',
+      painPoint:
+        'Manual records make it easy to miss transactions, lose track of cash, spend too much time reconciling at the end of the day, or fall for unverified payment claims.',
+      solution:
+        'Monietar brings transactions into one financial view, helping merchants track incoming payments, maintain an independent cash record, and understand what actually moved through the business.',
+      benefits: [
+        'Less manual bookkeeping',
+        'Faster payment verification',
+        'Clearer daily cash position',
+      ],
     },
     {
       id: 'growing-shops',
       icon: Users,
+      number: '02',
       badge: 'Multi-Attendant Outlets',
-      title: 'Managing Multiple Store Assistants without Alert Chaos',
-      description: 'For scaling merchants with physical storefronts or warehouses managed by hired shop assistants and sales reps.',
-      painPoint: 'The business owner receives the bank alerts on their main phone, forcing assistants to constantly call or wait to confirm customer payments before releasing goods.',
-      solution: 'Multi-Device Alert Syncing instantly routes payment confirmations to your store assistants’ devices in real-time, without giving them access to your actual bank account balances.',
-      benefits: ['Faster customer checkouts', 'Prevents internal fraud and inventory leakages', 'Owners can monitor shop performance remotely']
+      title: 'Keep the shop moving without putting the owner in the middle.',
+      description:
+        'For growing merchants whose shops, outlets, or warehouses are increasingly managed by assistants, attendants, or sales representatives.',
+      painPoint:
+        'When payment confirmations stay on the owner’s phone, every transaction becomes another call, message, or interruption before an assistant can release an order.',
+      solution:
+        'Monietar helps synchronize payment visibility across the people who need it while keeping sensitive banking information protected, giving owners better oversight without becoming the payment bottleneck.',
+      benefits: [
+        'Faster customer checkout',
+        'Better visibility across attendants',
+        'Reduced payment and inventory leakage',
+      ],
     },
     {
       id: 'cross-border',
       icon: Globe2,
-      badge: 'Borderless Trade',
-      title: 'Navigating Cross-Border Commerce (Naira ⇄ CFA Franc)',
-      description: 'For merchants sourcing inventory or selling goods simultaneously across Nigeria and Francophone West Africa.',
-      painPoint: 'Fluctuating parallel market foreign exchange rates make accurate pricing, cost tracking, and cross-border profit calculations a nightmare.',
-      solution: 'Monietar’s Dual-Currency Ledger Engine auto-indexes parallel market currency fluctuations, allowing you to run a unified accounting book matching Naira and CFA Franc smoothly.',
-      benefits: ['Real-time FX margin protection', 'Unified multi-currency profit analytics', '1-Tap localized compliance exports']
-    }
+      number: '03',
+      badge: 'Cross-Border Trade',
+      title: 'Know what cross-border transactions are really costing you.',
+      description:
+        'For merchants sourcing inventory or selling across Nigeria and Francophone West Africa who need their financial records to reflect more than one currency.',
+      painPoint:
+        'Currency movements, sourcing costs, and different exchange rates can make it difficult to know the real cost of inventory and the actual margin on a transaction.',
+      solution:
+        'Monietar connects cross-border sourcing and currency movements back to your financial records, with dual-currency tracking and market-rate intelligence that helps merchants make better pricing and purchasing decisions.',
+      benefits: [
+        'Better FX-aware margin visibility',
+        'Unified multi-currency records',
+        'Smarter sourcing decisions',
+      ],
+    },
   ];
 
   const operationalSectors = [
-    { title: 'FMCG & Groceries', detail: 'Track high-volume daily cash flows and monitor fast-moving stock levels instantly.' },
-    { title: 'Fashion & Apparel', detail: 'Manage regional supplier payments across borders while matching multi-device sales logs.' },
-    { title: 'Electronics & Gadgets', detail: 'Protect high-ticket transfer confirmations from fake alert exploits using secure listeners.' },
-    { title: 'Wholesale Distributors', detail: 'Export audit-ready P&L statements directly to stakeholders or logistics partners.' },
+    {
+      title: 'FMCG & Groceries',
+      detail:
+        'Track frequent daily transactions, cash movement, and fast-moving inventory without relying on scattered records.',
+    },
+    {
+      title: 'Fashion & Apparel',
+      detail:
+        'Keep supplier payments, sales activity, and inventory costs connected as your business grows across locations.',
+    },
+    {
+      title: 'Electronics & Gadgets',
+      detail:
+        'Maintain clearer payment records for higher-value transactions and reduce dependence on screenshots and verbal confirmation.',
+    },
+    {
+      title: 'Wholesale & Distribution',
+      detail:
+        'Bring large transaction volumes, inventory movement, and financial reporting into one clearer operating picture.',
+    },
   ];
 
   return (
-    <div className="bg-slate-50 text-slate-700 min-h-screen font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-700 flex flex-col justify-between">
+    <div className="min-h-screen bg-[#f1f1f1] font-sans text-gray-900 antialiased selection:bg-emerald-900/10 selection:text-emerald-900">
       <Header />
 
-      <main className="flex-grow">
-        
-        {/* --- HERO SECTION --- */}
-        <section className="pt-36 pb-16 px-4 sm:px-6 lg:px-8 bg-white relative overflow-hidden border-b border-slate-100">
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-0 opacity-45">
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(226,232,240,0.8)_1px,transparent_1px),linear-gradient(90deg,rgba(226,232,240,0.8)_1px,transparent_1px)] bg-[size:80px_80px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,white,transparent)]"></div>
-            </div>
-          </div>
+      <main>
+        {/* Hero */}
+        <section className="px-5 pb-20 pt-28 sm:px-8 sm:pb-24 sm:pt-32 lg:px-12 lg:pb-28 lg:pt-36">
+          <div className="mx-auto max-w-[1440px]">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h1 className="mt-5 max-w-6xl text-[clamp(3.2rem,8vw,8rem)] font-bold leading-[0.88] tracking-[-0.065em] text-gray-950">
+                Built around
+                <br />
+                <span className="text-emerald-900">
+                  how businesses actually operate.
+                </span>
+              </h1>
+            </motion.div>
 
-          <div className="container mx-auto max-w-4xl text-center relative z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-50 border border-emerald-200 mb-6">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-700">Financial Intelligence in Action</span>
-            </div>
+            <motion.div
+              className="mt-12 grid grid-cols-1 gap-8 border-t border-gray-300 pt-7 sm:grid-cols-[1fr_1.5fr] lg:mt-16"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+            >
+              <div>
+                <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+                  Financial intelligence
+                </span>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 mb-6 tracking-tight leading-none">
-              How African SMEs Scale with 
-              <span className="text-emerald-600 block mt-2">Monietar's Ledger Engine</span>
-            </h1>
+                <p className="mt-3 text-sm font-medium text-gray-900">
+                  Designed for growing SMEs
+                </p>
+              </div>
 
-            <p className="text-lg sm:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
-              From local retail shops to borderless cross-border enterprises, discover how our automation replaces chaotic manual accounting with clear financial clarity.
-            </p>
+              <p className="max-w-2xl text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                Monietar helps merchants make sense of the money already
+                moving through their businesses — from everyday retail
+                transactions to multi-attendant operations and cross-border
+                sourcing.
+              </p>
+            </motion.div>
           </div>
         </section>
 
-        {/* --- DETAILED USE CASES MATRIX --- */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8 container mx-auto max-w-6xl">
-          <div className="space-y-24">
-            {useCases.map((uc, index) => {
-              const IconComponent = uc.icon;
-              return (
-                <div 
-                  key={uc.id} 
-                  className={`flex flex-col lg:flex-row gap-12 items-center ${
-                    index % 2 === 1 ? 'lg:flex-row-reverse' : ''
-                  }`}
-                >
-                  {/* Left: Graphic Content Card */}
-                  <div className="w-full lg:w-1/2">
-                    <div className="relative group">
-                      <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 to-green-500 rounded-3xl opacity-10 group-hover:opacity-20 blur-xl transition duration-500"></div>
-                      <div className="relative bg-white border border-slate-200 rounded-3xl p-8">
-                        <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center mb-6 border border-emerald-100">
-                          <IconComponent className="w-6 h-6 text-emerald-600" />
-                        </div>
-                        <span className="text-xs uppercase tracking-widest font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+        {/* Use Cases */}
+        <section className="bg-white px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="mb-14 border-b border-gray-300 pb-6">
+              <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                Where Monietar fits
+              </span>
+            </div>
+
+            <div className="divide-y divide-gray-300">
+              {useCases.map((uc, index) => {
+                const IconComponent = uc.icon;
+
+                return (
+                  <motion.article
+                    key={uc.id}
+                    className="grid grid-cols-1 gap-10 py-14 first:pt-0 last:pb-0 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:py-20"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{
+                      duration: 0.55,
+                      delay: index * 0.05,
+                    }}
+                  >
+                    {/* Meta */}
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <span className="font-mono text-[10px] tracking-widest text-gray-400">
+                          {uc.number}
+                        </span>
+
+                        <IconComponent className="h-5 w-5 text-emerald-900" />
+                      </div>
+
+                      <div className="mt-10">
+                        <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-900">
                           {uc.badge}
                         </span>
-                        <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-4 mb-4 tracking-tight">
-                          {uc.title}
-                        </h3>
-                        <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-                          {uc.description}
+
+                        <p className="mt-4 max-w-xs text-xs leading-5 text-gray-400">
+                          A practical use case for merchants managing growing
+                          transaction volumes and increasingly complex
+                          operations.
                         </p>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Right: Analytical Content Breakdown */}
-                  <div className="w-full lg:w-1/2 space-y-6 text-left">
+                    {/* Main Content */}
                     <div>
-                      <h4 className="text-xs uppercase tracking-wider font-extrabold text-rose-500 flex items-center gap-1.5 mb-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> The Core Friction
-                      </h4>
-                      <p className="text-slate-600 text-sm leading-relaxed font-medium pl-3 border-l-2 border-slate-200">
-                        {uc.painPoint}
-                      </p>
-                    </div>
+                      <h2 className="max-w-4xl text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-gray-950 sm:text-4xl lg:text-5xl">
+                        {uc.title}
+                      </h2>
 
-                    <div>
-                      <h4 className="text-xs uppercase tracking-wider font-extrabold text-emerald-600 flex items-center gap-1.5 mb-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Monietar Engine Impact
-                      </h4>
-                      <p className="text-slate-700 text-sm sm:text-base leading-relaxed font-semibold pl-3 border-l-2 border-emerald-500">
-                        {uc.solution}
+                      <p className="mt-6 max-w-3xl text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                        {uc.description}
                       </p>
-                    </div>
 
-                    <div className="pt-2">
-                      <h4 className="text-xs uppercase tracking-wider font-extrabold text-slate-400 mb-3">Key Metrics Unlocked:</h4>
-                      <ul className="space-y-2.5">
-                        {uc.benefits.map((benefit, bIdx) => (
-                          <li key={bIdx} className="flex items-center gap-2 text-xs sm:text-sm text-slate-800 font-bold">
-                            <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 stroke-[3]" />
-                            {benefit}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="mt-10 grid grid-cols-1 gap-8 border-t border-gray-200 pt-8 md:grid-cols-2">
+                        {/* Friction */}
+                        <div>
+                          <div className="mb-3 flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 bg-gray-400" />
+
+                            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                              The friction
+                            </span>
+                          </div>
+
+                          <p className="text-sm leading-6 text-gray-600">
+                            {uc.painPoint}
+                          </p>
+                        </div>
+
+                        {/* Impact */}
+                        <div>
+                          <div className="mb-3 flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 bg-emerald-900" />
+
+                            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-900">
+                              Monietar impact
+                            </span>
+                          </div>
+
+                          <p className="text-sm leading-6 text-gray-700">
+                            {uc.solution}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Benefits */}
+                      <div className="mt-8 border-t border-gray-200 pt-6">
+                        <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                          What changes
+                        </span>
+
+                        <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+                          {uc.benefits.map((benefit, benefitIndex) => (
+                            <div
+                              key={benefitIndex}
+                              className="flex items-center gap-2"
+                            >
+                              <Check className="h-3.5 w-3.5 text-emerald-900" />
+
+                              <span className="text-xs font-medium text-gray-700">
+                                {benefit}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
+                  </motion.article>
+                );
+              })}
+            </div>
           </div>
         </section>
 
-        {/* --- SYSTEM-WIDE AI HIGHLIGHT GRID --- */}
-        <section className="py-20 bg-white border-y border-slate-200 px-4 sm:px-6 lg:px-8">
-          <div className="container mx-auto max-w-5xl">
-            <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-              <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-                Architected for Diverse Operations
-              </h2>
-              <p className="text-slate-500 text-sm font-medium">
-                No matter your inventory style or delivery frequency, Monietar automates background reconciliation.
-              </p>
-            </div>
+        {/* Operational Sectors */}
+        <section className="bg-[#f1f1f1] px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
+          <div className="mx-auto max-w-[1440px]">
+            <motion.div
+              className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_1.5fr]"
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <div>
+                <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  Across industries
+                </span>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <h2 className="mt-5 max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-950 sm:text-5xl">
+                  Different businesses.
+                  <br />
+                  <span className="text-emerald-900">
+                    Similar financial problems.
+                  </span>
+                </h2>
+              </div>
+
+              <p className="max-w-2xl text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                Monietar is designed around the financial patterns that show
+                up across growing businesses — regardless of what they sell,
+                where they operate, or how their teams are structured.
+              </p>
+            </motion.div>
+
+            <div className="mt-14 grid grid-cols-1 border-t border-gray-300 md:grid-cols-2">
               {operationalSectors.map((sector, index) => (
-                <div key={index} className="p-6 bg-slate-50 rounded-2xl border border-slate-200 hover:border-emerald-500/40 transition-colors group">
-                  <h3 className="text-base font-bold text-slate-900 mb-2 tracking-tight group-hover:text-emerald-600 transition-colors">
-                    {sector.title}
-                  </h3>
-                  <p className="text-slate-500 text-xs sm:text-sm leading-relaxed font-medium">
-                    {sector.detail}
-                  </p>
-                </div>
+                <motion.div
+                  key={sector.title}
+                  className={`group border-b border-gray-300 py-8 md:px-8 ${
+                    index % 2 === 0
+                      ? 'md:border-r md:pl-0'
+                      : 'md:pr-0'
+                  }`}
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    duration: 0.45,
+                    delay: index * 0.06,
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-6">
+                    <div>
+                      <span className="font-mono text-[10px] tracking-widest text-gray-400">
+                        0{index + 1}
+                      </span>
+
+                      <h3 className="mt-5 text-xl font-semibold tracking-[-0.025em] text-gray-950 transition-colors group-hover:text-emerald-900">
+                        {sector.title}
+                      </h3>
+
+                      <p className="mt-3 max-w-md text-sm leading-6 text-gray-500">
+                        {sector.detail}
+                      </p>
+                    </div>
+
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-gray-300 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-emerald-900" />
+                  </div>
+                </motion.div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Closing Statement */}
+        <section className="bg-white px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
+          <div className="mx-auto max-w-[1440px]">
+            <motion.div
+              className="border-t border-gray-300 pt-8"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+                The bigger picture
+              </span>
+
+              <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[1.5fr_1fr] lg:items-end">
+                <h2 className="max-w-5xl text-3xl font-bold leading-[0.98] tracking-[-0.05em] text-gray-950 sm:text-5xl lg:text-6xl">
+                  Your business is already generating the data.
+                  <span className="text-emerald-900">
+                    {' '}
+                    Monietar helps you make sense of it.
+                  </span>
+                </h2>
+
+                <p className="max-w-md text-sm font-light leading-7 text-gray-500 lg:justify-self-end lg:text-right">
+                  From everyday transactions to inventory, cash flow, sourcing,
+                  and cross-border activity, the goal is simple: give business
+                  owners a clearer financial picture without adding more
+                  complexity to the way they work.
+                </p>
+              </div>
+            </motion.div>
           </div>
         </section>
       </main>

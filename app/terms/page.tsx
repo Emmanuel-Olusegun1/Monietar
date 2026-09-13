@@ -2,140 +2,476 @@
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { ArrowRight } from 'lucide-react';
 
 export default function TermsOfServicePage() {
-  const lastUpdated = "June 7, 2026";
+  const lastUpdated = 'June 7, 2026';
 
   return (
-    <div className="bg-[#FCFCFD] text-slate-900 min-h-screen font-sans antialiased selection:bg-emerald-500/10 selection:text-emerald-900 flex flex-col justify-between">
+    <div className="min-h-screen bg-[#f1f1f1] text-gray-900 antialiased selection:bg-emerald-500/10 selection:text-emerald-900">
       <Header />
 
-      <main className="relative pt-28 pb-24 overflow-hidden">
-        {/* Subtle background blur for structural layout consistency */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[-5%] right-[-5%] w-[500px] h-[500px] bg-emerald-500/[0.01] rounded-full blur-[100px]" />
-        </div>
+      <main>
+        {/* HERO / DOCUMENT HEADER */}
+        <section className="px-5 pb-16 pt-28 sm:px-8 sm:pb-20 sm:pt-32 lg:px-12 lg:pb-24 lg:pt-36">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="pt-10 sm:pt-14 lg:pt-16">
+              <h1 className="max-w-5xl text-[clamp(3rem,7.5vw,7.5rem)] font-bold leading-[0.9] tracking-[-0.06em] text-gray-900">
+                Terms of
+                <br />
+                <span className="text-emerald-900">Service.</span>
+              </h1>
 
-        <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 relative z-10">
-          
-          {/* Document Header */}
-          <div className="border-b border-slate-200 pb-8 mb-12">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 block mb-2">
-              Legal Agreement
-            </span>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-3">
-              Terms of Service
-            </h1>
-            <p className="text-slate-500 text-sm">
-              Last Updated: {lastUpdated}
-            </p>
-          </div>
+              <div className="mt-12 grid grid-cols-1 gap-8 border-t border-gray-300 pt-7 sm:grid-cols-[1fr_1.5fr] lg:mt-16">
+                <div>
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+                    Last updated
+                  </span>
 
-          {/* Legal Body Copy */}
-          <div className="prose prose-slate max-w-none text-slate-600 text-sm sm:text-base leading-relaxed space-y-8 font-normal">
-            
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">1. Agreement to Terms</h2>
-              <p>
-                These Terms of Service (&ldquo;Terms&rdquo;) constitute a legally binding agreement made between you, whether personally or on behalf of an entity (&ldquo;you,&rdquo; &ldquo;user,&rdquo; or &ldquo;Customer&rdquo;), and Monietar, operated by Algoritic Inc. (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), concerning your access to and use of the Monietar website, apps, and financial ledger synchronization systems.
-              </p>
-              <p>
-                By accessing or using the platform, you acknowledge that you have read, understood, and agreed to be bound by all of these Terms. If you do not agree with all of these Terms, you are explicitly prohibited from using our services.
-              </p>
-            </section>
+                  <p className="mt-3 text-sm font-medium text-gray-900">
+                    {lastUpdated}
+                  </p>
+                </div>
 
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">2. Description of Service</h2>
-              <p>
-                Monietar provides an automated financial intelligence and real-time ledger coordination framework. Our service aggregates financial metadata, Normalizes multi-currency streams, and builds single-screen visibility into business cash flows. 
-              </p>
-              <p>
-                Our services utilize <strong className="text-slate-900">read-only access layers</strong>. Monietar does not initiate payment distributions, manage active cash deposits, execute asset transfers, or operate as a licensed banking house.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">3. User Accounts & Registration Integrity</h2>
-              <p>
-                To access the system workspace, you must create a corporate profile. You agree to provide accurate, current, and complete profile parameters during setup and to update them promptly as changes occur.
-              </p>
-              <p>
-                You assume full responsibility for protecting your access credentials and authorization tokens. You must immediately report any breach of authentication logs or suspected unauthorized use of your merchant account to our security desk.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">4. Prohibited System Behaviors</h2>
-              <p>
-                You may access our bookkeeping interfaces solely for legitimate business management operations. You explicitly agree not to:
-              </p>
-              <ul className="list-disc pl-5 space-y-2 text-slate-600">
-                <li>Bypass, disable, or interfere with system security rules, token validations, or encryption routines.</li>
-                <li>Deploy automated scrapers, spiders, or extraction protocols to ingest data matrices from our network clusters.</li>
-                <li>Use our tools or generated data insights to break any local, regional, or cross-border trade guidelines, fraud compliance standards, or legal decrees.</li>
-                <li>Attempt to reverse-engineer, decompile, or unearth the core source architecture of our context-parsing modules.</li>
-              </ul>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">5. Third-Party Integrations & Data Rights</h2>
-              <p>
-                Monietar links with external financial software interfaces, payment channels, and bank endpoints via API integrations. You guarantee that you hold all required rights, titles, and legal permissions to grant Monietar read-only access to those data pipelines.
-              </p>
-              <p>
-                We accept no accountability or legal liability for the service availability, performance logs, data accuracy, or downtime encountered across any external third-party provider platforms.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">6. Intellectual Property Protections</h2>
-              <p>
-                The platform architecture, website configurations, database schemas, codebases, layout parameters, icon sets, logos, and written copy are the property of Algoritic Inc. and are safeguarded by copyright, trademark, and proprietary property legal frameworks. 
-              </p>
-              <p>
-                You receive a limited, revocable, non-transferable, and non-exclusive license to use our application interfaces strictly in accordance with these Terms.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">7. Disclaimer of Warranties</h2>
-              <p>
-                The service is provided on an &ldquo;as-is&rdquo; and &ldquo;as-available&rdquo; framework. We issue no warranties, express or implied, regarding system uptime, the accuracy of parsed data elements, complete lack of system interruptions, or total absence of ledger sync lags. 
-              </p>
-              <p>
-                While our systems track a 99.9% matching profile, you remain independently responsible for cross-checking your core financial documentation before executing significant operational investments or tax filings.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">8. Limitations of Liability</h2>
-              <p>
-                To the maximum boundary authorized under local laws, Algoritic Inc., its managers, partners, or software developers will assume no liability for any indirect, specific, secondary, exemplary, or penal commercial losses. This includes lost revenues, missed profits, or data corruption instances rising from your access to or inability to use our platform.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">9. Service Termination</h2>
-              <p>
-                We reserve the right to pause, cancel, or terminate your system access credentials instantly, without notice or legal liability, for any reason, including a breach of these Terms. You may cancel your user profile at any time by requesting deletion through your settings menu.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">10. Contact and Legal Reviews</h2>
-              <p>
-                For official notices, operational clarifications, or system governance queries, reach out directly to our administration office:
-              </p>
-              <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl text-xs sm:text-sm font-medium text-slate-700 space-y-1">
-                <div><span className="text-slate-400">Company:</span> Algoritic Inc.</div>
-                <div><span className="text-slate-400">Contact Line:</span> info@algoritic.com.ng</div>
-                <div><span className="text-slate-400">Desk:</span> Terms & Corporate Compliance Department</div>
+                <p className="max-w-2xl text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                  These Terms explain the rules, responsibilities, and
+                  conditions that apply when you access and use Monietar and
+                  its financial intelligence services.
+                </p>
               </div>
-            </section>
-
+            </div>
           </div>
+        </section>
 
-        </div>
+        {/* AGREEMENT TO TERMS */}
+        <section className="bg-white px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  1. Agreement to Terms
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  Using Monietar means agreeing to these terms.
+                </h2>
+              </div>
+
+              <div className="max-w-2xl space-y-6 text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                <p>
+                  These Terms of Service (&ldquo;Terms&rdquo;) constitute a
+                  legally binding agreement between you, whether personally or
+                  on behalf of an entity (&ldquo;you,&rdquo; &ldquo;user,&rdquo;
+                  or &ldquo;Customer&rdquo;), and Monietar, operated under
+                  Algoritic Inc. (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or
+                  &ldquo;our&rdquo;).
+                </p>
+
+                <p>
+                  These Terms govern your access to and use of the Monietar
+                  website, applications, financial ledger synchronization
+                  systems, and related services.
+                </p>
+
+                <p>
+                  By accessing or using Monietar, you acknowledge that you have
+                  read, understood, and agreed to be bound by these Terms. If
+                  you do not agree with them, you should not access or use the
+                  platform.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* DESCRIPTION OF SERVICE */}
+        <section className="bg-[#f1f1f1] px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  2. Description of Service
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  Financial visibility without taking control of your money.
+                </h2>
+              </div>
+
+              <div className="max-w-2xl space-y-6 text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                <p>
+                  Monietar provides financial intelligence, automated ledger
+                  coordination, and business cash flow visibility tools.
+                  Our services are designed to help businesses understand,
+                  organize, and monitor financial activity across connected
+                  business systems.
+                </p>
+
+                <p>
+                  The platform may aggregate financial metadata, normalize
+                  multi-currency activity, provide cash flow insights, and
+                  present business financial information through a centralized
+                  workspace.
+                </p>
+
+                <p>
+                  Monietar primarily utilizes{' '}
+                  <strong className="font-semibold text-gray-900">
+                    read-only access layers
+                  </strong>
+                  . We do not initiate payment distributions, manage active
+                  cash deposits, execute asset transfers, or operate as a
+                  licensed banking institution.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* USER ACCOUNTS */}
+        <section className="bg-white px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  3. User Accounts & Registration
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  Your account comes with responsibilities.
+                </h2>
+              </div>
+
+              <div className="max-w-2xl space-y-6 text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                <p>
+                  To access certain Monietar services, you may be required to
+                  create an account or business workspace. You agree to provide
+                  accurate, current, and complete information during
+                  registration and to keep that information updated.
+                </p>
+
+                <p>
+                  You are responsible for protecting your account credentials,
+                  authentication information, and authorized access tokens.
+                </p>
+
+                <p>
+                  You must promptly notify us if you believe your account has
+                  been compromised, accessed without authorization, or used in
+                  a manner that you did not approve.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PROHIBITED BEHAVIOURS */}
+        <section className="bg-[#f1f1f1] px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  4. Prohibited System Behaviors
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  Use the platform responsibly.
+                </h2>
+              </div>
+
+              <div className="max-w-2xl">
+                <p className="text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                  You may use Monietar only for legitimate business and
+                  financial management purposes. You agree not to:
+                </p>
+
+                <div className="mt-8 border-t border-gray-300">
+                  {[
+                    'Bypass, disable, or interfere with system security controls, authentication mechanisms, token validation, or encryption systems.',
+                    'Deploy automated scrapers, spiders, bots, or unauthorized extraction systems against the Monietar platform.',
+                    'Use Monietar or its generated insights to violate applicable laws, regulations, trade requirements, or fraud prevention standards.',
+                    'Attempt to reverse-engineer, decompile, disassemble, or discover the underlying source architecture of the platform.',
+                  ].map((item, index) => (
+                    <div
+                      key={item}
+                      className="grid grid-cols-[40px_1fr] gap-4 border-b border-gray-300 py-6"
+                    >
+                      <span className="text-[10px] font-semibold tracking-[0.15em] text-gray-400">
+                        0{index + 1}
+                      </span>
+
+                      <p className="text-sm font-light leading-6 text-gray-500">
+                        {item}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* THIRD PARTY INTEGRATIONS */}
+        <section className="bg-white px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  5. Third-Party Integrations & Data Rights
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  Connected systems remain responsible for their own services.
+                </h2>
+              </div>
+
+              <div className="max-w-2xl space-y-6 text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                <p>
+                  Monietar may connect with external financial software,
+                  payment channels, banking systems, and other business
+                  services through supported integrations and APIs.
+                </p>
+
+                <p>
+                  By connecting an external service, you confirm that you have
+                  the authority and necessary permissions to grant Monietar
+                  access to the relevant data.
+                </p>
+
+                <p>
+                  We are not responsible for the availability, performance,
+                  accuracy, security, or downtime of third-party services.
+                  Their own terms, policies, and service conditions may also
+                  apply.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* INTELLECTUAL PROPERTY */}
+        <section className="bg-[#f1f1f1] px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  6. Intellectual Property
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  The platform remains our intellectual property.
+                </h2>
+              </div>
+
+              <div className="max-w-2xl space-y-6 text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                <p>
+                  The Monietar platform, including its architecture, software,
+                  database structures, interface designs, visual systems,
+                  logos, trademarks, written content, and other proprietary
+                  materials, is owned by or licensed to Algoritic Inc. and is
+                  protected by applicable intellectual property laws.
+                </p>
+
+                <p>
+                  Subject to these Terms, we grant you a limited,
+                  non-exclusive, non-transferable, and revocable right to use
+                  the platform for its intended business purposes.
+                </p>
+
+                <p>
+                  No ownership rights are transferred to you through your use
+                  of Monietar.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* DISCLAIMER */}
+        <section className="bg-white px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  7. Disclaimer of Warranties
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  Financial intelligence is not a substitute for judgment.
+                </h2>
+              </div>
+
+              <div className="max-w-2xl space-y-6 text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                <p>
+                  Monietar is provided on an &ldquo;as-is&rdquo; and
+                  &ldquo;as-available&rdquo; basis. We do not guarantee
+                  uninterrupted availability, complete accuracy of processed
+                  information, or that the platform will always operate
+                  without delays, interruptions, or synchronization issues.
+                </p>
+
+                <p>
+                  While Monietar is designed to improve financial visibility
+                  and reduce manual bookkeeping overhead, you remain
+                  responsible for independently reviewing financial information
+                  before making significant business, investment, accounting,
+                  or tax decisions.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* LIMITATION OF LIABILITY */}
+        <section className="bg-[#f1f1f1] px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  8. Limitations of Liability
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  Some risks cannot be transferred to us.
+                </h2>
+              </div>
+
+              <div className="max-w-2xl space-y-6 text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                <p>
+                  To the maximum extent permitted by applicable law, Algoritic
+                  Inc., its directors, officers, employees, partners, and
+                  service providers will not be liable for indirect,
+                  incidental, consequential, special, exemplary, or punitive
+                  damages arising from your use of or inability to use
+                  Monietar.
+                </p>
+
+                <p>
+                  This includes, where permitted by law, losses relating to
+                  revenue, profits, business opportunities, business
+                  interruption, or corruption or loss of data.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* TERMINATION */}
+        <section className="bg-white px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  9. Service Termination
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  Access can end when the terms are breached.
+                </h2>
+              </div>
+
+              <div className="max-w-2xl space-y-6 text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                <p>
+                  We reserve the right to suspend, restrict, or terminate
+                  access to Monietar where reasonably necessary, including when
+                  a user violates these Terms, misuses the platform, creates
+                  security risks, or engages in unlawful activity.
+                </p>
+
+                <p>
+                  You may discontinue your use of Monietar at any time and may
+                  request deletion of your account or applicable personal
+                  information through the available account controls or by
+                  contacting us.
+                </p>
+
+                <p>
+                  Provisions that by their nature should survive termination,
+                  including intellectual property, disclaimers, limitations of
+                  liability, and applicable legal obligations, will continue to
+                  apply.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CONTACT */}
+        <section className="bg-[#f1f1f1] px-5 pb-15">
+          <div className="mx-auto max-w-[1440px]">
+            <div className="grid grid-cols-1 gap-12 pt-12 lg:grid-cols-[1fr_1.5fr] lg:gap-20 lg:pt-16">
+              <div>
+                <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                  10. Legal Contact Information
+                </p>
+
+                <h2 className="max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-900 sm:text-5xl">
+                  Questions about these terms?
+                </h2>
+              </div>
+
+              <div className="max-w-2xl">
+                <p className="text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
+                  For official notices, questions about these Terms, or
+                  operational and legal inquiries, please contact us directly.
+                </p>
+
+                <div className="mt-8 border-t border-gray-300">
+                  <div className="grid grid-cols-[120px_1fr] border-b border-gray-300 py-5 text-sm">
+                    <span className="text-gray-400">Entity</span>
+
+                    <span className="font-medium text-gray-900">
+                      Monietar{' '}
+                      <span className="text-gray-400">
+                        Powered by{' '}
+                        <a
+                          href="https://algoritic.com.ng"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline decoration-gray-300 underline-offset-4 transition-colors hover:text-emerald-900 hover:decoration-emerald-900"
+                        >
+                          Algoritic Inc.
+                        </a>
+                      </span>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-[120px_1fr] border-b border-gray-300 py-5 text-sm">
+                    <span className="text-gray-400">
+                      Inquiries Email
+                    </span>
+
+                    <a
+                      href="mailto:hello@monietar.com.ng"
+                      className="font-medium text-gray-900 underline decoration-gray-300 underline-offset-4 transition-colors hover:text-emerald-900 hover:decoration-emerald-900"
+                    >
+                      hello@monietar.com.ng
+                    </a>
+                  </div>
+
+                  <div className="grid grid-cols-[120px_1fr] py-5 text-sm">
+                    <span className="text-gray-400">
+                      Attention
+                    </span>
+
+                    <span className="font-medium text-gray-900">
+                      Terms & Corporate Compliance Desk
+                    </span>
+                  </div>
+                </div>
+
+                <a
+                  href="mailto:hello@monietar.com.ng"
+                  className="group mt-8 inline-flex items-center gap-3 border border-gray-900 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-900 transition-colors duration-300 hover:bg-gray-900 hover:text-white"
+                >
+                  Contact legal desk
+
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
 
       <Footer />
