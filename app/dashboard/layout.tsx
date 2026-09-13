@@ -1,4 +1,5 @@
 import DashboardShell from '@/components/dashboard/layout/DashboardShell';
+import { SidebarProvider } from '@/context/SidebarContext';
 
 export default function DashboardLayout({
   children,
@@ -6,8 +7,10 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <DashboardShell>
-      {children}
-    </DashboardShell>
+    <SidebarProvider>
+      <DashboardShell>
+        {children}
+      </DashboardShell>
+    </SidebarProvider>
   );
 }
