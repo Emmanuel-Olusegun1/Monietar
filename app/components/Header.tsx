@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 
 const DropdownIcons: Record<string, React.ReactNode> = {
   'Monietar TAP': (
@@ -94,6 +95,8 @@ const DropdownIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Header() {
+  const pathname = usePathname();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -105,6 +108,36 @@ export default function Header() {
   );
 
   const dropdownTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  /*
+   * Determine whether a navigation item is currently active.
+   *
+   * Exact match:
+   *   /about → About us active
+   *
+   * Nested route:
+   *   /about/team → About us active
+   *
+   * External links:
+   *   handled separately because pathname cannot match them.
+   */
+  const isPathActive = (href?: string) => {
+    if (!href || href.startsWith('http')) return false;
+
+    if (href === '/') {
+      return pathname === '/';
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const isDropdownActive = (
+    dropdown?: { href: string; external?: boolean }[]
+  ) => {
+    if (!dropdown) return false;
+
+    return dropdown.some((sub) => isPathActive(sub.href));
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -229,7 +262,7 @@ export default function Header() {
               href="/"
               className="flex items-center"
               whileHover={{ y: -1 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.02 }}
             >
               <img
                 src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
@@ -240,8 +273,12 @@ export default function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden items-center gap-1 md:flex">
-              {menu.map((item) =>
-                item.dropdown ? (
+              {menu.map((item) => {
+                const itemIsActive = item.dropdown
+                  ? isDropdownActive(item.dropdown)
+                  : isPathActive(item.href);
+
+                return item.dropdown ? (
                   <div
                     key={item.label}
                     className="relative"
@@ -252,9 +289,9 @@ export default function Header() {
                       type="button"
                       aria-haspopup="true"
                       aria-expanded={openDropdown === item.label}
-                      className={`group flex cursor-pointer items-center gap-1.5 px-4 py-3 text-[13px] font-medium transition-colors duration-200 ${
-                        openDropdown === item.label
-                          ? 'text-emerald-800'
+                      className={`group relative flex cursor-pointer items-center gap-1.5 px-4 py-3 text-[13px] font-medium transition-colors duration-200 ${
+                        openDropdown === item.label || itemIsActive
+                          ? 'text-emerald-900'
                           : 'text-gray-600 hover:text-gray-950'
                       }`}
                     >
@@ -275,6 +312,11 @@ export default function Header() {
                           d="M6 9l6 6 6-6"
                         />
                       </svg>
+
+                      {/* Active indicator — static */}
+                      {itemIsActive && (
+                        <span className="absolute bottom-1 left-4 right-4 h-[2px] bg-emerald-800" />
+                      )}
                     </button>
 
                     {/* Dropdown */}
@@ -303,29 +345,54 @@ export default function Header() {
                           className="absolute left-1/2 top-full z-50 w-60 -translate-x-1/2 pt-3"
                         >
                           <div className="border border-gray-200 bg-white p-2 shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
-                            {item.dropdown.map((sub) => (
-                              <a
-                                key={sub.label}
-                                href={sub.href}
-                                target={
-                                  sub.external ? '_blank' : undefined
-                                }
-                                rel={
-                                  sub.external
-                                    ? 'noopener noreferrer'
-                                    : undefined
-                                }
-                                className="group flex items-center gap-3 px-3 py-3 transition-colors duration-150 hover:bg-[#f1f1f1]"
-                              >
-                                <span className="flex h-8 w-8 items-center justify-center text-emerald-800">
-                                  {DropdownIcons[sub.label]}
-                                </span>
+                            {item.dropdown.map((sub) => {
+                              const subIsActive = isPathActive(sub.href);
 
-                                <span className="text-sm font-medium text-gray-700 transition-colors group-hover:text-gray-950">
-                                  {sub.label}
-                                </span>
-                              </a>
-                            ))}
+                              return (
+                                <a
+                                  key={sub.label}
+                                  href={sub.href}
+                                  target={
+                                    sub.external ? '_blank' : undefined
+                                  }
+                                  rel={
+                                    sub.external
+                                      ? 'noopener noreferrer'
+                                      : undefined
+                                  }
+                                  className={`group relative flex items-center gap-3 px-3 py-3 transition-colors duration-150 ${
+                                    subIsActive
+                                      ? 'bg-[#f1f1f1]'
+                                      : 'hover:bg-[#f1f1f1]'
+                                  }`}
+                                >
+                                  {/* Active marker */}
+                                  {subIsActive && (
+                                    <span className="absolute bottom-2 left-0 top-2 w-[2px] bg-emerald-800" />
+                                  )}
+
+                                  <span
+                                    className={`flex h-8 w-8 items-center justify-center ${
+                                      subIsActive
+                                        ? 'text-emerald-900'
+                                        : 'text-emerald-800'
+                                    }`}
+                                  >
+                                    {DropdownIcons[sub.label]}
+                                  </span>
+
+                                  <span
+                                    className={`text-sm font-medium transition-colors ${
+                                      subIsActive
+                                        ? 'text-gray-950'
+                                        : 'text-gray-700 group-hover:text-gray-950'
+                                    }`}
+                                  >
+                                    {sub.label}
+                                  </span>
+                                </a>
+                              );
+                            })}
                           </div>
                         </motion.div>
                       )}
@@ -335,20 +402,29 @@ export default function Header() {
                   <motion.a
                     key={item.label}
                     href={item.href}
-                    className="px-4 py-3 text-[13px] font-medium text-gray-600 transition-colors duration-200 hover:text-gray-950"
+                    className={`relative px-4 py-3 text-[13px] font-medium transition-colors duration-200 ${
+                      itemIsActive
+                        ? 'text-emerald-900'
+                        : 'text-gray-600 hover:text-gray-950'
+                    }`}
                     whileHover={{ y: -1 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.02 }}
                   >
                     {item.label}
+
+                    {/* Active indicator — static */}
+                    {itemIsActive && (
+                      <span className="absolute bottom-1 left-4 right-4 h-[2px] bg-emerald-800" />
+                    )}
                   </motion.a>
-                )
-              )}
+                );
+              })}
             </nav>
 
             {/* Desktop CTA */}
-            <div className="hidden md:flex items-center">
+            <div className="hidden items-center md:flex">
               <motion.a
-                href="/"
+                href="/#waitlist-section"
                 className="flex items-center gap-2 bg-emerald-900 px-5 py-2.5 text-[13px] font-medium text-white transition-colors duration-200 hover:bg-emerald-800"
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.98 }}
@@ -463,15 +539,23 @@ export default function Header() {
 
                     {/* Navigation */}
                     <nav className="flex-1 overflow-y-auto py-8">
-                      {menu.map((item) =>
-                        item.dropdown ? (
+                      {menu.map((item) => {
+                        const itemIsActive = item.dropdown
+                          ? isDropdownActive(item.dropdown)
+                          : isPathActive(item.href);
+
+                        return item.dropdown ? (
                           <div
                             key={item.label}
                             className="border-b border-gray-200 last:border-b-0"
                           >
                             <button
                               type="button"
-                              className="flex w-full items-center justify-between py-5 text-left text-lg font-medium tracking-tight text-gray-900"
+                              className={`relative flex w-full items-center justify-between py-5 text-left text-lg font-medium tracking-tight transition-colors ${
+                                itemIsActive
+                                  ? 'text-emerald-900'
+                                  : 'text-gray-900'
+                              }`}
                               onClick={() =>
                                 setOpenMobileDropdown(
                                   openMobileDropdown === item.label
@@ -483,7 +567,13 @@ export default function Header() {
                                 openMobileDropdown === item.label
                               }
                             >
-                              <span>{item.label}</span>
+                              <span className="flex items-center gap-3">
+                                {itemIsActive && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-800" />
+                                )}
+
+                                {item.label}
+                              </span>
 
                               <svg
                                 className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
@@ -522,30 +612,50 @@ export default function Header() {
                                   className="overflow-hidden"
                                 >
                                   <div className="pb-4 pl-4">
-                                    {item.dropdown.map((sub) => (
-                                      <a
-                                        key={sub.label}
-                                        href={sub.href}
-                                        target={
-                                          sub.external
-                                            ? '_blank'
-                                            : undefined
-                                        }
-                                        rel={
-                                          sub.external
-                                            ? 'noopener noreferrer'
-                                            : undefined
-                                        }
-                                        onClick={closeMobileMenu}
-                                        className="flex items-center gap-3 py-3 text-sm font-medium text-gray-600 transition-colors hover:text-emerald-800"
-                                      >
-                                        <span className="text-emerald-800">
-                                          {DropdownIcons[sub.label]}
-                                        </span>
+                                    {item.dropdown.map((sub) => {
+                                      const subIsActive = isPathActive(
+                                        sub.href
+                                      );
 
-                                        {sub.label}
-                                      </a>
-                                    ))}
+                                      return (
+                                        <a
+                                          key={sub.label}
+                                          href={sub.href}
+                                          target={
+                                            sub.external
+                                              ? '_blank'
+                                              : undefined
+                                          }
+                                          rel={
+                                            sub.external
+                                              ? 'noopener noreferrer'
+                                              : undefined
+                                          }
+                                          onClick={closeMobileMenu}
+                                          className={`relative flex items-center gap-3 py-3 pl-3 text-sm font-medium transition-colors ${
+                                            subIsActive
+                                              ? 'text-emerald-900'
+                                              : 'text-gray-600 hover:text-emerald-800'
+                                          }`}
+                                        >
+                                          {subIsActive && (
+                                            <span className="absolute bottom-2 left-0 top-2 w-[2px] bg-emerald-800" />
+                                          )}
+
+                                          <span
+                                            className={
+                                              subIsActive
+                                                ? 'text-emerald-900'
+                                                : 'text-emerald-800'
+                                            }
+                                          >
+                                            {DropdownIcons[sub.label]}
+                                          </span>
+
+                                          {sub.label}
+                                        </a>
+                                      );
+                                    })}
                                   </div>
                                 </motion.div>
                               )}
@@ -556,18 +666,28 @@ export default function Header() {
                             key={item.label}
                             href={item.href}
                             onClick={closeMobileMenu}
-                            className="block border-b border-gray-200 py-5 text-lg font-medium tracking-tight text-gray-900 transition-colors hover:text-emerald-800"
+                            className={`relative block border-b border-gray-200 py-5 text-lg font-medium tracking-tight transition-colors ${
+                              itemIsActive
+                                ? 'text-emerald-900'
+                                : 'text-gray-900 hover:text-emerald-800'
+                            }`}
                           >
-                            {item.label}
+                            <span className="flex items-center gap-3">
+                              {itemIsActive && (
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-800" />
+                              )}
+
+                              {item.label}
+                            </span>
                           </a>
-                        )
-                      )}
+                        );
+                      })}
                     </nav>
 
                     {/* Mobile CTA */}
                     <div className="border-t border-gray-300 pt-5">
                       <motion.a
-                        href="/"
+                        href="/#waitlist-section"
                         onClick={closeMobileMenu}
                         className="flex w-full items-center justify-center gap-2 bg-emerald-900 py-3.5 text-sm font-medium text-white transition-colors hover:bg-emerald-800"
                         whileTap={{ scale: 0.98 }}
@@ -577,8 +697,8 @@ export default function Header() {
                         <svg
                           className="h-4 w-4"
                           fill="none"
-                          stroke="currentColor"
                           viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
                           <path
                             strokeLinecap="round"

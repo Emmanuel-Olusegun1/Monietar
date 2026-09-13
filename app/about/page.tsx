@@ -6,8 +6,9 @@ import Footer from '@/components/Footer';
 // Import your modular section files from the local about directory
 import AboutHero from './hero'; 
 import AboutWhoWeAre from './who-we-are'
-// import AboutTimeline from './timeline';
-// import AboutCTA from './cta';
+import AboutProblem from './about-problem';
+import AboutHowWeThink from './how-we-think';
+import FinalCTA from '@/Home-sections/final-cta';
 
 export default function AboutPage() {
   return (
@@ -23,14 +24,14 @@ export default function AboutPage() {
         {/* Who we are */}
         <AboutWhoWeAre />
 
-        {/* Bento-Style Performance Metrics Grid */}
-        {/* <AboutMetrics /> */}
+        {/* About Problem*/}
+        <AboutProblem />
 
-        {/* Strategic Product Solution Pillars Block */}
-        {/* <AboutPillars /> */}
+        {/* How we think */}
+        <AboutHowWeThink />
 
-        {/* Linear Chronological Journey Timeline */}
-        {/* <AboutTimeline /> */}
+       {/* Final CTA section */}
+         <FinalCTA />
 
         {/* Framework & Recognition Trust Ribbon */}
         {/* <AboutTrustStrip /> */}

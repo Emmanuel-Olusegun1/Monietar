@@ -65,11 +65,8 @@ export default function FinalCTA() {
       className="bg-[#f1f1f1] px-5 py-16 sm:px-8 sm:py-20 lg:px-12"
     >
       <div className="mx-auto max-w-[1440px]">
-        {/* Top rule */}
-        <div className="border-t border-gray-300" />
-
         {!isSubmitted ? (
-          <div className="grid grid-cols-1 gap-12 py-14 sm:py-16 lg:grid-cols-[1fr_1.6fr] lg:gap-20 lg:py-20">
+          <div className="grid grid-cols-1 gap-12 py-7 lg:grid-cols-[1fr_1.6fr] lg:gap-20 lg:py-20">
 
             {/* Product context */}
             <motion.div
