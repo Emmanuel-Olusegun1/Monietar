@@ -43,7 +43,7 @@ export default function TodaysPerformance({
       value: formatCurrency(revenue),
       icon: DollarSign,
       color: 'bg-emerald-100',
-      icon: 'text-emerald-600',
+      iconColor: 'text-emerald-600',
       trend: '+12%',
       positive: true,
     },
@@ -52,7 +52,7 @@ export default function TodaysPerformance({
       value: formatCurrency(expenses),
       icon: Receipt,
       color: 'bg-red-100',
-      icon: 'text-red-600',
+      iconColor: 'text-red-600',
       trend: '-3%',
       positive: false,
     },
@@ -61,7 +61,7 @@ export default function TodaysPerformance({
       value: transactions.toString(),
       icon: ShoppingBag,
       color: 'bg-blue-100',
-      icon: 'text-blue-600',
+      iconColor: 'text-blue-600',
       trend: '+8%',
       positive: true,
     },
@@ -78,7 +78,6 @@ export default function TodaysPerformance({
       {/* Header */}
 
       <div className="border-b border-[#ECEEE8] px-7 py-6">
-
         <h2 className="text-xl font-bold text-[#14361F]">
           Today's Performance
         </h2>
@@ -86,19 +85,14 @@ export default function TodaysPerformance({
         <p className="mt-1 text-sm text-gray-500">
           Live business activity.
         </p>
-
       </div>
 
       {/* Profit Card */}
 
       <div className="p-7">
-
         <div className="rounded-3xl bg-gradient-to-br from-[#0F3B23] to-[#1B5A37] p-6 text-white">
-
           <div className="flex items-center justify-between">
-
             <div>
-
               <p className="text-sm text-emerald-100">
                 Net Profit
               </p>
@@ -106,59 +100,42 @@ export default function TodaysPerformance({
               <h1 className="mt-3 text-4xl font-bold">
                 {formatCurrency(profit)}
               </h1>
-
             </div>
 
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
-
               <TrendingUp size={30} />
-
             </div>
-
           </div>
 
           <div className="mt-8 flex items-center gap-2 text-emerald-100">
-
             <ArrowUpRight size={18} />
-
             18% higher than yesterday
-
           </div>
-
         </div>
-
       </div>
 
       {/* Metrics */}
 
       <div className="space-y-4 px-7 pb-7">
-
         {cards.map((item) => {
-
           const Icon = item.icon;
 
           return (
-
             <div
               key={item.title}
               className="flex items-center justify-between rounded-2xl border border-[#ECEEE8] p-5 transition hover:shadow-md"
             >
-
               <div className="flex items-center gap-4">
-
                 <div
                   className={`flex h-12 w-12 items-center justify-center rounded-xl ${item.color}`}
                 >
-
                   <Icon
                     size={22}
-                    className={item.icon}
+                    className={item.iconColor}
                   />
-
                 </div>
 
                 <div>
-
                   <h3 className="font-semibold text-[#14361F]">
                     {item.title}
                   </h3>
@@ -166,13 +143,10 @@ export default function TodaysPerformance({
                   <p className="text-sm text-gray-500">
                     Today's value
                   </p>
-
                 </div>
-
               </div>
 
               <div className="text-right">
-
                 <h3 className="text-lg font-bold text-[#14361F]">
                   {item.value}
                 </h3>
@@ -191,19 +165,12 @@ export default function TodaysPerformance({
                   )}
 
                   {item.trend}
-
                 </div>
-
               </div>
-
             </div>
-
           );
-
         })}
-
       </div>
-
     </section>
   );
 }
