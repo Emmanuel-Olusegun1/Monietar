@@ -4,91 +4,32 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
 import {
-  Store,
-  Globe2,
-  Users,
-  Check,
+  Mail,
+  MessageSquare,
+  Building2,
+  Clock,
   ArrowUpRight,
 } from 'lucide-react';
 
-export default function UseCasesPage() {
-  const useCases = [
-    {
-      id: 'retail-merchants',
-      icon: Store,
-      number: '01',
-      badge: 'Local Retail',
-      title: 'From daily transactions to a clearer picture of the business.',
-      description:
-        'For retail merchants who still rely on notebooks, screenshots, memory, or scattered records to keep track of daily sales and cash movement.',
-      painPoint:
-        'Manual records make it easy to miss transactions, lose track of cash, spend too much time reconciling at the end of the day, or fall for unverified payment claims.',
-      solution:
-        'Monietar brings transactions into one financial view, helping merchants track incoming payments, maintain an independent cash record, and understand what actually moved through the business.',
-      benefits: [
-        'Less manual bookkeeping',
-        'Faster payment verification',
-        'Clearer daily cash position',
-      ],
-    },
-    {
-      id: 'growing-shops',
-      icon: Users,
-      number: '02',
-      badge: 'Multi-Attendant Outlets',
-      title: 'Keep the shop moving without putting the owner in the middle.',
-      description:
-        'For growing merchants whose shops, outlets, or warehouses are increasingly managed by assistants, attendants, or sales representatives.',
-      painPoint:
-        'When payment confirmations stay on the owner’s phone, every transaction becomes another call, message, or interruption before an assistant can release an order.',
-      solution:
-        'Monietar helps synchronize payment visibility across the people who need it while keeping sensitive banking information protected, giving owners better oversight without becoming the payment bottleneck.',
-      benefits: [
-        'Faster customer checkout',
-        'Better visibility across attendants',
-        'Reduced payment and inventory leakage',
-      ],
-    },
-    {
-      id: 'cross-border',
-      icon: Globe2,
-      number: '03',
-      badge: 'Cross-Border Trade',
-      title: 'Know what cross-border transactions are really costing you.',
-      description:
-        'For merchants sourcing inventory or selling across Nigeria and Francophone West Africa who need their financial records to reflect more than one currency.',
-      painPoint:
-        'Currency movements, sourcing costs, and different exchange rates can make it difficult to know the real cost of inventory and the actual margin on a transaction.',
-      solution:
-        'Monietar connects cross-border sourcing and currency movements back to your financial records, with dual-currency tracking and market-rate intelligence that helps merchants make better pricing and purchasing decisions.',
-      benefits: [
-        'Better FX-aware margin visibility',
-        'Unified multi-currency records',
-        'Smarter sourcing decisions',
-      ],
-    },
-  ];
+export default function ContactPage() {
+  const contactEmail = 'YOUR_PRIVACY_TERMS_EMAIL';
 
-  const operationalSectors = [
+  const contactMethods = [
     {
-      title: 'FMCG & Groceries',
-      detail:
-        'Track frequent daily transactions, cash movement, and fast-moving inventory without relying on scattered records.',
+      icon: Mail,
+      number: '01',
+      title: 'General inquiries',
+      description:
+        'Questions about Monietar, your account, waitlist access, or how the platform works.',
+      contact: contactEmail,
     },
     {
-      title: 'Fashion & Apparel',
-      detail:
-        'Keep supplier payments, sales activity, and inventory costs connected as your business grows across locations.',
-    },
-    {
-      title: 'Electronics & Gadgets',
-      detail:
-        'Maintain clearer payment records for higher-value transactions and reduce dependence on screenshots and verbal confirmation.',
-    },
-    {
-      title: 'Wholesale & Distribution',
-      detail:
-        'Bring large transaction volumes, inventory movement, and financial reporting into one clearer operating picture.',
+      icon: MessageSquare,
+      number: '02',
+      title: 'Partnerships & support',
+      description:
+        'For partnerships, integrations, business conversations, or product-related support.',
+      contact: contactEmail,
     },
   ];
 
@@ -106,14 +47,14 @@ export default function UseCasesPage() {
               transition={{ duration: 0.6 }}
             >
               <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
-                Use Cases
+                Contact
               </span>
 
               <h1 className="mt-5 max-w-6xl text-[clamp(3.2rem,8vw,8rem)] font-bold leading-[0.88] tracking-[-0.065em] text-gray-950">
-                Built around
+                Let’s talk about
                 <br />
                 <span className="text-emerald-900">
-                  how businesses actually operate.
+                  your business.
                 </span>
               </h1>
             </motion.div>
@@ -126,245 +67,275 @@ export default function UseCasesPage() {
             >
               <div>
                 <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
-                  Financial intelligence
+                  Get in touch
                 </span>
 
                 <p className="mt-3 text-sm font-medium text-gray-900">
-                  Designed for growing SMEs
+                  We’re here to help
                 </p>
               </div>
 
               <p className="max-w-2xl text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
-                Monietar helps merchants make sense of the money already
-                moving through their businesses — from everyday retail
-                transactions to multi-attendant operations and cross-border
-                sourcing.
+                Have a question about Monietar, need help with your account,
+                or want to explore a business partnership? Send us a message
+                and we’ll get back to you.
               </p>
             </motion.div>
           </div>
         </section>
 
-        {/* Use Cases */}
+        {/* Contact Content */}
         <section className="bg-white px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
           <div className="mx-auto max-w-[1440px]">
-            <div className="mb-14 border-b border-gray-300 pb-6">
-              <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
-                Where Monietar fits
-              </span>
-            </div>
+            <div className="grid grid-cols-1 gap-14 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+              {/* Contact Information */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.55 }}
+              >
+                <div className="border-b border-gray-300 pb-6">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+                    Communication channels
+                  </span>
 
-            <div className="divide-y divide-gray-300">
-              {useCases.map((uc, index) => {
-                const IconComponent = uc.icon;
+                  <h2 className="mt-5 max-w-lg text-3xl font-bold leading-[1] tracking-[-0.045em] text-gray-950 sm:text-4xl">
+                    Start with the right conversation.
+                  </h2>
 
-                return (
-                  <motion.article
-                    key={uc.id}
-                    className="grid grid-cols-1 gap-10 py-14 first:pt-0 last:pb-0 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:py-20"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{
-                      duration: 0.55,
-                      delay: index * 0.05,
-                    }}
-                  >
-                    {/* Meta */}
-                    <div>
-                      <div className="flex items-start justify-between">
-                        <span className="font-mono text-[10px] tracking-widest text-gray-400">
-                          {uc.number}
-                        </span>
+                  <p className="mt-5 max-w-md text-sm leading-7 text-gray-500">
+                    Choose the channel that best matches what you need. Our
+                    team will route your message to the right place.
+                  </p>
+                </div>
 
-                        <IconComponent className="h-5 w-5 text-emerald-900" />
-                      </div>
+                <div className="divide-y divide-gray-200">
+                  {contactMethods.map((method) => {
+                    const Icon = method.icon;
 
-                      <div className="mt-10">
-                        <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-900">
-                          {uc.badge}
-                        </span>
+                    return (
+                      <div
+                        key={method.number}
+                        className="py-8 first:pt-8"
+                      >
+                        <div className="flex items-start justify-between">
+                          <span className="font-mono text-[10px] tracking-widest text-gray-400">
+                            {method.number}
+                          </span>
 
-                        <p className="mt-4 max-w-xs text-xs leading-5 text-gray-400">
-                          A practical use case for merchants managing growing
-                          transaction volumes and increasingly complex
-                          operations.
+                          <Icon className="h-5 w-5 text-emerald-900" />
+                        </div>
+
+                        <h3 className="mt-7 text-lg font-semibold tracking-[-0.02em] text-gray-950">
+                          {method.title}
+                        </h3>
+
+                        <p className="mt-3 max-w-md text-sm leading-6 text-gray-500">
+                          {method.description}
                         </p>
+
+                        <a
+                          href={`mailto:${method.contact}`}
+                          className="mt-5 inline-flex items-center gap-2 border-b border-gray-300 pb-1 text-xs font-semibold uppercase tracking-[0.12em] text-gray-700 transition-colors hover:border-emerald-900 hover:text-emerald-900"
+                        >
+                          {method.contact}
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </a>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
 
-                    {/* Main Content */}
-                    <div>
-                      <h2 className="max-w-4xl text-3xl font-semibold leading-[1.02] tracking-[-0.045em] text-gray-950 sm:text-4xl lg:text-5xl">
-                        {uc.title}
-                      </h2>
+                {/* Company Details */}
+                <div className="mt-4 border-t border-gray-300 pt-6">
+                  <div className="flex flex-col gap-4 text-xs text-gray-500">
+                    <div className="flex items-start gap-3">
+                      <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
 
-                      <p className="mt-6 max-w-3xl text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
-                        {uc.description}
-                      </p>
-
-                      <div className="mt-10 grid grid-cols-1 gap-8 border-t border-gray-200 pt-8 md:grid-cols-2">
-                        {/* Friction */}
-                        <div>
-                          <div className="mb-3 flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 bg-gray-400" />
-
-                            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-400">
-                              The friction
-                            </span>
-                          </div>
-
-                          <p className="text-sm leading-6 text-gray-600">
-                            {uc.painPoint}
-                          </p>
-                        </div>
-
-                        {/* Impact */}
-                        <div>
-                          <div className="mb-3 flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 bg-emerald-900" />
-
-                            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-900">
-                              Monietar impact
-                            </span>
-                          </div>
-
-                          <p className="text-sm leading-6 text-gray-700">
-                            {uc.solution}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Benefits */}
-                      <div className="mt-8 border-t border-gray-200 pt-6">
-                        <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-400">
-                          What changes
-                        </span>
-
-                        <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
-                          {uc.benefits.map((benefit, benefitIndex) => (
-                            <div
-                              key={benefitIndex}
-                              className="flex items-center gap-2"
-                            >
-                              <Check className="h-3.5 w-3.5 text-emerald-900" />
-
-                              <span className="text-xs font-medium text-gray-700">
-                                {benefit}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.article>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* Operational Sectors */}
-        <section className="bg-[#f1f1f1] px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
-          <div className="mx-auto max-w-[1440px]">
-            <motion.div
-              className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_1.5fr]"
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <div>
-                <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
-                  Across industries
-                </span>
-
-                <h2 className="mt-5 max-w-xl text-3xl font-bold leading-[0.98] tracking-[-0.045em] text-gray-950 sm:text-5xl">
-                  Different businesses.
-                  <br />
-                  <span className="text-emerald-900">
-                    Similar financial problems.
-                  </span>
-                </h2>
-              </div>
-
-              <p className="max-w-2xl text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
-                Monietar is designed around the financial patterns that show
-                up across growing businesses — regardless of what they sell,
-                where they operate, or how their teams are structured.
-              </p>
-            </motion.div>
-
-            <div className="mt-14 grid grid-cols-1 border-t border-gray-300 md:grid-cols-2">
-              {operationalSectors.map((sector, index) => (
-                <motion.div
-                  key={sector.title}
-                  className={`group border-b border-gray-300 py-8 md:px-8 ${
-                    index % 2 === 0
-                      ? 'md:border-r md:pl-0'
-                      : 'md:pr-0'
-                  }`}
-                  initial={{ opacity: 0, y: 15 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{
-                    duration: 0.45,
-                    delay: index * 0.06,
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-6">
-                    <div>
-                      <span className="font-mono text-[10px] tracking-widest text-gray-400">
-                        0{index + 1}
+                      <span>
+                        Monietar
+                        <br />
+                        Financial intelligence for growing businesses.
                       </span>
-
-                      <h3 className="mt-5 text-xl font-semibold tracking-[-0.025em] text-gray-950 transition-colors group-hover:text-emerald-900">
-                        {sector.title}
-                      </h3>
-
-                      <p className="mt-3 max-w-md text-sm leading-6 text-gray-500">
-                        {sector.detail}
-                      </p>
                     </div>
 
-                    <ArrowUpRight className="h-4 w-4 shrink-0 text-gray-300 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-emerald-900" />
+                    <div className="flex items-start gap-3">
+                      <Clock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+
+                      <span>
+                        Operating hours
+                        <br />
+                        Monday – Friday, 9:00 AM – 5:00 PM (WAT)
+                      </span>
+                    </div>
                   </div>
-                </motion.div>
-              ))}
+                </div>
+              </motion.div>
+
+              {/* Contact Form */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.55, delay: 0.1 }}
+              >
+                <div className="border-t border-gray-300">
+                  <div className="flex items-center justify-between border-b border-gray-200 py-5">
+                    <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+                      Send a message
+                    </span>
+
+                    <span className="font-mono text-[9px] tracking-widest text-gray-400">
+                      CONTACT / 01
+                    </span>
+                  </div>
+
+                  <form
+                    onSubmit={(e) => e.preventDefault()}
+                    className="pt-8"
+                  >
+                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+                      <div>
+                        <label
+                          htmlFor="first-name"
+                          className="mb-2 block text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-400"
+                        >
+                          First name
+                        </label>
+
+                        <input
+                          type="text"
+                          id="first-name"
+                          required
+                          placeholder="John"
+                          className="w-full border-b border-gray-300 bg-transparent px-0 py-3 text-sm text-gray-950 placeholder:text-gray-300 focus:border-emerald-900 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="last-name"
+                          className="mb-2 block text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-400"
+                        >
+                          Last name
+                        </label>
+
+                        <input
+                          type="text"
+                          id="last-name"
+                          required
+                          placeholder="Doe"
+                          className="w-full border-b border-gray-300 bg-transparent px-0 py-3 text-sm text-gray-950 placeholder:text-gray-300 focus:border-emerald-900 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-8">
+                      <label
+                        htmlFor="email"
+                        className="mb-2 block text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-400"
+                      >
+                        Email address
+                      </label>
+
+                      <input
+                        type="email"
+                        id="email"
+                        required
+                        placeholder="john@example.com"
+                        className="w-full border-b border-gray-300 bg-transparent px-0 py-3 text-sm text-gray-950 placeholder:text-gray-300 focus:border-emerald-900 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="mt-8">
+                      <label
+                        htmlFor="subject"
+                        className="mb-2 block text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-400"
+                      >
+                        What can we help with?
+                      </label>
+
+                      <select
+                        id="subject"
+                        defaultValue="general"
+                        className="w-full appearance-none border-b border-gray-300 bg-transparent px-0 py-3 text-sm text-gray-700 focus:border-emerald-900 focus:outline-none"
+                      >
+                        <option value="general">
+                          General inquiry
+                        </option>
+                        <option value="account">
+                          Account & product support
+                        </option>
+                        <option value="partnership">
+                          Partnership
+                        </option>
+                        <option value="integration">
+                          Integration
+                        </option>
+                        <option value="press">
+                          Press & media
+                        </option>
+                      </select>
+                    </div>
+
+                    <div className="mt-8">
+                      <label
+                        htmlFor="message"
+                        className="mb-2 block text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-400"
+                      >
+                        Your message
+                      </label>
+
+                      <textarea
+                        id="message"
+                        rows={6}
+                        required
+                        placeholder="Tell us what you need..."
+                        className="w-full resize-none border-b border-gray-300 bg-transparent px-0 py-3 text-sm leading-6 text-gray-950 placeholder:text-gray-300 focus:border-emerald-900 focus:outline-none"
+                      />
+                    </div>
+
+                    <motion.button
+                      type="submit"
+                      whileHover={{ x: 3 }}
+                      className="mt-8 flex w-full items-center justify-between border-t border-emerald-900 pt-4 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900 transition-colors"
+                    >
+                      <span>Send message</span>
+
+                      <ArrowUpRight className="h-4 w-4" />
+                    </motion.button>
+                  </form>
+                </div>
+              </motion.div>
             </div>
           </div>
         </section>
 
-        {/* Closing Statement */}
-        <section className="bg-white px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
+        {/* Bottom Statement */}
+        <section className="bg-[#f1f1f1] px-5 py-16 sm:px-8 lg:px-12 lg:py-20">
           <div className="mx-auto max-w-[1440px]">
-            <motion.div
-              className="border-t border-gray-300 pt-8"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
-                The bigger picture
-              </span>
-
-              <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[1.5fr_1fr] lg:items-end">
-                <h2 className="max-w-5xl text-3xl font-bold leading-[0.98] tracking-[-0.05em] text-gray-950 sm:text-5xl lg:text-6xl">
-                  Your business is already generating the data.
-                  <span className="text-emerald-900">
-                    {' '}
-                    Monietar helps you make sense of it.
+            <div className="border-t border-gray-300 pt-6">
+              <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+                    Monietar
                   </span>
-                </h2>
 
-                <p className="max-w-md text-sm font-light leading-7 text-gray-500 lg:justify-self-end lg:text-right">
-                  From everyday transactions to inventory, cash flow, sourcing,
-                  and cross-border activity, the goal is simple: give business
-                  owners a clearer financial picture without adding more
-                  complexity to the way they work.
-                </p>
+                  <p className="mt-3 max-w-xl text-2xl font-semibold leading-tight tracking-[-0.035em] text-gray-950 sm:text-3xl">
+                    Better financial visibility starts with a conversation.
+                  </p>
+                </div>
+
+                <a
+                  href={`mailto:${contactEmail}`}
+                  className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900"
+                >
+                  Email us
+                  <ArrowUpRight className="h-4 w-4" />
+                </a>
               </div>
-            </motion.div>
+            </div>
           </div>
         </section>
       </main>
