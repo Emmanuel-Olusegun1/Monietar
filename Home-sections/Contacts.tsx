@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useState, FormEvent } from 'react';
 import { Mail, MessageCircle, Clock, Calendar, Send, Shield } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 export default function Contact() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,7 +48,7 @@ export default function Contact() {
       }
 
       // Insert into Supabase
-      const { data, error } = await supabase
+      const { data, error } = await createClient()
         .from('contact_messages')
         .insert([
           {
