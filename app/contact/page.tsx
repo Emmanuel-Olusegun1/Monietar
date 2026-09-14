@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 
 export default function ContactPage() {
-  const contactEmail = 'YOUR_PRIVACY_TERMS_EMAIL';
 
   const contactMethods = [
     {
@@ -21,7 +20,7 @@ export default function ContactPage() {
       title: 'General inquiries',
       description:
         'Questions about Monietar, your account, waitlist access, or how the platform works.',
-      contact: contactEmail,
+      contact: 'hello@monietar.com.ng',
     },
     {
       icon: MessageSquare,
@@ -29,7 +28,7 @@ export default function ContactPage() {
       title: 'Partnerships & support',
       description:
         'For partnerships, integrations, business conversations, or product-related support.',
-      contact: contactEmail,
+      contact: 'support@monietar.com.ng',
     },
   ];
 
@@ -154,9 +153,8 @@ export default function ContactPage() {
                       <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
 
                       <span>
-                        Monietar
-                        <br />
-                        Financial intelligence for growing businesses.
+                       Monietar, Powered by <a href='algoritic.com.ng' target='_blank'
+                       rel='norefopener' className='text-emerald-900 font-bold'>Algoritic Inc</a>
                       </span>
                     </div>
 
@@ -296,15 +294,15 @@ export default function ContactPage() {
                       />
                     </div>
 
-                    <motion.button
-                      type="submit"
+                    <motion.a
+                      href="mailto:support@monietar.com.ng"
                       whileHover={{ x: 3 }}
-                      className="mt-8 flex w-full items-center justify-between border-t border-emerald-900 pt-4 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900 transition-colors"
+                      className="mt-8 flex w-full items-center justify-between border border-emerald-900 pt-4 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900 transition-colors p-6 hover:bg-black hover:text-white"
                     >
                       <span>Send message</span>
 
                       <ArrowUpRight className="h-4 w-4" />
-                    </motion.button>
+                    </motion.a>
                   </form>
                 </div>
               </motion.div>
@@ -328,7 +326,7 @@ export default function ContactPage() {
                 </div>
 
                 <a
-                  href={`mailto:${contactEmail}`}
+                  href="mailto:hello@monietar.com.ng"
                   className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900"
                 >
                   Email us
