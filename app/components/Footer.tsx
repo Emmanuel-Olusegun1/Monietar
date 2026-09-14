@@ -54,7 +54,7 @@ const socialLinks = [
   },
   {
     title: 'LinkedIn',
-    link: 'https://linkedin.com/company/monietar',
+    link: 'https://www.linkedin.com/showcase/monietar/',
     icon: Linkedin,
   },
   {
@@ -64,7 +64,7 @@ const socialLinks = [
   },
   {
     title: 'WhatsApp',
-    link: 'https://wa.me/2340000000000',
+    link: 'https://wa.me/2349034010384',
     icon: MessageCircle,
   },
 ];
@@ -172,7 +172,7 @@ export default function Footer() {
               href="https://algoritic.com.ng"
               target="_blank"
               rel="noopener noreferrer"
-              className="transition-colors duration-200 hover:text-emerald-800"
+              className="transition-colors duration-200 text-emerald-700 hover:text-emerald-800"
             >
               Powered by Algoritic Inc
             </a>

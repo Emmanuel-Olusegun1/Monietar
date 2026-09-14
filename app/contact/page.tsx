@@ -297,7 +297,7 @@ export default function ContactPage() {
                     <motion.a
                       href="mailto:support@monietar.com.ng"
                       whileHover={{ x: 3 }}
-                      className="mt-8 flex w-full items-center justify-between border border-emerald-900 pt-4 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900 transition-colors p-6 hover:bg-black hover:text-white"
+                      className="mt-8 flex w-full items-center justify-between border border-emerald-900 pt-4 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900 transition-colors p-6 bg-[#f1f1f1] hover:bg-black hover:text-white"
                     >
                       <span>Send message</span>
 
