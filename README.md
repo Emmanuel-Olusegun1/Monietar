@@ -1,273 +1,490 @@
-# Fintar - Financial Intelligence Platform
+# Monietar - The Cash Flow Operating System
 
-![Fintar Logo](https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80)
+Monietar is an AI-powered financial intelligence platform built for African businesses, **powered by Algoritic Inc.**
 
-## 🌟 Overview
+It brings sales, cash, transfers, inventory, profit, and financial activity into one place so business owners can understand what is happening with their money and make better decisions.
 
-Fintar is an AI-powered financial management platform designed specifically for African SMEs. Our mission is to democratize financial intelligence by providing small and medium-sized businesses with enterprise-grade cash flow forecasting, budgeting tools, and financial insights at an affordable price.
+**Website:** https://monietar.com.ng
 
-**Live Demo**: [https://fintar.vercel.app](https://fintar.vercel.app)
-
-## 🚀 Key Features
-
-### 💰 Cash Flow Management
-- Real-time income and expense tracking with smart categorization
-- 90-day cash flow forecasting with AI-powered predictions
-- Visual financial dashboards for easy interpretation
-
-### 🤖 AI-Powered Insights
-- Kudi AI assistant providing actionable financial recommendations
-- Seasonal pattern detection and trend analysis
-- Risk assessment and opportunity identification
-
-### 📊 Advanced Analytics
-- Customizable financial reports and visualizations
-- Multi-currency support for African markets
-- Export capabilities for financial data
-
-### 👥 Collaboration Tools
-- Team access with role-based permissions
-- Shared financial goals and budgets
-- White-label reporting for professional presentations
-
-### 🔒 Security & Compliance
-- Bank-level encryption and data protection
-- GDPR compliant infrastructure
-- Regular security audits and SOC 2 compliance
-
-## 🎯 Designed for African Businesses
-
-Fintar is built with African SMEs in mind, offering:
-
-- **Multi-Currency Support**: Handle transactions in NGN, XOF, and other African currencies
-- **Localized Experience**: Designed for the unique financial challenges of African markets
-- **Mobile-First Design**: Optimized for the devices African businesses actually use
-- **Affordable Pricing**: Tiered plans suitable for businesses at every growth stage
-
-## 📈 Pricing Plans
-
-### 🆓 Free Tier
-- Basic income/expense tracking
-- 90-day cash flow forecasting
-- AI-powered insights
-- Email support
-- 1 business account
-
-### 💼 Pro Plan (Coming Soon) - ₦5,000/month | 8,000 CFA/month
-- Everything in Free tier
-- Advanced analytics & reports
-- Multi-business management
-- Priority support
-- Custom financial goals
-- Export capabilities
-
-### 🏢 Business Plan (Coming Soon) - ₦12,000/month | 19,200 CFA/month
-- Everything in Pro tier
-- Unlimited business accounts
-- Dedicated account manager
-- Custom integrations
-- Team collaboration tools
-- White-label reports
-
-## 🚦 Getting Started
-
-### Prerequisites
-- Modern web browser (Chrome, Firefox, Safari, Edge)
-- Internet connection
-- Business email address
-
-### Quick Start
-1. Visit [https://usefintar.com](https://usefintar.com)
-2. Click "Sign Up Free"
-3. Enter your email address
-4. Verify your email
-5. Set up your business profile
-6. Start tracking your finances!
-
-### Mobile Access
-Fintar is fully responsive and works seamlessly on:
-- 📱 smartphones
-- 📟 tablets
-- 💻 desktop computers
-
-No app installation required - access directly through your browser.
-
-## 🛠️ Integration Capabilities
-
-### API Access
-- RESTful API for developers
-- Webhooks for real-time notifications
-- SDKs for popular programming languages
-
-### Accounting Software Integration
-- QuickBooks Online
-- Xero
-- Sage
-- Wave Accounting
-- And more coming soon
-
-### Bank Connections
-- Secure read-only bank connections
-- Multiple African banks supported
-- Automated transaction imports
-
-## 👥 User Stories
-
-### 🛍️ Retail Business Owner
-"Adeola from Lagos: Fintar revealed seasonal cash flow patterns I never noticed, helping me optimize inventory decisions. My revenue increased by 30% in just 3 months!"
-
-### 🍲 Restaurant Owner
-"Chukwuma from Benin City: No more payroll stress! Fintar gives me weeks of advance notice to plan and adjust. The AI predictions have been incredibly accurate."
-
-### 💻 Tech Startup
-"Fatima from Abuja: As a growing startup, cash flow management was our biggest challenge. Fintar helped us secure funding by providing professional financial forecasts."
-
-### 🌾 Agriculture Export Business
-"Kwame from Accra: The multi-currency support is fantastic for our export business. We can now track finances in both local and foreign currencies seamlessly."
-
-## 🔧 Technical Architecture
-
-### Frontend
-- **Framework**: Next.js 14 with React
-- **Styling**: Tailwind CSS with custom design system
-- **Animations**: Framer Motion for smooth interactions
-- **State Management**: React Context API + useState/useReducer
-
-### Backend
-- **Runtime**: Node.js with TypeScript
-- **Framework**: Next.js API Routes
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: NextAuth.js with multiple providers
-- **API**: RESTful architecture with OpenAPI documentation
-
-### AI & Analytics
-- **Machine Learning**: Python-based forecasting models
-- **Data Processing**: Apache Spark for large datasets
-- **Real-time Analytics**: Redis for caching and real-time updates
-
-### Infrastructure
-- **Hosting**: Vercel for frontend, AWS for backend
-- **CDN**: Cloudflare for global content delivery
-- **Monitoring**: Datadog for performance monitoring
-- **Error Tracking**: Sentry for error reporting
-
-## 🛡️ Security & Privacy
-
-### Data Protection
-- End-to-end encryption for sensitive financial data
-- Regular security audits and penetration testing
-- SOC 2 Type II compliance in progress
-- GDPR compliant data handling practices
-
-### Privacy Commitment
-- We never sell your data to third parties
-- Transparent data usage policies
-- User-controlled data sharing preferences
-- Regular privacy policy updates and communications
-
-### Compliance
-- PCI DSS compliant payment processing
-- Local data residency options for African markets
-- Regular compliance audits and certifications
-
-## 🌍 Regional Support
-
-### Currently Available In:
-- 🇳🇬 Nigeria (NGN)
-- 🇧🇯 Benin Republic (XOF)
-
-### Coming Soon:
-- 🇬🇭 Ghana (GHS)
-- 🇰🇪 Kenya (KES)
-- 🇿🇦 South Africa (ZAR)
-- And more African countries
-
-## 📞 Support & Resources
-
-### Help Center
-- Comprehensive knowledge base
-- Video tutorials and webinars
-- Community forums
-- API documentation
-
-### Customer Support
-- 📧 Email: support@usefintar.com
-- 💬 Live chat: Available within the application
-- 📞 Phone support: Coming soon for enterprise plans
-- 🕒 Support hours: Monday-Friday, 9AM-6PM WAT
-
-### Community
-- 👥 User community forums
-- 🎓 Financial literacy resources
-- 🤝 Partner network for business services
-- 📅 Regular webinars and training sessions
-
-## 🚀 Roadmap
-
-### Q2 2024
-- [ ] Mobile app launch (iOS & Android)
-- [ ] Advanced reporting features
-- [ ] Multi-business management
-- [ ] API marketplace launch
-
-### Q3 2024
-- [ ] Tax preparation features
-- [ ] Invoice management
-- [ ] Payment processing integration
-- [ ] Expanded bank connections
-
-### Q4 2024
-- [ ] International expansion
-- [ ] Advanced AI predictions
-- [ ] Custom integration builder
-- [ ] White-label solutions
-
-## 🤝 Contributing
-
-Fintar welcomes contributions from the developer community! Here's how you can help:
-
-### Report Bugs
-- Use GitHub Issues to report bugs
-- Include detailed descriptions and steps to reproduce
-- Provide browser/device information
-
-### Suggest Features
-- Submit feature requests through GitHub Discussions
-- Vote on existing feature requests
-- Join our user research program
-
-### Development
-- Fork the repository
-- Create a feature branch
-- Submit a pull request with comprehensive tests
-- Follow our coding standards and conventions
-
-## 📄 License
-
-Fintar is proprietary software. All rights reserved.
-
-For licensing inquiries, please contact:
-- 📧 Email: partnerships@usefintar.com
-- 🌐 Website: [https://usefintar.com/enterprise](https://usefintar.com/enterprise)
-
-## 🙏 Acknowledgments
-
-We extend our gratitude to:
-- Our early adopters and beta testers across Africa
-- The open-source community for invaluable tools and libraries
-- Financial institutions partnering with us for secure integrations
-- The African tech ecosystem for continuous support and collaboration
-
-## 📊 Metrics & Impact
-
-Since our launch, Fintar has helped:
-- **5,000+** African businesses
-- Manage over **₦50 billion** in transactions
-- Create **12,000+** financial forecasts
-- Save businesses an average of **10 hours** per week on financial management
+**Powered by:** Algoritic Inc. - https://algoritic.com.ng
 
 ---
 
-**Fintar** - Empowering African businesses with financial clarity and intelligence.
+## Overview
 
-*© 2024 Fintar Technologies. All rights reserved.*
+Running a business means money is constantly moving.
+
+Sales come in. Expenses go out. Bank transfers happen. Physical cash changes. Inventory gets purchased. Supplier prices move. Currency rates change.
+
+The problem is that these activities often live in different places, making it difficult to see the full picture.
+
+**Monietar brings that picture together.**
+
+It is designed to help businesses understand:
+
+* What they are selling
+* What they are spending
+* What they actually made
+* Where their cash is
+* What is happening with their inventory
+* How sourcing costs affect margins
+* How currency changes affect their business
+* How their financial position is changing over time
+
+Monietar is built around one idea:
+
+> **Better financial visibility leads to better business decisions.**
+
+---
+
+## Core Features
+
+### Instant Profit & Loss Tracking
+
+Understand profitability as your business activity happens.
+
+Monietar helps connect sales, costs, and business expenses to give you a clearer picture of what your business is actually making.
+
+* Track revenue and business expenses
+* Monitor profitability
+* Understand profit and loss
+* See how business activity affects your bottom line
+* Reduce the guesswork around your numbers
+
+### Hands-Free Transfer Logging
+
+Bank transfers are a major part of modern business.
+
+Monietar is designed to make transfer activity easier to capture and reflect in your financial records.
+
+* Track incoming transfers
+* Track outgoing transfers
+* Keep transaction records organized
+* Reduce repetitive manual logging
+* Maintain a clearer financial history
+
+### Independent Physical Cash Vault
+
+Not every business transaction happens through a bank.
+
+Monietar keeps physical cash visible as its own part of your business finances.
+
+* Track physical cash separately
+* Record cash movements
+* Understand your available cash position
+* Keep cash activity connected to the wider financial picture
+
+### Automated Inventory Tracking
+
+Inventory is closely connected to cash flow.
+
+Money leaves the business when stock is purchased, while revenue comes back when that stock is sold.
+
+Monietar helps businesses keep that relationship visible.
+
+* Track inventory
+* Monitor stock movement
+* Connect inventory activity with financial records
+* Understand how inventory decisions affect cash
+* Improve visibility into stock-related spending
+
+### Dual-Currency Sourcing Corridors
+
+Businesses sourcing products across borders face another layer of complexity: currencies and changing supplier prices.
+
+Monietar helps businesses monitor sourcing costs across currencies and understand how those changes affect their financial position.
+
+Instead of treating sourcing as a separate activity, Monietar helps connect sourcing costs back to:
+
+* Product costs
+* Margins
+* Cash requirements
+* Currency movements
+* Overall cash flow
+
+Sourcing is one part of the wider financial picture Monietar helps businesses understand.
+
+### Pre-Compiled Financial Statements
+
+Financial reporting should not require hours of manually organizing business records.
+
+Monietar is designed to bring financial activity together into structured reports that make it easier to understand the state of a business.
+
+* Organize financial information
+* Review business performance
+* Understand income and expenses
+* Generate clearer financial reports
+* Make financial information easier to use
+
+---
+
+## Financial Intelligence for African Businesses
+
+Monietar is designed around the realities of African businesses.
+
+Businesses often operate across:
+
+* Bank transfers
+* Physical cash
+* Multiple currencies
+* Inventory purchases
+* Local and international suppliers
+* Changing sourcing costs
+* Different payment channels
+
+Monietar brings these activities closer together so business owners can see how they interact.
+
+### Built for African Markets
+
+Monietar is designed with African businesses in mind, including support for multi-currency business activity and the realities of cross-border commerce.
+
+### Built Around Cash Flow
+
+Revenue alone does not tell the whole story.
+
+Monietar focuses on helping businesses understand how money moves through the business — from sales and expenses to inventory and sourcing.
+
+### Built for Better Decisions
+
+The goal is not simply to show numbers.
+
+The goal is to make those numbers easier to understand and use.
+
+---
+
+## Who Is Monietar For?
+
+Monietar is designed for businesses that want better visibility into their finances.
+
+### Retail & Trading Businesses
+
+Track sales, inventory, expenses, cash, and profitability in one financial workspace.
+
+### Cross-Border Businesses
+
+Understand how sourcing costs and currency movements affect margins and cash flow.
+
+### Growing SMEs
+
+Replace scattered spreadsheets and disconnected records with a clearer financial picture.
+
+### Startups & Growing Businesses
+
+Build better financial visibility as business activity becomes more complex.
+
+---
+
+## The Monietar Approach
+
+Monietar is built around several principles.
+
+### See the Whole Picture
+
+Business finances do not exist in isolated categories.
+
+Sales affect cash.
+
+Inventory affects cash.
+
+Sourcing affects margins.
+
+Currency affects sourcing costs.
+
+Monietar is designed to help businesses see those relationships.
+
+### Make Financial Activity Easier to Understand
+
+Financial software should not make business owners feel like accountants.
+
+Monietar focuses on presenting financial information in a way that is easier to understand and act on.
+
+### Connect Operations to Finance
+
+The decisions made inside a business eventually affect its money.
+
+Monietar brings operational and financial activity closer together.
+
+---
+
+## Plans & Pricing
+
+Monietar is designed to provide accessible financial intelligence for businesses at different stages.
+
+### Retail Starter
+
+For businesses getting started with better financial visibility.
+
+* Core financial tracking
+* Sales and transaction visibility
+* Basic financial insights
+* Business financial records
+
+### Growing Merchant
+
+For businesses with increasing transaction and inventory activity.
+
+**NGN 7,500 / XOF 2,800**
+
+* Everything in Retail Starter
+* Advanced financial intelligence
+* Inventory tracking
+* Enhanced reporting
+* Additional business tools
+
+### Borderless Pro
+
+For businesses operating across currencies and sourcing corridors.
+
+**NGN 22,500 / XOF 8,500**
+
+* Everything in Growing Merchant
+* Dual-currency financial visibility
+* Cross-border sourcing monitoring
+* Advanced financial insights
+* Expanded business capabilities
+
+Pricing and feature availability may change as Monietar evolves.
+
+---
+
+## Getting Started
+
+Monietar is currently building its early access community.
+
+### Join the Waitlist
+
+Visit:
+
+**https://monietar.com.ng**
+
+Join the waitlist to be among the businesses getting access as Monietar becomes available.
+
+---
+
+## Product Areas
+
+Monietar brings several parts of business financial management into one place.
+
+Current product areas include:
+
+* Overview
+* Transactions
+* Analytics
+* Dual-Currency Ledger
+* Inventory Tracking
+* Statements
+* Profit & Loss
+* Settings
+* Help & Support
+
+---
+
+## Built for Cross-Border Commerce
+
+African businesses increasingly source products across borders.
+
+That introduces additional financial questions:
+
+* How much is the product actually costing?
+* How is the currency changing?
+* Is the margin still healthy?
+* How much cash will be needed for the next purchase?
+* How does a change in sourcing cost affect the business?
+
+Monietar's sourcing intelligence is designed to help businesses answer these questions alongside their broader financial information.
+
+**Sourcing is not separate from cash flow.**
+
+It is part of it.
+
+---
+
+## API
+
+The Monietar API is currently under development.
+
+The planned infrastructure will allow developers and businesses to build integrations around Monietar's financial layer.
+
+Potential capabilities include access to:
+
+* Business records
+* Transactions
+* Financial data
+* Ledger information
+* Multi-currency operations
+* Business integrations
+
+Developer documentation will become available as the API moves toward public availability.
+
+---
+
+## Technology
+
+Monietar is powered and developed by **Algoritic Inc.**, a technology company focused on engineering software around real business problems.
+
+Monietar is built as a modern web-based financial platform.
+
+### Frontend
+
+* Next.js
+* React
+* TypeScript
+* Tailwind CSS
+* Framer Motion
+
+### Infrastructure
+
+* Vercel
+* PostgreSQL
+* Prisma
+* Supabase
+
+### Financial Infrastructure
+
+* Multi-currency financial records
+* Transaction tracking
+* Inventory data
+* Profit and loss calculations
+* Financial reporting
+
+The technical architecture continues to evolve as Monietar moves through development and early access.
+
+---
+
+## Security & Privacy
+
+Financial information requires careful handling.
+
+Monietar is designed with security and responsible data handling in mind.
+
+Our approach includes:
+
+* Secure authentication
+* Protected financial records
+* Controlled access to business information
+* Secure infrastructure
+* Responsible handling of user data
+
+For complete information about how Monietar handles data, please review the applicable privacy and terms documentation on the website.
+
+---
+
+## Help & Resources
+
+Monietar is building resources to help businesses get more value from their financial information.
+
+### Help Center
+
+Find guidance around:
+
+* Getting started
+* Sales and financial intelligence
+* Cash and bank transfers
+* Inventory and sourcing
+* Plans and billing
+* Account and settings
+
+**Help Center:** https://monietar.com.ng/help-center
+
+### Community
+
+The Monietar community is being opened on WhatsApp for business owners who want to:
+
+* Ask better questions
+* Share what works
+* Learn from other business owners
+* Discuss cash flow
+* Discuss profitability
+* Share operational experiences
+* Learn about inventory and sourcing
+
+---
+
+## Product Roadmap
+
+Monietar is actively evolving.
+
+Areas being developed and expanded include:
+
+* Deeper financial intelligence
+* More advanced analytics
+* Expanded reporting
+* Improved inventory intelligence
+* Cross-border financial visibility
+* Developer API
+* Business integrations
+* Additional financial tools
+* Expanded support for African markets
+
+The roadmap will evolve based on product development and feedback from businesses using Monietar.
+
+---
+
+## Contributing
+
+Monietar is proprietary software and is not currently an open-source project.
+
+If you are interested in:
+
+* Partnerships
+* Integrations
+* Business collaborations
+* Investment
+* Product opportunities
+* Joining the team
+
+please reach out through the appropriate channels on the Monietar website.
+
+---
+
+## Careers
+
+Monietar is powered by Algoritic Inc. and is being built by people who care about solving real problems across:
+
+* Engineering
+* Product
+* Design
+* Growth
+* Operations
+
+For opportunities, visit:
+
+**https://monietar.com.ng/careers**
+
+---
+
+## Contact
+
+**Monietar:** https://monietar.com.ng
+
+**Algoritic Inc.:** https://algoritic.com.ng
+
+For general enquiries, partnerships, or opportunities, visit the appropriate website.
+
+---
+
+## License
+
+Monietar is proprietary software.
+
+All rights reserved.
+
+---
+
+## About Monietar
+
+Monietar is building the **cash flow operating system for African businesses**, powered by **Algoritic Inc.**
+
+We believe business owners should not have to piece together their financial picture from bank statements, notebooks, spreadsheets, inventory records, and disconnected tools.
+
+Monietar brings the numbers closer together.
+
+So businesses can understand where their money is, what is happening to their margins, and what their financial position actually looks like.
+
+---
+
+**Monietar - The Cash Flow Operating System.**
+
+**Powered by Algoritic Inc.**
+
+https://monietar.com.ng
