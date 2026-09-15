@@ -3,25 +3,24 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
-  ReactNode,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
 } from 'react';
 
 interface SidebarContextType {
   collapsed: boolean;
-  setCollapsed: React.Dispatch<
-    React.SetStateAction<boolean>
-  >;
+  setCollapsed: Dispatch<SetStateAction<boolean>>;
 
   mobileOpen: boolean;
-  setMobileOpen: React.Dispatch<
-    React.SetStateAction<boolean>
-  >;
+  setMobileOpen: Dispatch<SetStateAction<boolean>>;
 }
 
 const SidebarContext =
-  createContext<SidebarContextType | null>(
-    null
+  createContext<SidebarContextType | undefined>(
+    undefined
   );
 
 export function SidebarProvider({
@@ -34,6 +33,30 @@ export function SidebarProvider({
 
   const [mobileOpen, setMobileOpen] =
     useState(false);
+
+  // Close the mobile sidebar when moving
+  // into desktop viewport sizes.
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setMobileOpen(false);
+      }
+    };
+
+    handleResize();
+
+    window.addEventListener(
+      'resize',
+      handleResize
+    );
+
+    return () => {
+      window.removeEventListener(
+        'resize',
+        handleResize
+      );
+    };
+  }, []);
 
   return (
     <SidebarContext.Provider
@@ -50,10 +73,11 @@ export function SidebarProvider({
 }
 
 export function useSidebar() {
-  const context =
-    useContext(SidebarContext);
+  const context = useContext(
+    SidebarContext
+  );
 
-  if (!context) {
+  if (context === undefined) {
     throw new Error(
       'useSidebar must be used within SidebarProvider'
     );

@@ -1,48 +1,38 @@
 'use client';
 
-import React from 'react';
-
-import Sidebar from './Sidebar';
-import Header from './Header';
+import { ReactNode } from 'react';
+import Sidebar from '@/components/dashboard/layout/Sidebar';
+import Header from '@/components/dashboard/layout/Header';
+import { useSidebar } from '@/context/SidebarContext';
 
 interface DashboardShellProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export default function DashboardShell({
   children,
 }: DashboardShellProps) {
-  return (
-    <div className="flex min-h-screen bg-[#F6F8F4]">
+  const { collapsed } = useSidebar();
 
-      {/* Sidebar */}
+  return (
+    <div className="min-h-screen bg-[#f1f1f1]">
       <Sidebar />
 
-      {/* Main Content */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-
+      <div
+        className={`
+          min-h-screen
+          transition-[margin-left]
+          duration-300
+          ease-in-out
+          ${collapsed ? 'lg:ml-[76px]' : 'lg:ml-[270px]'}
+        `}
+      >
         <Header />
 
-        <main
-          className="
-            flex-1
-            overflow-y-auto
-            px-4
-            py-5
-            sm:px-6
-            sm:py-6
-            lg:px-8
-            lg:py-8
-            xl:px-10
-          "
-        >
-          <div className="mx-auto w-full max-w-[1800px]">
-            {children}
-          </div>
+        <main className="min-w-0">
+          {children}
         </main>
-
       </div>
-
     </div>
   );
 }

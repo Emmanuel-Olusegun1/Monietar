@@ -3,11 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-
-import {
-  ChevronDown,
-  X,
-} from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 
 import { sidebarNavigation } from '@/config/sidebar.config';
 import { useSidebar } from '@/context/SidebarContext';
@@ -24,235 +20,221 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile Backdrop */}
-
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
           onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
-
       <aside
         className={`
-          fixed
-          inset-y-0
-          left-0
-          z-50
-          flex
-          flex-col
-          border-r
-          border-[#E8ECE6]
-          bg-[#FBFCFA]
-          transition-all
-          duration-300
-          ease-in-out
-
-          ${
-            collapsed
-              ? 'w-[88px]'
-              : 'w-[300px]'
-          }
-
-          ${
-            mobileOpen
-              ? 'translate-x-0'
-              : '-translate-x-full'
-          }
-
+          fixed inset-y-0 left-0 z-50
+          flex flex-col
+          border-r border-gray-200
+          bg-[#f1f1f1]
+          transition-all duration-300 ease-in-out
+          ${collapsed ? 'w-[76px]' : 'w-[270px]'}
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
         `}
       >
         {/* Mobile Close */}
-
         <button
+          type="button"
           onClick={() => setMobileOpen(false)}
-          className="absolute right-4 top-4 rounded-xl p-2 hover:bg-gray-100 lg:hidden"
+          aria-label="Close navigation"
+          className="
+            absolute right-4 top-4 z-10
+            rounded-md p-2
+            text-gray-500
+            transition-colors
+            hover:bg-white hover:text-gray-900
+            lg:hidden
+          "
         >
-          <X size={20} />
+          <X size={19} strokeWidth={1.8} />
         </button>
 
         {/* Logo */}
-
         <div
-          className={`border-b border-[#E8ECE6] transition-all duration-300 ${
-            collapsed
-              ? 'px-4 py-6'
-              : 'px-7 py-6'
-          }`}
+          className={`
+            border-b border-gray-200
+            transition-all duration-300
+            ${collapsed ? 'px-3 py-5' : 'px-5 py-5'}
+          `}
         >
           <Link
             href="/dashboard/overview"
-            className={`flex items-center ${
-              collapsed
-                ? 'justify-center'
-                : 'gap-3'
-            }`}
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center justify-center"
           >
             <Image
-              src="/logo.svg"
+              src="https://res.cloudinary.com/dzibfknxq/image/upload/v1768783064/Artboard_23_hn5kno.png"
               alt="Monietar"
-              width={42}
+              width={122}
               height={42}
               priority
+              className="shrink-0"
             />
-
-            {!collapsed && (
-              <div>
-                <h1 className="text-[28px] font-bold tracking-tight text-[#0F3B23]">
-                  Monietar
-                </h1>
-
-                <p className="text-xs text-[#7A847C]">
-                  AI Financial Operating System
-                </p>
-              </div>
-            )}
           </Link>
         </div>
 
         {/* Navigation */}
-
-        <div
-          className={`flex-1 overflow-y-auto py-6 transition-all ${
-            collapsed
-              ? 'px-2'
-              : 'px-5'
-          }`}
-        >          {sidebarNavigation.map((section) => (
+        <nav
+          className={`
+            flex-1 overflow-y-auto
+            py-6
+            transition-all
+            ${collapsed ? 'px-2' : 'px-4'}
+          `}
+        >
+          {sidebarNavigation.map((section) => (
             <div
               key={section.title}
-              className="mb-8"
+              className="mb-7 last:mb-0"
             >
+              {/* Section Label */}
               {!collapsed && (
-                <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9AA39B]">
+                <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">
                   {section.title}
                 </p>
               )}
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {section.items.map((item) => {
                   const Icon = item.icon;
 
                   const active =
                     pathname === item.href ||
-                    pathname.startsWith(
-                      `${item.href}/`
-                    );
+                    pathname.startsWith(`${item.href}/`);
 
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      title={item.name}
-                      onClick={() =>
-                        setMobileOpen(false)
-                      }
+                      title={collapsed ? item.name : undefined}
+                      onClick={() => setMobileOpen(false)}
                       className={`
-                        group
-                        flex
-                        items-center
-                        rounded-2xl
-                        transition-all
-                        duration-200
-
+                        group flex min-h-[42px] items-center
+                        border
+                        transition-colors duration-150
                         ${
                           collapsed
-                            ? 'justify-center px-0 py-3'
-                            : 'justify-between px-4 py-3'
+                            ? 'justify-center px-0'
+                            : 'justify-between px-3'
                         }
-
                         ${
                           active
-                            ? 'bg-[#0F3B23] text-white shadow-lg'
-                            : 'text-[#38443B] hover:bg-[#F2F5F1]'
+                            ? 'border-emerald-900 bg-emerald-900 text-white'
+                            : 'border-transparent text-gray-600 hover:border-gray-200 hover:bg-white hover:text-gray-900'
                         }
                       `}
                     >
                       <div
-                        className={`flex items-center ${
-                          collapsed
-                            ? ''
-                            : 'gap-3'
-                        }`}
+                        className={`
+                          flex items-center
+                          ${collapsed ? '' : 'gap-3'}
+                        `}
                       >
                         <Icon
-                          size={20}
+                          size={18}
+                          strokeWidth={active ? 2 : 1.7}
                           className="shrink-0"
                         />
 
                         {!collapsed && (
-                          <span className="text-[15px] font-medium">
+                          <span
+                            className={`
+                              text-[13px]
+                              ${active ? 'font-medium' : 'font-normal'}
+                            `}
+                          >
                             {item.name}
                           </span>
                         )}
                       </div>
 
-                      {!collapsed &&
-                        item.badge && (
-                          <span
-                            className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                      {!collapsed && item.badge && (
+                        <span
+                          className={`
+                            rounded-full px-2 py-0.5
+                            text-[9px] font-semibold
+                            ${
                               active
-                                ? 'bg-white/20 text-white'
-                                : 'bg-[#E8F5ED] text-[#0F7A42]'
-                            }`}
-                          >
-                            {item.badge}
-                          </span>
-                        )}
+                                ? 'bg-white/15 text-white'
+                                : 'bg-emerald-50 text-emerald-800'
+                            }
+                          `}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
               </div>
             </div>
           ))}
-        </div>
-              {/* User */}
+        </nav>
 
-      <div
-        className={`border-t border-[#E8ECE6] transition-all ${
-          collapsed ? 'p-3' : 'p-5'
-        }`}
-      >
-        <button
-          className={`flex w-full items-center rounded-2xl transition hover:bg-[#F6F8F5] ${
-            collapsed
-              ? 'justify-center p-2'
-              : 'justify-between p-2'
-          }`}
+        {/* User / Plan */}
+        <div
+          className={`
+            border-t border-gray-200
+            transition-all
+            ${collapsed ? 'p-3' : 'p-4'}
+          `}
         >
-          <div
-            className={`flex items-center ${
-              collapsed ? '' : 'gap-3'
-            }`}
+          <button
+            type="button"
+            className={`
+              flex w-full items-center
+              transition-colors
+              hover:bg-white
+              ${
+                collapsed
+                  ? 'justify-center p-2'
+                  : 'justify-between px-2 py-2'
+              }
+            `}
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0F3B23] font-semibold text-white">
-              EO
+            <div
+              className={`
+                flex items-center
+                ${collapsed ? '' : 'gap-3'}
+              `}
+            >
+              {/* Avatar */}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-900 text-xs font-semibold text-white">
+                EO
+              </div>
+
+              {!collapsed && (
+                <div className="min-w-0 text-left">
+                  <h4 className="truncate text-[13px] font-medium text-gray-900">
+                    Emmanuel
+                  </h4>
+
+                  <p className="mt-0.5 text-[11px] text-gray-400">
+                    Retail Starter
+                  </p>
+                </div>
+              )}
             </div>
 
             {!collapsed && (
-              <div className="text-left">
-                <h4 className="font-semibold text-[#213126]">
-                  Emmanuel
-                </h4>
-
-                <p className="text-xs text-[#7A847C]">
-                  Free Plan
-                </p>
-              </div>
+              <ChevronDown
+                size={16}
+                strokeWidth={1.7}
+                className="shrink-0 text-gray-400"
+              />
             )}
-          </div>
-
-          {!collapsed && (
-            <ChevronDown
-              size={18}
-              className="text-[#7A847C]"
-            />
-          )}
-        </button>
-      </div>
-    </aside>
+          </button>
+        </div>
+      </aside>
     </>
   );
 }
