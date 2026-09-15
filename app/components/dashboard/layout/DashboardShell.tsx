@@ -29,7 +29,7 @@ export default function DashboardShell({
       >
         <Header />
 
-        <main className="min-w-0">
+        <main className="min-w-0 pt-15 lg:pt-0">
           {children}
         </main>
       </div>
