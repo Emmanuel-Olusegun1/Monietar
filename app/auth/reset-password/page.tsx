@@ -1,72 +1,142 @@
-// app/auth/reset-password/page.tsx
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toaster, toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
-import { supabase } from '@/utils/supabase/client';
-import { Loader2, Eye, EyeOff, ShieldCheck, ShieldAlert, KeyRound, ArrowLeft } from 'lucide-react';
+import { Toaster, toast } from 'react-hot-toast';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  ShieldAlert,
+  ShieldCheck,
+} from 'lucide-react';
+
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import { createClient } from '@/lib/supabase/client';
 
 type Step = 'password' | 'confirm' | 'success' | 'error';
 
 export default function ResetPasswordPage() {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
   const [currentStep, setCurrentStep] = useState<Step>('password');
+
   const [formData, setFormData] = useState({
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [session, setSession] = useState<any>(null);
-  
-  const router = useRouter();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Check for reset session on mount
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        setCurrentStep('error');
-        toast.error('Invalid or expired reset link. Please request a new one.');
-        return;
-      }
+    let mounted = true;
 
-      if (session.user?.app_metadata?.provider === 'email' && 
-          session.user?.aud === 'authenticated') {
-        setSession(session);
-      } else {
-        setCurrentStep('error');
-        toast.error('Invalid reset session. Please request a new password reset.');
+    const checkResetSession = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        if (!session) {
+          const message =
+            'This password reset link is invalid or has expired. Please request a new one.';
+
+          setErrorMessage(message);
+          setCurrentStep('error');
+
+          toast.error(message);
+
+          return;
+        }
+
+        if (
+          session.user?.aud === 'authenticated' &&
+          session.user?.app_metadata?.provider === 'email'
+        ) {
+          setCurrentStep('password');
+          setErrorMessage('');
+        } else {
+          const message =
+            'This reset link is no longer valid. Please request a new password reset link.';
+
+          setErrorMessage(message);
+          setCurrentStep('error');
+
+          toast.error(message);
+        }
+      } catch {
+        const message =
+          'We could not verify this reset link. Please request a new one.';
+
+        if (mounted) {
+          setErrorMessage(message);
+          setCurrentStep('error');
+
+          toast.error(message);
+        }
+      } finally {
+        if (mounted) {
+          setIsCheckingSession(false);
+        }
       }
     };
 
-    checkSession();
-  }, []);
+    checkResetSession();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.id]: e.target.value
-    });
+    return () => {
+      mounted = false;
+    };
+  }, [supabase]);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setFormData((previous) => ({
+      ...previous,
+      [e.target.id]: e.target.value,
+    }));
+
+    if (errorMessage) {
+      setErrorMessage('');
+    }
+  };
+
+  const showUserError = (message: string) => {
+    setErrorMessage(message);
+    toast.error(message);
   };
 
   const validatePassword = () => {
-    const errors: string[] = [];
+    const password = formData.password;
 
-    if (!formData.password) {
-      errors.push('Password is required');
-    } else if (formData.password.length < 8) {
-      errors.push('Password must be at least 8 characters long');
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      errors.push('Password must contain uppercase, lowercase, and numbers');
+    if (!password) {
+      showUserError('Please enter a new password.');
+      return false;
     }
 
-    if (errors.length > 0) {
-      errors.forEach(error => toast.error(error));
+    if (password.length < 8) {
+      showUserError(
+        'Your password must be at least 8 characters long.'
+      );
+      return false;
+    }
+
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      showUserError(
+        'Your password must contain an uppercase letter, a lowercase letter, and a number.'
+      );
       return false;
     }
 
@@ -75,67 +145,141 @@ export default function ResetPasswordPage() {
 
   const validateConfirmPassword = () => {
     if (!formData.confirmPassword) {
-      toast.error('Please confirm your new password');
-      return false;
-    } else if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+      showUserError('Please confirm your new password.');
       return false;
     }
+
+    if (formData.password !== formData.confirmPassword) {
+      showUserError(
+        'Your passwords do not match. Please check them and try again.'
+      );
+      return false;
+    }
+
     return true;
   };
 
   const handleNextStep = () => {
-    switch (currentStep) {
-      case 'password':
-        if (validatePassword()) {
-          setCurrentStep('confirm');
-        }
-        break;
-      case 'confirm':
-        if (validateConfirmPassword()) {
-          handleSubmit();
-        }
-        break;
+    setErrorMessage('');
+
+    if (currentStep === 'password') {
+      if (validatePassword()) {
+        setCurrentStep('confirm');
+      }
+
+      return;
+    }
+
+    if (currentStep === 'confirm') {
+      if (validateConfirmPassword()) {
+        handleSubmit();
+      }
     }
   };
 
   const handlePreviousStep = () => {
-    if (currentStep === 'confirm') {
+    if (!isLoading && currentStep === 'confirm') {
+      setErrorMessage('');
       setCurrentStep('password');
     }
   };
 
+  const getFriendlyErrorMessage = (message: string) => {
+    const lowerMessage = message.toLowerCase();
+
+    if (
+      lowerMessage.includes('session') ||
+      lowerMessage.includes('expired') ||
+      lowerMessage.includes('refresh token') ||
+      lowerMessage.includes('jwt')
+    ) {
+      return 'Your password reset session has expired. Please request a new reset link.';
+    }
+
+    if (
+      lowerMessage.includes('weak') ||
+      lowerMessage.includes('password should') ||
+      lowerMessage.includes('password must')
+    ) {
+      return 'That password does not meet the security requirements. Please choose a stronger password.';
+    }
+
+    if (
+      lowerMessage.includes('same') ||
+      lowerMessage.includes('different')
+    ) {
+      return 'Please choose a password that is different from your previous password.';
+    }
+
+    return 'We could not update your password. Please try again.';
+  };
+
   const handleSubmit = async () => {
+    if (!validatePassword()) return;
+    if (!validateConfirmPassword()) return;
+
     setIsLoading(true);
-    const loadingToast = toast.loading('Updating password...');
+    setErrorMessage('');
+
+    const loadingToast = toast.loading(
+      'Updating your password...'
+    );
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        const message =
+          'Your password reset session has expired. Please request a new reset link.';
+
+        setCurrentStep('error');
+        setErrorMessage(message);
+        toast.error(message);
+
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
-        password: formData.password
+        password: formData.password,
       });
 
       if (error) {
-        console.error('Password update error:', error);
-        
-        if (error.message.includes('session')) {
-          toast.error('Reset link has expired. Please request a new one.');
+        const friendlyMessage = getFriendlyErrorMessage(
+          error.message
+        );
+
+        if (
+          friendlyMessage.includes('session has expired')
+        ) {
           setCurrentStep('error');
-        } else if (error.message.includes('weak')) {
-          toast.error('Password is too weak. Please choose a stronger password.');
-          setCurrentStep('password');
         } else {
-          toast.error(error.message || 'Failed to update password');
+          setCurrentStep('password');
         }
+
+        showUserError(friendlyMessage);
+
         return;
       }
 
       await supabase.auth.signOut();
+
+      setFormData({
+        password: '',
+        confirmPassword: '',
+      });
+
+      setErrorMessage('');
       setCurrentStep('success');
-      toast.success('Password updated successfully! Please sign in with your new password.');
-      
-    } catch (error: any) {
-      console.error('Unexpected error:', error);
-      toast.error('Something went wrong. Please try again.');
+
+      toast.success('Your password has been updated successfully.');
+    } catch {
+      const message =
+        'Something went wrong while updating your password. Please try again.';
+
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
       toast.dismiss(loadingToast);
@@ -143,413 +287,696 @@ export default function ResetPasswordPage() {
   };
 
   const passwordStrength = (password: string) => {
-    if (!password) return { strength: 0, color: 'slate', text: '' };
-    
+    if (!password) {
+      return {
+        strength: 0,
+        color: 'gray',
+        text: '',
+      };
+    }
+
     let strength = 0;
+
     if (password.length >= 8) strength += 1;
     if (/[a-z]/.test(password)) strength += 1;
     if (/[A-Z]/.test(password)) strength += 1;
     if (/[0-9]/.test(password)) strength += 1;
     if (/[^A-Za-z0-9]/.test(password)) strength += 1;
-    
+
     const strengths = [
       { color: 'red', text: 'Very Weak' },
       { color: 'orange', text: 'Weak' },
       { color: 'amber', text: 'Fair' },
       { color: 'blue', text: 'Good' },
       { color: 'emerald', text: 'Strong' },
-      { color: 'emerald', text: 'Very Strong' }
+      { color: 'emerald', text: 'Very Strong' },
     ];
-    
-    return { strength, ...strengths[strength] };
+
+    return {
+      strength,
+      ...strengths[strength],
+    };
   };
 
-  const passwordStrengthInfo = passwordStrength(formData.password);
+  const passwordStrengthInfo = passwordStrength(
+    formData.password
+  );
 
-  const stepTitles = {
-    password: 'Set New Password',
-    confirm: 'Confirm New Password',
-    success: 'Password Reset Successful!',
-    error: 'Reset Link Expired'
-  };
-
-  const stepDescriptions = {
-    password: 'Create a strong, secure password for your workspace account',
-    confirm: 'Verify your choice below to complete the secure update',
-    success: 'Your credentials have been re-encrypted successfully',
-    error: 'This session link has timing parameter timeout'
+  const isPasswordRequirementMet = {
+    length: formData.password.length >= 8,
+    lowercase: /[a-z]/.test(formData.password),
+    uppercase: /[A-Z]/.test(formData.password),
+    number: /[0-9]/.test(formData.password),
   };
 
   const isStepCompleted = (step: Step) => {
-    if (step === 'password') return currentStep !== 'password';
-    if (step === 'confirm') return currentStep === 'success';
+    if (step === 'password') {
+      return (
+        currentStep === 'confirm' ||
+        currentStep === 'success'
+      );
+    }
+
+    if (step === 'confirm') {
+      return currentStep === 'success';
+    }
+
     return false;
   };
 
   const getConnectorColor = (step: Step) => {
-    if (step === 'password') return currentStep !== 'password' ? 'bg-emerald-500' : 'bg-slate-200';
-    if (step === 'confirm') return currentStep === 'success' ? 'bg-emerald-500' : 'bg-slate-200';
-    return 'bg-slate-200';
+    return isStepCompleted(step)
+      ? 'bg-emerald-500'
+      : 'bg-gray-200';
   };
 
-  // Shared Error Page State Render
+  if (isCheckingSession) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#f1f1f1] text-gray-900">
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+          }}
+        />
+
+        <Header />
+
+        <main className="flex flex-1 items-center justify-center px-5 py-16">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
+            <span>Checking reset link...</span>
+          </div>
+        </main>
+
+        <Footer />
+      </div>
+    );
+  }
+
   if (currentStep === 'error') {
     return (
-      <div className="flex w-full min-h-screen bg-slate-50 text-slate-900">
-        <Toaster position="top-right" />
-        
-        <div className='flex-1 relative hidden md:block h-screen shadow-inner'>
-          <Image
-            src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757900862/Finance_Automation_And_Its_Critical_Role_In_Streamlining_Financial_Processes_-_OPEN_Money_Blog_ihfxxe.jpg'
-            alt='password reset image'
-            fill
-            className='object-cover'
-            priority
-          />
-          <div className='absolute inset-0 bg-slate-900/10'></div>
-        </div>
-        
-        <div className='flex-1 flex flex-col justify-center items-center p-4 min-h-screen bg-white'>
-          <div className="w-full max-w-md py-6">
+      <div className="flex min-h-screen flex-col bg-[#f1f1f1] text-gray-900">
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+          }}
+        />
+
+        <Header />
+
+        <main className="flex flex-1 bg-[#f1f1f1] px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
+          <div className="mx-auto flex w-full max-w-[440px] items-center">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-red-100"
+              transition={{ duration: 0.35 }}
+              className="w-full"
             >
-              <div className="flex justify-center items-center mb-8">
-                <div className="flex items-center">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-slate-300 text-slate-400 text-xs font-bold">1</div>
-                  <div className="w-16 h-0.5 mx-2 bg-slate-200" />
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white shadow-sm shadow-red-500/20"><ShieldAlert className="w-4 h-4" /></div>
+              <div className="mb-7 text-center">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center border border-red-100 bg-red-50">
+                  <ShieldAlert className="h-6 w-6 text-red-500" />
                 </div>
+
+                <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+                  Reset Link Expired
+                </h1>
+
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  This password reset link is no longer valid.
+                  Request a new link to continue.
+                </p>
               </div>
 
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
-                  <ShieldAlert className="w-7 h-7 text-red-500" />
-                </div>
-                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mb-2">{stepTitles.error}</h1>
-                <p className="text-slate-500 text-sm leading-relaxed">{stepDescriptions.error}</p>
-              </div>
+              <div className="border border-gray-200 bg-white p-5 sm:p-7">
+                <div className="border border-red-100 bg-red-50/50 p-4">
+                  <div className="flex items-start gap-3">
+                    <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
 
-              <div className="space-y-5">
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60 text-xs text-slate-600 leading-relaxed">
-                  <p className="font-bold text-slate-700 mb-1">What happened?</p>
-                  <p>Password reset hooks clear automatically after 24 hours for safety metrics. You must request a fresh token initialization sequence.</p>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-800">
+                        Unable to continue
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-gray-500">
+                        {errorMessage ||
+                          'Your reset session is no longer active. Request a new password reset link.'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
                   <button
-                    onClick={() => router.push('/auth/signin')}
-                    className="flex-1 cursor-pointer border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2.5 rounded-lg text-sm transition-colors text-center"
+                    type="button"
+                    onClick={() =>
+                      router.push('/auth/signin')
+                    }
+                    className="flex-1 cursor-pointer border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                   >
                     Back to Sign In
                   </button>
+
                   <button
-                    onClick={() => router.push('/auth/forgot-password')}
-                    className="flex-1 cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow-sm transition-colors text-center"
+                    type="button"
+                    onClick={() =>
+                      router.push('/auth/forgot-password')
+                    }
+                    className="flex-1 cursor-pointer bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
                   >
                     Request New Link
                   </button>
                 </div>
               </div>
+
+              <p className="mt-6 text-center text-[9px] uppercase tracking-[0.18em] text-gray-400">
+                The Cash Flow Operating System
+              </p>
             </motion.div>
           </div>
-        </div>
+        </main>
+
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="flex w-full min-h-screen bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen flex-col bg-[#f1f1f1] text-gray-900">
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: { background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' },
-          success: { duration: 3000, iconTheme: { primary: '#10b981', secondary: '#fff' } },
-          error: { duration: 5000, iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-          loading: { duration: Infinity, iconTheme: { primary: '#3b82f6', secondary: '#fff' } },
+          style: {
+            background: '#ffffff',
+            color: '#1f2937',
+            border: '1px solid #e5e7eb',
+          },
+          success: {
+            duration: 3500,
+            iconTheme: {
+              primary: '#047857',
+              secondary: '#ffffff',
+            },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#dc2626',
+              secondary: '#ffffff',
+            },
+          },
+          loading: {
+            duration: Infinity,
+          },
         }}
       />
-      
-      <div className='flex-1 relative hidden md:block h-screen shadow-inner'>
-        <Image
-          src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757900862/Finance_Automation_And_Its_Critical_Role_In_Streamlining_Financial_Processes_-_OPEN_Money_Blog_ihfxxe.jpg'
-          alt='password reset security image'
-          fill
-          className='object-cover'
-          priority
-        />
-        <div className='absolute inset-0 bg-slate-900/10'></div>
-      </div>
-      
-      <div className='flex-1 flex flex-col justify-center items-center p-4 min-h-screen bg-white'>
-        <div className="w-full max-w-md py-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-slate-100"
-          >
-            {/* Progress Timeline Stepper */}
-            <div className="flex justify-center items-center mb-8">
-              {(['password', 'confirm', 'success'] as Step[]).map((step, index) => (
-                <div key={step} className="flex items-center">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 text-xs font-bold transition-all duration-300 ${
-                    currentStep === step 
-                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-600/20' 
-                      : isStepCompleted(step)
-                      ? 'bg-emerald-500 border-emerald-500 text-white'
-                      : 'border-slate-200 text-slate-400 bg-slate-50'
-                  }`}>
-                    {isStepCompleted(step) ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      index + 1
-                    )}
-                  </div>
-                  {index < 2 && (
-                    <div className={`w-12 sm:w-16 h-0.5 mx-1 transition-colors duration-500 ${getConnectorColor(step)}`} />
-                  )}
-                </div>
-              ))}
-            </div>
 
-            {/* Title Identity Layout */}
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+      <Header />
+
+      <main className="flex-1 bg-[#f1f1f1] px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
+        <div className="mx-auto w-full max-w-[440px]">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+          >
+            {/* Intro */}
+            <div className="mb-7 text-center">
+              <div className="mb-4 hidden h-12 w-12 items-center justify-center rounded-full bg-gray-100 md:flex mx-auto">
                 {currentStep === 'success' ? (
-                  <ShieldCheck className="w-7 h-7 text-emerald-600" />
+                  <ShieldCheck className="h-6 w-6 text-emerald-700" />
                 ) : (
-                  <KeyRound className="w-7 h-7 text-emerald-600" />
+                  <KeyRound className="h-6 w-6 text-emerald-700" />
                 )}
               </div>
-              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mb-1.5">{stepTitles[currentStep]}</h1>
-              <p className="text-slate-500 text-sm leading-relaxed px-2">{stepDescriptions[currentStep]}</p>
+
+              <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+                {currentStep === 'password' &&
+                  'Set New Password'}
+
+                {currentStep === 'confirm' &&
+                  'Confirm New Password'}
+
+                {currentStep === 'success' &&
+                  'Password Reset Complete'}
+              </h1>
+
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                {currentStep === 'password' &&
+                  'Create a strong password for your Monietar account.'}
+
+                {currentStep === 'confirm' &&
+                  'Confirm your new password to complete the reset.'}
+
+                {currentStep === 'success' &&
+                  'Your password has been updated successfully.'}
+              </p>
             </div>
 
-            <AnimatePresence mode="wait">
-              {/* Step 1: Input Setup */}
-              {currentStep === 'password' && (
-                <motion.div
-                  key="password"
-                  initial={{ opacity: 0, x: 15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -15 }}
-                  transition={{ duration: 0.25 }}
-                  className="space-y-5"
-                >
-                  <div className="space-y-1.5">
-                    <label htmlFor="password" className="block text-xs font-semibold text-slate-700 tracking-wide uppercase pl-0.5">
-                      New Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        id="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        className="w-full px-3.5 py-2.5 pr-10 border border-slate-300 rounded-lg focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-400 bg-slate-50/50 text-slate-900 text-sm"
-                        placeholder="Enter new password"
-                        required
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute cursor-pointer right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+            {/* Progress */}
+            {currentStep !== 'success' && (
+              <div className="mb-6 flex items-center justify-center">
+                {(['password', 'confirm'] as Step[]).map(
+                  (step, index) => (
+                    <div
+                      key={step}
+                      className="flex items-center"
+                    >
+                      <div
+                        className={`flex h-7 w-7 items-center justify-center border text-[10px] font-semibold transition-all ${
+                          currentStep === step
+                            ? 'border-emerald-700 bg-emerald-700 text-white'
+                            : isStepCompleted(step)
+                              ? 'border-emerald-500 bg-emerald-500 text-white'
+                              : 'border-gray-200 bg-white text-gray-400'
+                        }`}
                       >
-                        {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    
-                    {/* Security Vector Level Bar */}
-                    {formData.password && (
-                      <div className="mt-2 pt-0.5 animate-fadeIn">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[11px] font-medium text-slate-400">Password strength:</span>
-                          <span className={`text-[11px] font-bold tracking-wide uppercase ${
-                            passwordStrengthInfo.color === 'red' ? 'text-red-500' :
-                            passwordStrengthInfo.color === 'orange' ? 'text-orange-500' :
-                            passwordStrengthInfo.color === 'amber' ? 'text-amber-500' :
-                            passwordStrengthInfo.color === 'blue' ? 'text-blue-500' : 'text-emerald-600'
-                          }`}>
-                            {passwordStrengthInfo.text}
-                          </span>
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              passwordStrengthInfo.color === 'red' ? 'bg-red-500' :
-                              passwordStrengthInfo.color === 'orange' ? 'bg-orange-500' :
-                              passwordStrengthInfo.color === 'amber' ? 'bg-amber-500' :
-                              passwordStrengthInfo.color === 'blue' ? 'bg-blue-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${(passwordStrengthInfo.strength / 5) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Checklist Requirements Elements */}
-                    <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200/60 space-y-1.5">
-                      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Requirements Grid:</p>
-                      <ul className="text-xs text-slate-600 space-y-1">
-                        <li className={`flex items-center gap-2 transition-colors ${formData.password.length >= 8 ? 'text-emerald-600 font-medium' : 'text-slate-500'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${formData.password.length >= 8 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          At least 8 explicit characters
-                        </li>
-                        <li className={`flex items-center gap-2 transition-colors ${/[a-z]/.test(formData.password) ? 'text-emerald-600 font-medium' : 'text-slate-500'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${/[a-z]/.test(formData.password) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          One standard lowercase variable
-                        </li>
-                        <li className={`flex items-center gap-2 transition-colors ${/[A-Z]/.test(formData.password) ? 'text-emerald-600 font-medium' : 'text-slate-500'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${/[A-Z]/.test(formData.password) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          One specific uppercase variable
-                        </li>
-                        <li className={`flex items-center gap-2 transition-colors ${/[0-9]/.test(formData.password) ? 'text-emerald-600 font-medium' : 'text-slate-500'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${/[0-9]/.test(formData.password) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          One numeric digital factor
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleNextStep}
-                    disabled={isLoading || !formData.password}
-                    className="w-full cursor-pointer bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-700/80 text-white font-semibold py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed"
-                  >
-                    Continue
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </motion.div>
-              )}
-
-              {/* Step 2: Corroboration Framework */}
-              {currentStep === 'confirm' && (
-                <motion.div
-                  key="confirm"
-                  initial={{ opacity: 0, x: 15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -15 }}
-                  transition={{ duration: 0.25 }}
-                  className="space-y-5"
-                >
-                  <div className="space-y-1.5">
-                    <label htmlFor="confirmPassword" className="block text-xs font-semibold text-slate-700 tracking-wide uppercase pl-0.5">
-                      Confirm New Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        id="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        className="w-full px-3.5 py-2.5 pr-10 border border-slate-300 rounded-lg focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-400 bg-slate-50/50 text-slate-900 text-sm"
-                        placeholder="Confirm new password"
-                        required
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute cursor-pointer right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
-                      >
-                        {showConfirmPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    
-                    {formData.confirmPassword && (
-                      <div className="flex items-center space-x-1.5 mt-2 pl-0.5 animate-fadeIn">
-                        {formData.password === formData.confirmPassword ? (
-                          <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-xs font-medium text-emerald-600">Verification vectors match</span>
-                          </>
+                        {isStepCompleted(step) ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
                         ) : (
-                          <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-xs font-medium text-red-500">Verification vectors mismatch</span>
-                          </>
+                          index + 1
                         )}
                       </div>
-                    )}
-                  </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 pt-1">
-                    <button
-                      onClick={handlePreviousStep}
-                      className="flex-1 cursor-pointer order-2 sm:order-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Back
-                    </button>
-                    <button
-                      onClick={handleNextStep}
-                      disabled={isLoading || !formData.confirmPassword || formData.password !== formData.confirmPassword}
-                      className="flex-1 cursor-pointer order-1 sm:order-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-700/80 text-white font-semibold py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="animate-spin h-4 w-4" />
-                          Saving...
-                        </>
-                      ) : (
-                        'Reset Password'
+                      {index < 1 && (
+                        <div
+                          className={`mx-2 h-px w-12 transition-colors sm:w-16 ${getConnectorColor(
+                            step
+                          )}`}
+                        />
                       )}
-                    </button>
-                  </div>
-                </motion.div>
-              )}
+                    </div>
+                  )
+                )}
+              </div>
+            )}
 
-              {/* Step 3: Success Layout Confirmation */}
-              {currentStep === 'success' && (
-                <motion.div
-                  key="success"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-center space-y-5"
-                >
-                  <div className="space-y-1.5">
-                    <h2 className="text-lg font-bold text-slate-900">Password Reset Complete!</h2>
-                    <p className="text-slate-500 text-sm leading-relaxed">
-                      Your identity credentials parameters have been updated. The previous session key has been destroyed.
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => router.push('/auth/signin')}
-                    className="w-full cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow-sm transition-all text-center"
+            <div className="border border-gray-200 bg-white p-5 sm:p-7">
+              <AnimatePresence mode="wait">
+                {/* Password */}
+                {currentStep === 'password' && (
+                  <motion.div
+                    key="password"
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-5"
                   >
-                    Sign In Now
-                  </button>
+                    {errorMessage && (
+                      <div className="border border-red-100 bg-red-50/60 p-3.5">
+                        <div className="flex items-start gap-2.5">
+                          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
 
-                  <div className="p-4 bg-emerald-50/40 rounded-xl border border-emerald-100/50 text-left">
-                    <div className="flex items-start space-x-3">
-                      <svg className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                      <div className="text-xs text-slate-600 leading-relaxed">
-                        <p className="font-bold text-emerald-800">Security Notification</p>
-                        <p className="mt-0.5 text-slate-500">
-                          For ongoing perimeter defense, legacy password maps are invalid. If this mutation was unexpected, instantly log a ticket with operations.
+                          <p className="text-xs leading-5 text-red-700">
+                            {errorMessage}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label
+                        htmlFor="password"
+                        className="mb-2 block text-xs font-semibold text-gray-700"
+                      >
+                        New Password
+                      </label>
+
+                      <div className="relative">
+                        <input
+                          id="password"
+                          type={
+                            showPassword
+                              ? 'text'
+                              : 'password'
+                          }
+                          value={formData.password}
+                          onChange={handleChange}
+                          placeholder="Enter your new password"
+                          disabled={isLoading}
+                          autoComplete="new-password"
+                          className="w-full border border-gray-300 bg-gray-50 px-3.5 py-2.5 pr-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowPassword(
+                              (previous) => !previous
+                            )
+                          }
+                          disabled={isLoading}
+                          aria-label={
+                            showPassword
+                              ? 'Hide password'
+                              : 'Show password'
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 transition-colors hover:text-gray-700 disabled:cursor-not-allowed"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+
+                      {formData.password && (
+                        <div className="mt-3">
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <span className="text-[10px] font-medium text-gray-400">
+                              Password strength
+                            </span>
+
+                            <span
+                              className={`text-[10px] font-semibold uppercase tracking-wide ${
+                                passwordStrengthInfo.color ===
+                                'red'
+                                  ? 'text-red-500'
+                                  : passwordStrengthInfo.color ===
+                                      'orange'
+                                    ? 'text-orange-500'
+                                    : passwordStrengthInfo.color ===
+                                        'amber'
+                                      ? 'text-amber-500'
+                                      : passwordStrengthInfo.color ===
+                                          'blue'
+                                        ? 'text-blue-500'
+                                        : 'text-emerald-600'
+                              }`}
+                            >
+                              {passwordStrengthInfo.text}
+                            </span>
+                          </div>
+
+                          <div className="h-1.5 w-full overflow-hidden bg-gray-100">
+                            <div
+                              className={`h-full transition-all duration-300 ${
+                                passwordStrengthInfo.color ===
+                                'red'
+                                  ? 'bg-red-500'
+                                  : passwordStrengthInfo.color ===
+                                      'orange'
+                                    ? 'bg-orange-500'
+                                    : passwordStrengthInfo.color ===
+                                        'amber'
+                                      ? 'bg-amber-500'
+                                      : passwordStrengthInfo.color ===
+                                          'blue'
+                                        ? 'bg-blue-500'
+                                        : 'bg-emerald-500'
+                              }`}
+                              style={{
+                                width: `${
+                                  (passwordStrengthInfo.strength /
+                                    5) *
+                                  100
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-4 border border-gray-100 bg-gray-50 p-3.5">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500">
+                          Password requirements
+                        </p>
+
+                        <div className="grid grid-cols-1 gap-1.5">
+                          {[
+                            {
+                              label:
+                                'At least 8 characters',
+                              met: isPasswordRequirementMet.length,
+                            },
+                            {
+                              label:
+                                'One lowercase letter',
+                              met: isPasswordRequirementMet.lowercase,
+                            },
+                            {
+                              label:
+                                'One uppercase letter',
+                              met: isPasswordRequirementMet.uppercase,
+                            },
+                            {
+                              label: 'One number',
+                              met: isPasswordRequirementMet.number,
+                            },
+                          ].map((requirement) => (
+                            <div
+                              key={requirement.label}
+                              className={`flex items-center gap-2 text-xs ${
+                                requirement.met
+                                  ? 'text-emerald-700'
+                                  : 'text-gray-500'
+                              }`}
+                            >
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  requirement.met
+                                    ? 'bg-emerald-500'
+                                    : 'bg-gray-300'
+                                }`}
+                              />
+
+                              {requirement.label}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleNextStep}
+                      disabled={
+                        isLoading || !formData.password
+                      }
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Continue
+                      <span aria-hidden="true">→</span>
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* Confirm */}
+                {currentStep === 'confirm' && (
+                  <motion.div
+                    key="confirm"
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-5"
+                  >
+                    {errorMessage && (
+                      <div className="border border-red-100 bg-red-50/60 p-3.5">
+                        <div className="flex items-start gap-2.5">
+                          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+
+                          <p className="text-xs leading-5 text-red-700">
+                            {errorMessage}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label
+                        htmlFor="confirmPassword"
+                        className="mb-2 block text-xs font-semibold text-gray-700"
+                      >
+                        Confirm New Password
+                      </label>
+
+                      <div className="relative">
+                        <input
+                          id="confirmPassword"
+                          type={
+                            showConfirmPassword
+                              ? 'text'
+                              : 'password'
+                          }
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          placeholder="Enter your new password again"
+                          disabled={isLoading}
+                          autoComplete="new-password"
+                          className="w-full border border-gray-300 bg-gray-50 px-3.5 py-2.5 pr-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowConfirmPassword(
+                              (previous) => !previous
+                            )
+                          }
+                          disabled={isLoading}
+                          aria-label={
+                            showConfirmPassword
+                              ? 'Hide password'
+                              : 'Show password'
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 transition-colors hover:text-gray-700 disabled:cursor-not-allowed"
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+
+                      {formData.confirmPassword && (
+                        <div
+                          className={`mt-2 flex items-center gap-2 text-xs font-medium ${
+                            formData.password ===
+                            formData.confirmPassword
+                              ? 'text-emerald-600'
+                              : 'text-red-500'
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              formData.password ===
+                              formData.confirmPassword
+                                ? 'bg-emerald-500'
+                                : 'bg-red-500'
+                            }`}
+                          />
+
+                          {formData.password ===
+                          formData.confirmPassword
+                            ? 'Passwords match'
+                            : 'Passwords do not match'}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border border-gray-100 bg-gray-50 p-3.5">
+                      <div className="flex items-start gap-3">
+                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+
+                        <p className="text-xs leading-5 text-gray-500">
+                          Your password will be updated securely
+                          through Monietar authentication.
                         </p>
                       </div>
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+
+                    <div className="flex flex-col gap-2.5 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={handlePreviousStep}
+                        disabled={isLoading}
+                        className="order-2 flex flex-1 cursor-pointer items-center justify-center gap-1.5 border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 sm:order-1"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleNextStep}
+                        disabled={
+                          isLoading ||
+                          !formData.confirmPassword ||
+                          formData.password !==
+                            formData.confirmPassword
+                        }
+                        className="order-1 flex flex-1 cursor-pointer items-center justify-center gap-2 bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 sm:order-2"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          'Reset Password'
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Success */}
+                {currentStep === 'success' && (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-center"
+                  >
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-emerald-100 bg-emerald-50">
+                      <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                    </div>
+
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Password Reset Complete
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                      Your password has been updated. You can now
+                      sign in with your new password.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push('/auth/signin')
+                      }
+                      className="mt-6 flex w-full cursor-pointer items-center justify-center bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+                    >
+                      Sign In
+                    </button>
+
+                    <div className="mt-5 border border-emerald-100 bg-emerald-50/50 p-3.5 text-left">
+                      <div className="flex items-start gap-3">
+                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+
+                        <p className="text-xs leading-5 text-gray-500">
+                          For your security, your previous password
+                          is no longer valid.
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {currentStep !== 'success' && (
+              <div className="mt-6 text-center">
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push('/auth/signin')
+                  }
+                  disabled={isLoading}
+                  className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Back to Sign In
+                </button>
+              </div>
+            )}
+
+            <p className="mt-6 text-center text-[9px] uppercase tracking-[0.18em] text-gray-400">
+              The Cash Flow Operating System
+            </p>
           </motion.div>
         </div>
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }

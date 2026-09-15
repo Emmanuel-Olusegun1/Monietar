@@ -1,250 +1,354 @@
 // app/auth/complete-profile/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/utils/supabase/client';
 import { toast } from 'react-hot-toast';
-import { Loader2, Building2, User, Phone, ArrowRight, AlertCircle } from 'lucide-react';
+import {
+  ArrowRight,
+  Building2,
+  Loader2,
+  Phone,
+  User,
+} from 'lucide-react';
+
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import { createClient } from '@/lib/supabase/client';
+
+type FormData = {
+  business_name: string;
+  name: string;
+  phone: string;
+};
 
 export default function CompleteProfilePage() {
-  const [formData, setFormData] = useState({
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
+  const [formData, setFormData] = useState<FormData>({
     business_name: '',
     name: '',
     phone: '',
   });
+
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<any>(null);
   const [initializing, setInitializing] = useState(true);
   const [isNewUser, setIsNewUser] = useState(true);
-  const router = useRouter();
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
     const initialize = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
         if (error || !user) {
-          toast.error('Please sign in first');
-          router.push('/auth/signup');
+          toast.error('Please sign in first.');
+          router.replace('/auth/signin');
           return;
         }
-        
-        setUser(user);
-        
-        // Check if user is new (no profile data)
+
+        setUserEmail(user.email || '');
+
         const userMeta = user.user_metadata || {};
-        const hasProfileData = !!(userMeta.business_name || userMeta.name);
-        
+
+        const hasProfileData = Boolean(
+          userMeta.business_name || userMeta.name
+        );
+
         setIsNewUser(!hasProfileData);
-        
-        // Pre-fill existing data
+
         setFormData({
           business_name: userMeta.business_name || '',
-          name: userMeta.name || userMeta.full_name || userMeta.given_name || user.email?.split('@')[0] || '',
-          phone: userMeta.phone || ''
+          name:
+            userMeta.name ||
+            userMeta.full_name ||
+            userMeta.given_name ||
+            user.email?.split('@')[0] ||
+            '',
+          phone: userMeta.phone || '',
         });
-        
       } catch (error) {
-        console.error('Error initializing:', error);
-        toast.error('Failed to load user data');
-        router.push('/auth/signup');
+        console.error('Error initializing profile:', error);
+
+        toast.error('Failed to load your profile.');
+        router.replace('/auth/signin');
       } finally {
         setInitializing(false);
       }
     };
 
     initialize();
-  }, [router]);
+  }, [router, supabase]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
-    
-    if (!formData.business_name.trim()) {
-      toast.error('Business name is required');
+
+    const businessName = formData.business_name.trim();
+    const name = formData.name.trim();
+    const phone = formData.phone.trim();
+
+    if (!businessName) {
+      toast.error('Business name is required.');
       return;
     }
-    
-    if (!formData.name.trim()) {
-      toast.error('Your name is required');
+
+    if (!name) {
+      toast.error('Your name is required.');
       return;
     }
 
     setLoading(true);
 
+    const loadingToast = toast.loading(
+      isNewUser ? 'Completing your profile...' : 'Updating your profile...'
+    );
+
     try {
-      // Update user metadata
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         data: {
-          business_name: formData.business_name.trim(),
-          name: formData.name.trim(),
-          phone: formData.phone.trim(),
+          business_name: businessName,
+          name,
+          phone,
           completed_profile: true,
-          profile_completed_at: new Date().toISOString()
-        }
+          profile_completed_at: new Date().toISOString(),
+        },
       });
 
-      if (updateError) throw updateError;
+      if (error) {
+        console.error('Profile update error:', error);
+        throw error;
+      }
 
-      toast.success('Profile updated successfully!');
-      
-      // Redirect to dashboard
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1500);
-      
-    } catch (error: any) {
+      toast.success(
+        isNewUser
+          ? 'Profile completed successfully.'
+          : 'Profile updated successfully.'
+      );
+
+      router.replace('/dashboard/overview');
+    } catch (error) {
       console.error('Profile update error:', error);
-      toast.error(error.message || 'Failed to update profile');
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update your profile.'
+      );
     } finally {
       setLoading(false);
+      toast.dismiss(loadingToast);
     }
   };
 
   const handleSkip = () => {
-    toast('You can complete your profile later from settings');
-    router.push('/dashboard');
+    toast('You can complete your profile later from settings.');
+    router.replace('/dashboard/overview');
   };
 
   if (initializing) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-emerald-500 mx-auto mb-4" />
-          <p className="text-gray-400">Loading your account...</p>
-        </div>
+      <div className="flex min-h-screen flex-col bg-[#f1f1f1]">
+        <Header />
+
+        <main className="flex flex-1 items-center justify-center px-5">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
+            Loading your account...
+          </div>
+        </main>
+
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
-      <div className="max-w-md w-full">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            {isNewUser ? 'Complete Your Profile' : 'Update Your Profile'}
-          </h1>
-          <p className="text-gray-400">
-            {isNewUser 
-              ? 'Welcome to Monietar! We need a few details to personalize your experience.'
-              : 'Update your profile information to keep your account up to date.'
-            }
-          </p>
-          {user?.email && (
-            <div className="mt-4 inline-block bg-gray-800 rounded-lg px-4 py-2">
-              <p className="text-sm text-gray-400">Signed in as</p>
-              <p className="text-emerald-400 font-medium">{user.email}</p>
-            </div>
-          )}
-        </div>
+    <div className="flex min-h-screen flex-col bg-[#f1f1f1] text-gray-900">
+      <Header />
 
-        {/* Form */}
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 shadow-xl">
-          {!isNewUser && (
-            <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <div className="flex items-center gap-2 text-blue-400">
-                <AlertCircle className="h-5 w-5" />
-                <p className="text-sm">
-                  You already have an account. You can update your profile information here.
+      <main className="flex-1 bg-[#f1f1f1] px-5 pt-30 md:pt-0 py-12 sm:px-8 sm:py-16 lg:py-20">
+        <div className="mx-auto w-full max-w-[440px]">
+          <div className="mb-7 text-center">
+           <div className="hidden mx-auto mb-3 md:flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                          <User className="h-5 w-5 text-gray-500" />
+                        </div>
+
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+              {isNewUser
+                ? 'Complete Your Profile'
+                : 'Update Your Profile'}
+            </h1>
+
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              {isNewUser
+                ? 'Add a few details so we can personalize your Monietar experience.'
+                : 'Keep your Monietar profile information up to date.'}
+            </p>
+
+            {userEmail && (
+              <p className="mt-3 text-xs text-gray-400">
+                Signed in as{' '}
+                <span className="font-medium text-gray-600">
+                  {userEmail}
+                </span>
+              </p>
+            )}
+          </div>
+
+          <div className="border border-gray-200 bg-white p-5 sm:p-7">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Business Name */}
+              <div>
+                <label
+                  htmlFor="business_name"
+                  className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-700"
+                >
+                  <Building2 className="h-3.5 w-3.5 text-gray-400" />
+                  Business Name
+                </label>
+
+                <input
+                  id="business_name"
+                  name="business_name"
+                  type="text"
+                  value={formData.business_name}
+                  onChange={handleChange}
+                  placeholder="Enter your business name"
+                  autoComplete="organization"
+                  autoFocus
+                  required
+                  disabled={loading}
+                  className="w-full border border-gray-300 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/10 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+
+                <p className="mt-2 text-xs leading-5 text-gray-400">
+                  This can appear on your invoices and financial reports.
                 </p>
               </div>
+
+              {/* Name */}
+              <div>
+                <label
+                  htmlFor="name"
+                  className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-700"
+                >
+                  <User className="h-3.5 w-3.5 text-gray-400" />
+                  Your Name
+                </label>
+
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Enter your full name"
+                  autoComplete="name"
+                  required
+                  disabled={loading}
+                  className="w-full border border-gray-300 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/10 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label
+                  htmlFor="phone"
+                  className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-700"
+                >
+                  <Phone className="h-3.5 w-3.5 text-gray-400" />
+                  Phone Number
+                  <span className="font-normal text-gray-400">
+                    (Optional)
+                  </span>
+                </label>
+
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="+234 800 000 0000"
+                  autoComplete="tel"
+                  disabled={loading}
+                  className="w-full border border-gray-300 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/10 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+
+                <p className="mt-2 text-xs leading-5 text-gray-400">
+                  Used for important account notifications.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="border-t border-gray-100 pt-5">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {isNewUser ? 'Completing...' : 'Saving...'}
+                    </>
+                  ) : (
+                    <>
+                      {isNewUser
+                        ? 'Complete Profile'
+                        : 'Save Changes'}
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+
+                {isNewUser && (
+                  <button
+                    type="button"
+                    onClick={handleSkip}
+                    disabled={loading}
+                    className="mt-2.5 w-full cursor-pointer border border-transparent px-4 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Skip for now
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {isNewUser && (
+            <div className="mt-5 border border-emerald-100 bg-emerald-50/50 p-3.5">
+              <p className="text-center text-xs leading-5 text-gray-500">
+                Complete your profile to keep your business information
+                organized across Monietar.
+              </p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
-                <Building2 className="h-4 w-4" />
-                Business Name *
-              </label>
-              <input
-                type="text"
-                value={formData.business_name}
-                onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition"
-                placeholder="Enter your business name"
-                required
-                autoFocus
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                This will appear on invoices and reports
-              </p>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
-                <User className="h-4 w-4" />
-                Your Name *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition"
-                placeholder="Enter your full name"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
-                <Phone className="h-4 w-4" />
-                Phone Number (Optional)
-              </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition"
-                placeholder="+1 234 567 8900"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Used for important notifications and account recovery
-              </p>
-            </div>
-
-            <div className="space-y-4 pt-4 border-t border-gray-700">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="animate-spin h-4 w-4" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <span>{isNewUser ? 'Complete Setup' : 'Update Profile'}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-
-              {isNewUser && (
-                <button
-                  type="button"
-                  onClick={handleSkip}
-                  className="w-full text-gray-400 hover:text-gray-300 hover:bg-gray-700 py-3 rounded-lg transition-colors text-sm"
-                >
-                  Skip for now
-                </button>
-              )}
-            </div>
-          </form>
+          <p className="mt-6 text-center text-[9px] uppercase tracking-[0.18em] text-gray-400">
+            The Cash Flow Operating System
+          </p>
         </div>
+      </main>
 
-        {/* Info box */}
-        {isNewUser && (
-          <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <p className="text-sm text-emerald-400 text-center">
-              ✨ Complete your profile to unlock all features including invoicing, expense tracking, and financial reporting.
-            </p>
-          </div>
-        )}
-      </div>
+      <Footer />
     </div>
   );
 }

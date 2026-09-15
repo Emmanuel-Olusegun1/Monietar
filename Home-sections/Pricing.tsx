@@ -13,36 +13,39 @@ export default function Pricing() {
     free: {
       name: 'Retail Starter',
       description:
-        'Perfect for everyday retail store owners replacing their paper notebooks with a clean digital ledger.',
+        'The essential Monietar experience for everyday merchants who want to move beyond notebooks and start understanding their money.',
       price: { NGN: 0, XOF: 0 },
       yearlyPrice: { NGN: 0, XOF: 0 },
+      originalPrice: null,
       features: [
-        'Manual bookkeeping record entries (Unlimited rows)',
-        'Basic Profit & Loss (P&L) manual dashboard views',
-        '1 Independent Physical Cash Vault tracking profile',
-        'Basic local product catalog & sales summary views',
-        'Standard customer care email channels',
+        '1 connected merchant bank account',
+        'Up to 500 automatically logged bank transactions monthly',
+        'Unlimited manual bookkeeping entries',
+        'Basic Profit & Loss (P&L) dashboard views',
+        '1 Independent Physical Cash Vault',
+        'Basic local product catalog & sales summaries',
+        'Standard customer care email support',
       ],
       cta: 'Join Waitlist',
       popular: false,
       discounted: false,
-      originalPrice: null,
       url: '#waitlist-section',
     },
 
     pro: {
       name: 'Growing Merchant',
       description:
-        'Built for established merchants managing multiple store assistants and high daily alert counts.',
+        'For established merchants who need more automation, more connected accounts, and a clearer view of a growing business.',
       price: { NGN: 7500, XOF: 2800 },
       yearlyPrice: { NGN: 75000, XOF: 28000 },
       originalPrice: { NGN: 15000, XOF: 5600 },
       features: [
-        'Auto-log up to 2,500 bank transactiond monthly',
-        'Unlimited Connected Core Merchant Bank Accounts',
-        'Multi-Device Alert Syncing for shop assistants',
+        'Up to 2,500 automatically logged bank transactions monthly',
+        '3 connected merchant bank accounts',
+        'Multi-device alert syncing for shop assistants',
         'Live, instant Profit & Loss (P&L) dashboard views',
-        'Automated Inventory Sourcing & running low-stock alerts',
+        'Automated inventory tracking & running-low stock alerts',
+        'Deeper cash-flow visibility for daily operations',
         'Priority email & developer team chat support',
       ],
       cta: 'Lock In 50% Discount',
@@ -54,15 +57,15 @@ export default function Pricing() {
     premium: {
       name: 'Borderless Pro',
       description:
-        'Engineered specifically for merchants sourcing or selling goods simultaneously across regions.',
+        'For merchants operating across currencies and regions who need deeper financial intelligence and audit-ready reporting.',
       price: { NGN: 22500, XOF: 8500 },
       yearlyPrice: { NGN: 225000, XOF: 85000 },
       originalPrice: { NGN: 45000, XOF: 17000 },
       features: [
-        'Unlimited Monthly Transactions across all channels',
+        'Unlimited monthly transactions across all channels',
         'Dual-Currency Ledger Engine (Naira ⇄ CFA Franc)',
         'Automated Parallel Market Rate Auto-Indexing',
-        '1-Tap Audit-Ready Financial Statement Exports (PDF/Excel)',
+        '1-Tap audit-ready financial statement exports (PDF/Excel)',
         'Custom AI Accounting Chatbot assistants',
         'Weekly AI Voice Report Card summaries (Pidgin or English)',
         'Dedicated account priority channels',
@@ -103,7 +106,6 @@ export default function Pricing() {
       className="bg-[#f1f1f1] px-4 py-16 sm:px-6 md:py-20 lg:px-8"
     >
       <div className="mx-auto max-w-7xl">
-
         {/* Header */}
         <motion.div
           className="pt-6"
@@ -125,8 +127,9 @@ export default function Pricing() {
             </h2>
 
             <p className="max-w-sm text-sm leading-6 text-gray-500 md:text-right">
-              Join the pioneer cohort and lock in early access pricing before
-              Monietar opens fully.
+              Start with the core Monietar experience and increase your
+              automation, capacity, and financial intelligence as your
+              business grows.
             </p>
           </div>
         </motion.div>
@@ -139,6 +142,7 @@ export default function Pricing() {
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.15 }}
         >
+          {/* Billing */}
           <div className="flex items-center gap-1">
             <span className="mr-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-400">
               Billing
@@ -173,6 +177,7 @@ export default function Pricing() {
             </span>
           </div>
 
+          {/* Currency */}
           <div className="flex items-center gap-1">
             <span className="mr-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-400">
               Currency
@@ -212,8 +217,12 @@ export default function Pricing() {
             return (
               <motion.div
                 key={key}
-                className={`flex h-full flex-col border-b border-gray-300 py-8 lg:min-h-[620px] lg:border-r lg:px-7 lg:py-9 ${
+                className={`flex h-full flex-col border-b border-gray-300 py-8 lg:min-h-[650px] lg:border-r lg:px-7 lg:py-9 ${
                   index === 2 ? 'lg:border-r-0' : ''
+                } ${
+                  plan.popular
+                    ? 'bg-white/40'
+                    : ''
                 }`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -281,7 +290,41 @@ export default function Pricing() {
                       Includes 2 months free
                     </p>
                   )}
+
+                  {planKeyIsFree(key) && (
+                    <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-gray-400">
+                      No credit card required
+                    </p>
+                  )}
                 </div>
+
+                {/* Core positioning */}
+                {/* {key === 'free' && (
+                  <div className="mt-6 border-l-2 border-emerald-900 pl-4">
+                    <p className="text-xs font-medium leading-5 text-gray-700">
+                      Get the real Monietar experience — just with limits
+                      designed for smaller businesses.
+                    </p>
+                  </div>
+                )}
+
+                {key === 'pro' && (
+                  <div className="mt-6 border-l-2 border-emerald-900 pl-4">
+                    <p className="text-xs font-medium leading-5 text-gray-700">
+                      More automation, more accounts, and more visibility as
+                      your daily business activity increases.
+                    </p>
+                  </div>
+                )}
+
+                {key === 'premium' && (
+                  <div className="mt-6 border-l-2 border-emerald-900 pl-4">
+                    <p className="text-xs font-medium leading-5 text-gray-700">
+                      Built for merchants whose money, sourcing, and sales
+                      move across currencies and regions.
+                    </p>
+                  </div>
+                )} */}
 
                 {/* Features */}
                 <ul className="mt-7 flex-1 space-y-3">
@@ -324,7 +367,55 @@ export default function Pricing() {
           })}
         </div>
 
-        {/* Security / Infrastructure Note */}
+        {/* Plan Progression */}
+        <motion.div
+          className="mt-10 grid border-y border-gray-300 md:grid-cols-3"
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="border-b border-gray-300 px-5 py-5 md:border-b-0 md:border-r md:px-6">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-400">
+              Start
+            </span>
+            <p className="mt-2 text-sm font-medium text-gray-900">
+              Experience Monietar
+            </p>
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              Connect your first account and start building a clearer picture
+              of your business.
+            </p>
+          </div>
+
+          <div className="border-b border-gray-300 px-5 py-5 md:border-b-0 md:border-r md:px-6">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-emerald-900">
+              Grow
+            </span>
+            <p className="mt-2 text-sm font-medium text-gray-900">
+              Automate more
+            </p>
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              Connect more accounts, handle more activity, and get deeper
+              operational visibility.
+            </p>
+          </div>
+
+          <div className="px-5 py-5 md:px-6">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-400">
+              Expand
+            </span>
+            <p className="mt-2 text-sm font-medium text-gray-900">
+              Go borderless
+            </p>
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              Manage multi-currency activity, financial reporting, and
+              cross-region business intelligence.
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Infrastructure Note */}
         <motion.div
           className="mt-8 flex flex-col gap-4 border-t border-gray-300 pt-6 md:flex-row md:items-center md:justify-between"
           initial={{ opacity: 0 }}
@@ -355,4 +446,8 @@ export default function Pricing() {
       </div>
     </section>
   );
+}
+
+function planKeyIsFree(key: string) {
+  return key === 'free';
 }

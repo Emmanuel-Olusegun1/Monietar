@@ -1,85 +1,49 @@
-'use client'
+'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toaster, toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
-import { 
-  Loader2, 
-  Eye, 
-  EyeOff, 
-  CheckCircle2, 
-  KeyRound, 
-  ArrowLeft, 
-  Lock, 
-  ShieldCheck 
+import { toast } from 'react-hot-toast';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 
-// MOCK_DATA for frontend development
-const MOCK_DATA = {
-  currentPassword: 'password123'
-};
-
-// Mock API service module
-const authAPI = {
-  async changePassword(currentPassword: string, newPassword: string) {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    if (currentPassword !== MOCK_DATA.currentPassword) {
-      throw new Error('Current password is incorrect');
-    }
-
-    if (newPassword.length < 8) {
-      throw new Error('New password must be at least 8 characters long');
-    }
-
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
-      throw new Error('Password must contain uppercase, lowercase, and numbers');
-    }
-
-    MOCK_DATA.currentPassword = newPassword;
-
-    return {
-      success: true,
-      message: 'Password changed successfully!'
-    };
-  }
-};
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import { createClient } from '@/utils/supabase/client';
 
 type Step = 'current' | 'new' | 'confirm' | 'success';
 
 export default function ChangePasswordPage() {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
   const [currentStep, setCurrentStep] = useState<Step>('current');
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
+
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const router = useRouter();
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.id]: e.target.value
-    });
-  };
+    const { id, value } = e.target;
 
-  const toggleCurrentPasswordVisibility = () => {
-    setShowCurrentPassword(!showCurrentPassword);
-  };
-
-  const toggleNewPasswordVisibility = () => {
-    setShowNewPassword(!showNewPassword);
-  };
-
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword);
+    setFormData((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
   };
 
   const handleGoToSignIn = () => {
@@ -87,30 +51,36 @@ export default function ChangePasswordPage() {
   };
 
   const validateCurrentPassword = () => {
-    if (!formData.currentPassword) {
-      toast.error('Current password is required');
+    if (!formData.currentPassword.trim()) {
+      toast.error('Please enter your current password.');
       return false;
     }
+
     return true;
   };
 
   const validateNewPassword = () => {
-    const errors: string[] = [];
+    const password = formData.newPassword;
 
-    if (!formData.newPassword) {
-      errors.push('New password is required');
-    } else if (formData.newPassword.length < 8) {
-      errors.push('New password must be at least 8 characters long');
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.newPassword)) {
-      errors.push('Password must contain uppercase, lowercase, and numbers');
+    if (!password) {
+      toast.error('Please enter a new password.');
+      return false;
     }
 
-    if (formData.currentPassword === formData.newPassword) {
-      errors.push('New password must be different from current password');
+    if (password.length < 8) {
+      toast.error('Your new password must be at least 8 characters.');
+      return false;
     }
 
-    if (errors.length > 0) {
-      errors.forEach(error => toast.error(error));
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      toast.error(
+        'Your password must contain uppercase, lowercase, and a number.'
+      );
+      return false;
+    }
+
+    if (password === formData.currentPassword) {
+      toast.error('Your new password must be different from your current password.');
       return false;
     }
 
@@ -119,63 +89,121 @@ export default function ChangePasswordPage() {
 
   const validateConfirmPassword = () => {
     if (!formData.confirmPassword) {
-      toast.error('Please confirm your new password');
-      return false;
-    } else if (formData.newPassword !== formData.confirmPassword) {
-      toast.error('New passwords do not match');
+      toast.error('Please confirm your new password.');
       return false;
     }
+
+    if (formData.newPassword !== formData.confirmPassword) {
+      toast.error('Your passwords do not match.');
+      return false;
+    }
+
     return true;
   };
 
-  const handleNextStep = () => {
-    switch (currentStep) {
-      case 'current':
-        if (validateCurrentPassword()) {
-          setCurrentStep('new');
-        }
-        break;
-      case 'new':
-        if (validateNewPassword()) {
-          setCurrentStep('confirm');
-        }
-        break;
-      case 'confirm':
-        if (validateConfirmPassword()) {
-          handleSubmit();
-        }
-        break;
+  const verifyCurrentPassword = async () => {
+    const { data, error } = await supabase.auth.getUser();
+
+    if (error || !data.user?.email) {
+      throw new Error('Unable to verify your account. Please sign in again.');
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: data.user.email,
+      password: formData.currentPassword,
+    });
+
+    if (signInError) {
+      throw new Error('Current password is incorrect.');
+    }
+  };
+
+  const handleNextStep = async () => {
+    if (currentStep === 'current') {
+      if (!validateCurrentPassword()) return;
+
+      setIsLoading(true);
+
+      try {
+        await verifyCurrentPassword();
+        setCurrentStep('new');
+      } catch (error) {
+        console.error('Current password verification error:', error);
+
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : 'Unable to verify your current password.'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+
+      return;
+    }
+
+    if (currentStep === 'new') {
+      if (validateNewPassword()) {
+        setCurrentStep('confirm');
+      }
+
+      return;
+    }
+
+    if (currentStep === 'confirm') {
+      if (validateConfirmPassword()) {
+        await handleSubmit();
+      }
     }
   };
 
   const handlePreviousStep = () => {
-    if (currentStep === 'new') setCurrentStep('current');
-    if (currentStep === 'confirm') setCurrentStep('new');
+    if (isLoading) return;
+
+    if (currentStep === 'new') {
+      setCurrentStep('current');
+    }
+
+    if (currentStep === 'confirm') {
+      setCurrentStep('new');
+    }
   };
 
   const handleSubmit = async () => {
     setIsLoading(true);
-    const loadingToast = toast.loading('Changing password...');
+
+    const loadingToast = toast.loading('Updating your password...');
 
     try {
-      await authAPI.changePassword(formData.currentPassword, formData.newPassword);
+      const { data, error } = await supabase.auth.getUser();
+
+      if (error || !data.user) {
+        throw new Error('Your session has expired. Please sign in again.');
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: formData.newPassword,
+      });
+
+      if (updateError) {
+        console.error('Password update error:', updateError);
+
+        throw new Error(
+          updateError.message || 'Failed to update your password.'
+        );
+      }
+
       setCurrentStep('success');
-      toast.success('Password changed successfully!');
-    } catch (error: any) {
+
+      toast.success('Password changed successfully.');
+    } catch (error) {
       console.error('Change password error:', error);
 
-      if (error.message.includes('Current password is incorrect')) {
-        toast.error('Current password is incorrect');
-        setCurrentStep('current');
-      } else if (error.message.includes('at least 8 characters')) {
-        toast.error('New password must be at least 8 characters long');
-        setCurrentStep('new');
-      } else if (error.message.includes('uppercase, lowercase, and numbers')) {
-        toast.error('Password must contain uppercase, lowercase, and numbers');
-        setCurrentStep('new');
-      } else {
-        toast.error(error.message || 'Failed to change password');
-      }
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to change your password. Please try again.'
+      );
     } finally {
       setIsLoading(false);
       toast.dismiss(loadingToast);
@@ -183,381 +211,504 @@ export default function ChangePasswordPage() {
   };
 
   const passwordStrength = (password: string) => {
-    if (!password) return { strength: 0, color: 'slate', text: '' };
+    if (!password) {
+      return {
+        strength: 0,
+        text: '',
+      };
+    }
 
     let strength = 0;
+
     if (password.length >= 8) strength += 1;
     if (/[a-z]/.test(password)) strength += 1;
     if (/[A-Z]/.test(password)) strength += 1;
-    if (/[0-9]/.test(password)) strength += 1;
+    if (/\d/.test(password)) strength += 1;
     if (/[^A-Za-z0-9]/.test(password)) strength += 1;
 
-    const strengths = [
-      { color: 'red', text: 'Very Weak' },
-      { color: 'orange', text: 'Weak' },
-      { color: 'amber', text: 'Fair' },
-      { color: 'blue', text: 'Good' },
-      { color: 'emerald', text: 'Strong' },
-      { color: 'emerald', text: 'Very Strong' }
+    const labels = [
+      '',
+      'Very Weak',
+      'Weak',
+      'Fair',
+      'Good',
+      'Strong',
     ];
 
-    return { strength, ...strengths[strength] };
+    return {
+      strength,
+      text: labels[strength] || 'Strong',
+    };
   };
 
   const newPasswordStrength = passwordStrength(formData.newPassword);
 
-  const stepTitles = {
-    current: 'Verify Identity',
-    new: 'Create New Password',
-    confirm: 'Confirm New Password',
-    success: 'Password Changed!'
+  const stepTitles: Record<Step, string> = {
+    current: 'Verify Your Password',
+    new: 'Create a New Password',
+    confirm: 'Confirm Your Password',
+    success: 'Password Changed',
   };
 
-  const stepDescriptions = {
-    current: 'Enter your active password parameters to continue authentication',
-    new: 'Design a highly secure configuration for your profile protection',
-    confirm: 'Re-verify your chosen configuration values to sync encryption',
-    success: 'Your updated credentials map is now secure and active'
+  const stepDescriptions: Record<Step, string> = {
+    current: 'Enter your current password to continue.',
+    new: 'Choose a strong password for your Monietar account.',
+    confirm: 'Enter your new password again to confirm the change.',
+    success: 'Your password has been updated successfully.',
   };
 
   const isStepCompleted = (step: Step) => {
-    if (step === 'current') return currentStep !== 'current';
-    if (step === 'new') return currentStep === 'confirm' || currentStep === 'success';
-    if (step === 'confirm') return currentStep === 'success';
+    if (step === 'current') {
+      return currentStep !== 'current';
+    }
+
+    if (step === 'new') {
+      return currentStep === 'confirm' || currentStep === 'success';
+    }
+
+    if (step === 'confirm') {
+      return currentStep === 'success';
+    }
+
     return false;
   };
 
   const getConnectorColor = (step: Step) => {
-    if (step === 'current') return currentStep !== 'current' ? 'bg-emerald-500' : 'bg-slate-200';
-    if (step === 'new') return (currentStep === 'confirm' || currentStep === 'success') ? 'bg-emerald-500' : 'bg-slate-200';
-    return 'bg-slate-200';
+    if (step === 'current') {
+      return currentStep !== 'current'
+        ? 'bg-emerald-600'
+        : 'bg-gray-200';
+    }
+
+    if (step === 'new') {
+      return currentStep === 'confirm' || currentStep === 'success'
+        ? 'bg-emerald-600'
+        : 'bg-gray-200';
+    }
+
+    return 'bg-gray-200';
   };
 
+  const passwordInputClass =
+    'w-full border border-gray-300 bg-gray-50 px-3.5 py-2.5 pr-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/10 disabled:cursor-not-allowed disabled:opacity-60';
+
+  const secondaryButtonClass =
+    'flex flex-1 cursor-pointer items-center justify-center gap-1.5 border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60';
+
+  const primaryButtonClass =
+    'flex flex-1 cursor-pointer items-center justify-center gap-2 bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60';
+
   return (
-    <div className="flex w-full min-h-screen bg-slate-50 text-slate-900">
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: { 
-            background: '#ffffff', 
-            color: '#1e293b', 
-            border: '1px solid #e2e8f0', 
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
-          },
-          success: { duration: 3000, iconTheme: { primary: '#10b981', secondary: '#fff' } },
-          error: { duration: 5000, iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-          loading: { duration: Infinity, iconTheme: { primary: '#3b82f6', secondary: '#fff' } },
-        }}
-      />
+    <div className="flex min-h-screen flex-col bg-[#f1f1f1] text-gray-900">
+      <Header />
 
-      {/* Side Image Pane */}
-      <div className='flex-1 relative hidden md:block h-screen shadow-inner'>
-        <Image
-          src='https://res.cloudinary.com/dzibfknxq/image/upload/v1757900862/Finance_Automation_And_Its_Critical_Role_In_Streamlining_Financial_Processes_-_OPEN_Money_Blog_ihfxxe.jpg'
-          alt='change password security image'
-          fill
-          className='object-cover'
-          priority
-        />
-        <div className='absolute inset-0 bg-slate-900/10'></div>
-      </div>
-
-      {/* Centralized Form Section */}
-      <div className='flex-1 flex flex-col justify-center items-center p-4 min-h-screen bg-white'>
-        <div className="w-full max-w-md py-6">
+      <main className="flex-1 bg-[#f1f1f1] px-5 pt-30 md:pt-0  py-12 sm:px-8 sm:py-16 lg:py-20">
+        <div className="mx-auto w-full max-w-[440px]">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-slate-100"
+            transition={{ duration: 0.35 }}
           >
-            {/* Dynamic Timeline Stepper */}
-            <div className="flex justify-center items-center mb-8">
-              {(['current', 'new', 'confirm', 'success'] as Step[]).map((step, index) => (
-                <div key={step} className="flex items-center">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 text-xs font-bold transition-all duration-300 ${
-                    currentStep === step 
-                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-600/20' 
-                      : isStepCompleted(step)
-                      ? 'bg-emerald-500 border-emerald-500 text-white'
-                      : 'border-slate-200 text-slate-400 bg-slate-50'
-                  }`}>
-                    {isStepCompleted(step) ? (
-                      <CheckCircle2 className="w-4 h-4" />
-                    ) : (
-                      index + 1
-                    )}
+            {/* Header */}
+            <div className="mb-7 text-center">
+                  <div className=" hidden mx-auto mb-3 md:flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                    <ShieldCheck className="h-5 w-5 text-gray-500" />
                   </div>
-                  {index < 3 && (
-                    <div className={`w-8 sm:w-12 h-0.5 mx-1 transition-colors duration-500 ${getConnectorColor(step)}`} />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Stage Description Context */}
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
-                {currentStep === 'success' ? (
-                  <ShieldCheck className="w-7 h-7 text-emerald-600" />
-                ) : (
-                  <KeyRound className="w-7 h-7 text-emerald-600" />
-                )}
-              </div>
-              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mb-1.5">
+             <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
                 {stepTitles[currentStep]}
               </h1>
-              <p className="text-slate-500 text-sm leading-relaxed px-2">
+
+              <p className="mt-2 text-sm leading-6 text-gray-500">
                 {stepDescriptions[currentStep]}
               </p>
             </div>
 
-            <AnimatePresence mode="wait">
-              {/* Step 1: Current Verification Node */}
-              {currentStep === 'current' && (
-                <motion.div
-                  key="current"
-                  initial={{ opacity: 0, x: 15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -15 }}
-                  transition={{ duration: 0.25 }}
-                  className="space-y-5"
-                >
-                  <div className="space-y-1.5">
-                    <label htmlFor="currentPassword" className="block text-xs font-semibold text-slate-700 tracking-wide uppercase pl-0.5">
-                      Current Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showCurrentPassword ? "text" : "password"}
-                        id="currentPassword"
-                        value={formData.currentPassword}
-                        onChange={handleChange}
-                        className="w-full px-3.5 py-2.5 pr-10 border border-slate-300 rounded-lg focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-400 bg-slate-50/50 text-slate-900 text-sm"
-                        placeholder="Enter active password"
-                        required
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={toggleCurrentPasswordVisibility}
-                        className="absolute cursor-pointer right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
-                      >
-                        {showCurrentPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 pt-1">
-                    <button
-                      onClick={handleGoToSignIn}
-                      className="flex-1 cursor-pointer order-2 sm:order-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2.5 rounded-lg text-sm transition-colors text-center"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleNextStep}
-                      disabled={isLoading || !formData.currentPassword}
-                      className="flex-1 cursor-pointer order-1 sm:order-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-700/80 text-white font-semibold py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed"
-                    >
-                      Continue
-                      <Lock className="w-4 h-4" />
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Step 2: New Generation Struct */}
-              {currentStep === 'new' && (
-                <motion.div
-                  key="new"
-                  initial={{ opacity: 0, x: 15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -15 }}
-                  transition={{ duration: 0.25 }}
-                  className="space-y-5"
-                >
-                  <div className="space-y-1.5">
-                    <label htmlFor="newPassword" className="block text-xs font-semibold text-slate-700 tracking-wide uppercase pl-0.5">
-                      New Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showNewPassword ? "text" : "password"}
-                        id="newPassword"
-                        value={formData.newPassword}
-                        onChange={handleChange}
-                        className="w-full px-3.5 py-2.5 pr-10 border border-slate-300 rounded-lg focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-400 bg-slate-50/50 text-slate-900 text-sm"
-                        placeholder="Enter brand new password"
-                        required
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={toggleNewPasswordVisibility}
-                        className="absolute cursor-pointer right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
-                      >
-                        {showNewPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                      </button>
-                    </div>
-
-                    {/* Complexity Analytics Scale */}
-                    {formData.newPassword && (
-                      <div className="mt-2 pt-0.5 animate-fadeIn">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[11px] font-medium text-slate-400">Password strength:</span>
-                          <span className={`text-[11px] font-bold tracking-wide uppercase ${
-                            newPasswordStrength.color === 'red' ? 'text-red-500' :
-                            newPasswordStrength.color === 'orange' ? 'text-orange-500' :
-                            newPasswordStrength.color === 'amber' ? 'text-amber-500' :
-                            newPasswordStrength.color === 'blue' ? 'text-blue-500' : 'text-emerald-600'
-                          }`}>
-                            {newPasswordStrength.text}
-                          </span>
+            {/* Form Card */}
+            <div className="border border-gray-200 bg-white p-5 sm:p-7">
+              {/* Progress */}
+              {currentStep !== 'success' && (
+                <div className="mb-7 flex items-center justify-center">
+                  {(['current', 'new', 'confirm'] as Step[]).map(
+                    (step, index) => (
+                      <div key={step} className="flex items-center">
+                        <div
+                          className={`flex h-7 w-7 items-center justify-center border text-[10px] font-semibold transition-colors ${
+                            currentStep === step
+                              ? 'border-emerald-700 bg-emerald-700 text-white'
+                              : isStepCompleted(step)
+                                ? 'border-emerald-600 bg-emerald-600 text-white'
+                                : 'border-gray-200 bg-gray-50 text-gray-400'
+                          }`}
+                        >
+                          {isStepCompleted(step) ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            index + 1
+                          )}
                         </div>
-                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              newPasswordStrength.color === 'red' ? 'bg-red-500' :
-                              newPasswordStrength.color === 'orange' ? 'bg-orange-500' :
-                              newPasswordStrength.color === 'amber' ? 'bg-amber-500' :
-                              newPasswordStrength.color === 'blue' ? 'bg-blue-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${(newPasswordStrength.strength / 5) * 100}%` }}
-                          ></div>
-                        </div>
+
+                        {index < 2 && (
+                          <div
+                            className={`mx-1 h-px w-8 transition-colors sm:w-12 ${getConnectorColor(
+                              step
+                            )}`}
+                          />
+                        )}
                       </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 pt-1">
-                    <button
-                      onClick={handlePreviousStep}
-                      className="flex-1 cursor-pointer order-2 sm:order-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Back
-                    </button>
-                    <button
-                      onClick={handleNextStep}
-                      disabled={isLoading || !formData.newPassword}
-                      className="flex-1 cursor-pointer order-1 sm:order-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-700/80 text-white font-semibold py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed"
-                    >
-                      Continue
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </div>
-                </motion.div>
+                    )
+                  )}
+                </div>
               )}
 
-              {/* Step 3: Match Confirmation Node */}
-              {currentStep === 'confirm' && (
-                <motion.div
-                  key="confirm"
-                  initial={{ opacity: 0, x: 15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -15 }}
-                  transition={{ duration: 0.25 }}
-                  className="space-y-5"
-                >
-                  <div className="space-y-1.5">
-                    <label htmlFor="confirmPassword" className="block text-xs font-semibold text-slate-700 tracking-wide uppercase pl-0.5">
-                      Confirm New Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        id="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        className="w-full px-3.5 py-2.5 pr-10 border border-slate-300 rounded-lg focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all placeholder-slate-400 bg-slate-50/50 text-slate-900 text-sm"
-                        placeholder="Re-type your new password"
-                        required
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={toggleConfirmPasswordVisibility}
-                        className="absolute cursor-pointer right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+              <AnimatePresence mode="wait">
+                {/* Current Password */}
+                {currentStep === 'current' && (
+                  <motion.div
+                    key="current"
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-5"
+                  >
+                    <div>
+                      <label
+                        htmlFor="currentPassword"
+                        className="mb-2 block text-xs font-semibold text-gray-700"
                       >
-                        {showConfirmPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                      </button>
+                        Current Password
+                      </label>
+
+                      <div className="relative">
+                        <input
+                          id="currentPassword"
+                          type={
+                            showCurrentPassword ? 'text' : 'password'
+                          }
+                          value={formData.currentPassword}
+                          onChange={handleChange}
+                          placeholder="Enter your current password"
+                          autoComplete="current-password"
+                          disabled={isLoading}
+                          className={passwordInputClass}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowCurrentPassword((value) => !value)
+                          }
+                          disabled={isLoading}
+                          aria-label={
+                            showCurrentPassword
+                              ? 'Hide current password'
+                              : 'Show current password'
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 transition-colors hover:text-gray-700 disabled:cursor-not-allowed"
+                        >
+                          {showCurrentPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
 
-                    {formData.confirmPassword && (
-                      <div className="flex items-center space-x-1.5 mt-2 pl-0.5 animate-fadeIn">
-                        {formData.newPassword === formData.confirmPassword ? (
+                    <div className="flex flex-col gap-2.5 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={handleGoToSignIn}
+                        disabled={isLoading}
+                        className={secondaryButtonClass}
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleNextStep}
+                        disabled={isLoading || !formData.currentPassword}
+                        className={primaryButtonClass}
+                      >
+                        {isLoading ? (
                           <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-xs font-medium text-emerald-600">Verification vectors match</span>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Verifying...
                           </>
                         ) : (
                           <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span className="text-xs font-medium text-red-500">Verification vectors mismatch</span>
+                            Continue
+                            <Lock className="h-4 w-4" />
                           </>
                         )}
-                      </div>
-                    )}
-                  </div>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
 
-                  <div className="flex flex-col sm:flex-row gap-3 pt-1">
-                    <button
-                      onClick={handlePreviousStep}
-                      className="flex-1 cursor-pointer order-2 sm:order-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Back
-                    </button>
-                    <button
-                      onClick={handleNextStep}
-                      disabled={isLoading || !formData.confirmPassword || formData.newPassword !== formData.confirmPassword}
-                      className="flex-1 cursor-pointer order-1 sm:order-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-700/80 text-white font-semibold py-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-sm disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="animate-spin h-4 w-4" />
-                          Updating...
-                        </>
-                      ) : (
-                        'Change Password'
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Step 4: Success Module Execution */}
-              {currentStep === 'success' && (
-                <motion.div
-                  key="success"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-center space-y-5"
-                >
-                  <div className="space-y-1.5">
-                    <h2 className="text-lg font-bold text-slate-900">Credentials Updated!</h2>
-                    <p className="text-slate-500 text-sm leading-relaxed px-1">
-                      Your operational password matrix has been altered. All security logs have been flagged as updated.
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={handleGoToSignIn}
-                    className="w-full cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow-sm transition-all text-center"
+                {/* New Password */}
+                {currentStep === 'new' && (
+                  <motion.div
+                    key="new"
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-5"
                   >
-                    Return to Sign In
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <div>
+                      <label
+                        htmlFor="newPassword"
+                        className="mb-2 block text-xs font-semibold text-gray-700"
+                      >
+                        New Password
+                      </label>
+
+                      <div className="relative">
+                        <input
+                          id="newPassword"
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={formData.newPassword}
+                          onChange={handleChange}
+                          placeholder="Enter a new password"
+                          autoComplete="new-password"
+                          disabled={isLoading}
+                          className={passwordInputClass}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowNewPassword((value) => !value)
+                          }
+                          disabled={isLoading}
+                          aria-label={
+                            showNewPassword
+                              ? 'Hide new password'
+                              : 'Show new password'
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 transition-colors hover:text-gray-700 disabled:cursor-not-allowed"
+                        >
+                          {showNewPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+
+                      {formData.newPassword && (
+                        <div className="mt-3">
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <span className="text-[11px] text-gray-400">
+                              Password strength
+                            </span>
+
+                            <span className="text-[11px] font-semibold text-emerald-700">
+                              {newPasswordStrength.text}
+                            </span>
+                          </div>
+
+                          <div className="h-1 overflow-hidden bg-gray-100">
+                            <div
+                              className="h-full bg-emerald-600 transition-all duration-300"
+                              style={{
+                                width: `${
+                                  (newPasswordStrength.strength / 5) * 100
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="mt-3 text-xs leading-5 text-gray-400">
+                        Use at least 8 characters with uppercase, lowercase,
+                        and a number.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={handlePreviousStep}
+                        disabled={isLoading}
+                        className={secondaryButtonClass}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleNextStep}
+                        disabled={isLoading || !formData.newPassword}
+                        className={primaryButtonClass}
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Confirm Password */}
+                {currentStep === 'confirm' && (
+                  <motion.div
+                    key="confirm"
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-5"
+                  >
+                    <div>
+                      <label
+                        htmlFor="confirmPassword"
+                        className="mb-2 block text-xs font-semibold text-gray-700"
+                      >
+                        Confirm New Password
+                      </label>
+
+                      <div className="relative">
+                        <input
+                          id="confirmPassword"
+                          type={
+                            showConfirmPassword ? 'text' : 'password'
+                          }
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          placeholder="Enter your new password again"
+                          autoComplete="new-password"
+                          disabled={isLoading}
+                          className={passwordInputClass}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowConfirmPassword((value) => !value)
+                          }
+                          disabled={isLoading}
+                          aria-label={
+                            showConfirmPassword
+                              ? 'Hide confirmed password'
+                              : 'Show confirmed password'
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 transition-colors hover:text-gray-700 disabled:cursor-not-allowed"
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+
+                      {formData.confirmPassword && (
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <span
+                            className={`h-1.5 w-1.5 ${
+                              formData.newPassword ===
+                              formData.confirmPassword
+                                ? 'bg-emerald-600'
+                                : 'bg-red-500'
+                            }`}
+                          />
+
+                          <span
+                            className={`text-xs ${
+                              formData.newPassword ===
+                              formData.confirmPassword
+                                ? 'text-emerald-700'
+                                : 'text-red-500'
+                            }`}
+                          >
+                            {formData.newPassword ===
+                            formData.confirmPassword
+                              ? 'Passwords match.'
+                              : 'Passwords do not match.'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={handlePreviousStep}
+                        disabled={isLoading}
+                        className={secondaryButtonClass}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleNextStep}
+                        disabled={
+                          isLoading ||
+                          !formData.confirmPassword ||
+                          formData.newPassword !== formData.confirmPassword
+                        }
+                        className={primaryButtonClass}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          'Change Password'
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Success */}
+                {currentStep === 'success' && (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="text-center"
+                  >
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-emerald-100 bg-emerald-50">
+                      <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                    </div>
+
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Password Updated
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                      Your Monietar account password has been changed
+                      successfully.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={handleGoToSignIn}
+                      className="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+                    >
+                      Return to Sign In
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <p className="mt-6 text-center text-[9px] uppercase tracking-[0.18em] text-gray-400">
+              The Cash Flow Operating System
+            </p>
           </motion.div>
         </div>
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }
