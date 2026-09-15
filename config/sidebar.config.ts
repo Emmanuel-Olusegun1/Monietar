@@ -179,7 +179,7 @@ export const sidebarNavigation: NavigationGroup[] = [
 
       {
         name: 'Help',
-        href: '/dashboard/help',
+        href: '/help',
         icon: CircleHelp,
         plans: [
           'retail-starter',
