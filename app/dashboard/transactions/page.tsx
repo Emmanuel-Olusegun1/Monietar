@@ -15,6 +15,10 @@ import {
   TrendingDown,
   Zap,
   X,
+  Lock,
+  Plus,
+  Loader2,
+  BarChart3,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
@@ -29,13 +33,17 @@ import { createClient } from '@/lib/supabase/client';
 
 type TransactionType = 'income' | 'expense';
 
+type Plan =
+  | 'retail-starter'
+  | 'growing-merchant'
+  | 'borderless-pro';
+
 type PeriodKey =
   | 'today'
   | 'this-week'
   | 'this-month'
   | 'last-month'
-  | 'this-year'
-  | 'all-time';
+  | 'this-year';
 
 type TransactionRow = {
   id: string;
@@ -62,10 +70,24 @@ type Transaction = {
   amount: number;
   type: TransactionType;
   date: string;
+  createdAt: string | null;
   accountId: string | null;
   accountLabel: string;
   reference: string;
   currency: string;
+};
+
+type AccountOption = {
+  id: string;
+  name: string;
+  currency: string;
+};
+
+type ChartPoint = {
+  key: string;
+  label: string;
+  moneyIn: number;
+  moneyOut: number;
 };
 
 /*
@@ -73,6 +95,8 @@ type Transaction = {
 | Constants
 |--------------------------------------------------------------------------
 */
+
+const BUSINESS_TIME_ZONE = 'Africa/Lagos';
 
 const periods: {
   key: PeriodKey;
@@ -98,17 +122,241 @@ const periods: {
     key: 'this-year',
     label: 'This year',
   },
-  {
-    key: 'all-time',
-    label: 'All time',
-  },
+];
+
+const DEFAULT_CATEGORIES = [
+  'Sales',
+  'Salary',
+  'Transfer',
+  'Other income',
+  'Food',
+  'Transport',
+  'Rent',
+  'Utilities',
+  'Inventory',
+  'Marketing',
+  'Equipment',
+  'Bank charges',
+  'Other expense',
 ];
 
 /*
 |--------------------------------------------------------------------------
-| Helpers
+| Date Helpers
 |--------------------------------------------------------------------------
 */
+
+function getLagosDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-NG', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  return {
+    year: Number(
+      parts.find((part) => part.type === 'year')?.value ?? 0
+    ),
+    month: Number(
+      parts.find((part) => part.type === 'month')?.value ?? 0
+    ),
+    day: Number(
+      parts.find((part) => part.type === 'day')?.value ?? 0
+    ),
+  };
+}
+
+function getLagosHour(date = new Date()) {
+  const value = new Intl.DateTimeFormat('en-NG', {
+    timeZone: BUSINESS_TIME_ZONE,
+    hour: '2-digit',
+    hour12: false,
+  }).format(date);
+
+  return Number(value);
+}
+
+function getLagosDateString(date = new Date()) {
+  const { year, month, day } = getLagosDateParts(date);
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(
+    day
+  ).padStart(2, '0')}`;
+}
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value
+    .split('-')
+    .map(Number);
+
+  return new Date(
+    year,
+    (month || 1) - 1,
+    day || 1
+  );
+}
+
+function formatDateOnly(date: Date) {
+  const year = date.getFullYear();
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, '0');
+  const day = String(
+    date.getDate()
+  ).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, amount: number) {
+  const result = new Date(date);
+
+  result.setDate(
+    result.getDate() + amount
+  );
+
+  return result;
+}
+
+function getTodayInputValue() {
+  return getLagosDateString();
+}
+
+function getPeriodRange(period: PeriodKey) {
+  const today = parseDateOnly(
+    getLagosDateString()
+  );
+
+  switch (period) {
+    case 'today':
+      return {
+        start: formatDateOnly(today),
+        end: formatDateOnly(today),
+      };
+
+    case 'this-week': {
+      const day = today.getDay();
+      const difference =
+        day === 0 ? 6 : day - 1;
+
+      const start = addDays(
+        today,
+        -difference
+      );
+
+      return {
+        start: formatDateOnly(start),
+        end: formatDateOnly(today),
+      };
+    }
+
+    case 'this-month': {
+      const start = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        1
+      );
+
+      return {
+        start: formatDateOnly(start),
+        end: formatDateOnly(today),
+      };
+    }
+
+    case 'last-month': {
+      const start = new Date(
+        today.getFullYear(),
+        today.getMonth() - 1,
+        1
+      );
+
+      const end = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        0
+      );
+
+      return {
+        start: formatDateOnly(start),
+        end: formatDateOnly(end),
+      };
+    }
+
+    case 'this-year': {
+      const start = new Date(
+        today.getFullYear(),
+        0,
+        1
+      );
+
+      return {
+        start: formatDateOnly(start),
+        end: formatDateOnly(today),
+      };
+    }
+  }
+}
+
+function formatTransactionDate(
+  date: string
+) {
+  const parsed = parseDateOnly(date);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+
+  return parsed.toLocaleDateString(
+    'en-NG',
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }
+  );
+}
+
+function formatShortDate(date: string) {
+  const parsed = parseDateOnly(date);
+
+  return parsed.toLocaleDateString(
+    'en-NG',
+    {
+      day: 'numeric',
+      month: 'short',
+    }
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| General Helpers
+|--------------------------------------------------------------------------
+*/
+
+function normalizePlan(value: unknown): Plan {
+  if (typeof value !== 'string') {
+    return 'retail-starter';
+  }
+
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-');
+
+  switch (normalized) {
+    case 'growing-merchant':
+      return 'growing-merchant';
+
+    case 'borderless-pro':
+      return 'borderless-pro';
+
+    case 'retail-starter':
+    default:
+      return 'retail-starter';
+  }
+}
 
 function formatCurrency(
   amount: number,
@@ -130,192 +378,38 @@ function formatCurrency(
   ).toLocaleString('en-NG')}`;
 }
 
-function toNumber(value: number | string | null) {
-  if (value === null || value === undefined) {
+function toNumber(
+  value: number | string | null
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
     return 0;
   }
 
   const number = Number(value);
 
-  return Number.isFinite(number) ? number : 0;
-}
-
-function startOfDay(date: Date) {
-  const result = new Date(date);
-  result.setHours(0, 0, 0, 0);
-  return result;
-}
-
-function endOfDay(date: Date) {
-  const result = new Date(date);
-  result.setHours(23, 59, 59, 999);
-  return result;
-}
-
-function startOfWeek(date: Date) {
-  const result = startOfDay(date);
-  const day = result.getDay();
-
-  /*
-   * Monday = first day of week.
-   */
-  const difference = day === 0 ? 6 : day - 1;
-
-  result.setDate(result.getDate() - difference);
-
-  return result;
-}
-
-function endOfWeek(date: Date) {
-  const result = startOfWeek(date);
-  result.setDate(result.getDate() + 6);
-
-  return endOfDay(result);
-}
-
-function startOfMonth(date: Date) {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    1
-  );
-}
-
-function endOfMonth(date: Date) {
-  return endOfDay(
-    new Date(
-      date.getFullYear(),
-      date.getMonth() + 1,
-      0
-    )
-  );
-}
-
-function startOfYear(date: Date) {
-  return new Date(date.getFullYear(), 0, 1);
-}
-
-function endOfYear(date: Date) {
-  return endOfDay(
-    new Date(date.getFullYear(), 11, 31)
-  );
-}
-
-function getPeriodRange(period: PeriodKey) {
-  const now = new Date();
-
-  switch (period) {
-    case 'today':
-      return {
-        start: startOfDay(now),
-        end: endOfDay(now),
-      };
-
-    case 'this-week':
-      return {
-        start: startOfWeek(now),
-        end: endOfWeek(now),
-      };
-
-    case 'this-month':
-      return {
-        start: startOfMonth(now),
-        end: endOfMonth(now),
-      };
-
-    case 'last-month': {
-      const start = new Date(
-        now.getFullYear(),
-        now.getMonth() - 1,
-        1
-      );
-
-      const end = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        0
-      );
-
-      return {
-        start,
-        end: endOfDay(end),
-      };
-    }
-
-    case 'this-year':
-      return {
-        start: startOfYear(now),
-        end: endOfYear(now),
-      };
-
-    case 'all-time':
-      return {
-        start: null,
-        end: null,
-      };
-  }
-}
-
-function formatTransactionDate(
-  date: string
-) {
-  const parsed = new Date(`${date}T00:00:00`);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return date;
-  }
-
-  return parsed.toLocaleDateString('en-NG', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function formatTransactionTime(
-  createdAt: string | null
-) {
-  if (!createdAt) {
-    return '';
-  }
-
-  const parsed = new Date(createdAt);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return '';
-  }
-
-  return parsed.toLocaleTimeString('en-NG', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  return Number.isFinite(number)
+    ? number
+    : 0;
 }
 
 function getTransactionAmount(
   transaction: TransactionRow
 ) {
-  /*
-   * amount is the original transaction amount.
-   * amount_base is the converted/base amount where available.
-   *
-   * The transaction page displays the transaction's
-   * actual currency amount.
-   */
-  return toNumber(transaction.amount);
+  return toNumber(
+    transaction.amount
+  );
 }
 
 function getAccountLabel(
   accountId: string | null
 ) {
   if (!accountId) {
-    return 'Unassigned account';
+    return 'No account';
   }
 
-  /*
-   * The current transaction schema only gives us
-   * account_id. We don't assume an account name because
-   * the accounts table/schema has not been provided yet.
-   */
   return `Account ${accountId.slice(0, 8)}`;
 }
 
@@ -326,7 +420,9 @@ function getTransactionReference(
     return transaction.reference;
   }
 
-  return transaction.id.slice(0, 8).toUpperCase();
+  return transaction.id
+    .slice(0, 8)
+    .toUpperCase();
 }
 
 function normalizeTransaction(
@@ -339,36 +435,359 @@ function normalizeTransaction(
       transaction.category ||
       'Transaction',
     category:
-      transaction.category || 'Uncategorized',
-    amount: getTransactionAmount(transaction),
+      transaction.category ||
+      'Uncategorized',
+    amount:
+      getTransactionAmount(
+        transaction
+      ),
     type:
       transaction.type === 'expense'
         ? 'expense'
         : 'income',
     date: transaction.date,
-    accountId: transaction.account_id,
-    accountLabel: getAccountLabel(
-      transaction.account_id
-    ),
-    reference: getTransactionReference(
-      transaction
-    ),
-    currency: transaction.currency || 'NGN',
+    createdAt:
+      transaction.created_at,
+    accountId:
+      transaction.account_id,
+    accountLabel:
+      getAccountLabel(
+        transaction.account_id
+      ),
+    reference:
+      getTransactionReference(
+        transaction
+      ),
+    currency:
+      transaction.currency ||
+      'NGN',
   };
 }
 
-function getDateValue(
-  date: string
-) {
-  const parsed = new Date(`${date}T00:00:00`);
+function getDateValue(date: string) {
+  return parseDateOnly(date).getTime();
+}
 
-  return parsed.getTime();
+function getPeriodChartPoints(
+  period: PeriodKey,
+  transactions: Transaction[]
+): ChartPoint[] {
+  const {
+    start,
+    end,
+  } = getPeriodRange(period);
+
+  const startDate =
+    parseDateOnly(start);
+
+  const endDate =
+    parseDateOnly(end);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Today
+  |--------------------------------------------------------------------------
+  | Six four-hour blocks.
+  */
+
+  if (period === 'today') {
+    const points: ChartPoint[] =
+      Array.from(
+        { length: 6 },
+        (_, index) => {
+          const startHour =
+            index * 4;
+
+          const label =
+            startHour === 0
+              ? '12 AM'
+              : startHour === 12
+                ? '12 PM'
+                : startHour < 12
+                  ? `${startHour} AM`
+                  : `${startHour - 12} PM`;
+
+          return {
+            key: `hour-${startHour}`,
+            label,
+            moneyIn: 0,
+            moneyOut: 0,
+          };
+        }
+      );
+
+    transactions.forEach(
+      (transaction) => {
+        if (
+          transaction.date !==
+          start
+        ) {
+          return;
+        }
+
+        if (!transaction.createdAt) {
+          return;
+        }
+
+        const hour =
+          getLagosHour(
+            new Date(
+              transaction.createdAt
+            )
+          );
+
+        const bucket = Math.min(
+          5,
+          Math.floor(hour / 4)
+        );
+
+        if (
+          transaction.type ===
+          'income'
+        ) {
+          points[bucket].moneyIn +=
+            transaction.amount;
+        } else {
+          points[bucket].moneyOut +=
+            transaction.amount;
+        }
+      }
+    );
+
+    return points;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | This Week
+  |--------------------------------------------------------------------------
+  */
+
+  if (period === 'this-week') {
+    const points: ChartPoint[] = [];
+
+    let cursor = new Date(
+      startDate
+    );
+
+    while (
+      cursor <= endDate
+    ) {
+      const date =
+        formatDateOnly(cursor);
+
+      const label =
+        cursor.toLocaleDateString(
+          'en-NG',
+          {
+            weekday: 'short',
+            day: 'numeric',
+          }
+        );
+
+      points.push({
+        key: date,
+        label,
+        moneyIn: 0,
+        moneyOut: 0,
+      });
+
+      cursor = addDays(
+        cursor,
+        1
+      );
+    }
+
+    transactions.forEach(
+      (transaction) => {
+        const point =
+          points.find(
+            (item) =>
+              item.key ===
+              transaction.date
+          );
+
+        if (!point) {
+          return;
+        }
+
+        if (
+          transaction.type ===
+          'income'
+        ) {
+          point.moneyIn +=
+            transaction.amount;
+        } else {
+          point.moneyOut +=
+            transaction.amount;
+        }
+      }
+    );
+
+    return points;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | This Month / Last Month
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    period === 'this-month' ||
+    period === 'last-month'
+  ) {
+    const points: ChartPoint[] = [];
+
+    let cursor = new Date(
+      startDate
+    );
+
+    while (
+      cursor <= endDate
+    ) {
+      const date =
+        formatDateOnly(cursor);
+
+      points.push({
+        key: date,
+        label:
+          cursor.getDate().toString(),
+        moneyIn: 0,
+        moneyOut: 0,
+      });
+
+      cursor = addDays(
+        cursor,
+        1
+      );
+    }
+
+    transactions.forEach(
+      (transaction) => {
+        const point =
+          points.find(
+            (item) =>
+              item.key ===
+              transaction.date
+          );
+
+        if (!point) {
+          return;
+        }
+
+        if (
+          transaction.type ===
+          'income'
+        ) {
+          point.moneyIn +=
+            transaction.amount;
+        } else {
+          point.moneyOut +=
+            transaction.amount;
+        }
+      }
+    );
+
+    return points;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | This Year
+  |--------------------------------------------------------------------------
+  */
+
+  const points: ChartPoint[] = [];
+
+  let cursor = new Date(
+    startDate.getFullYear(),
+    0,
+    1
+  );
+
+  const currentMonth =
+    endDate.getMonth();
+
+  while (
+    cursor.getMonth() <=
+    currentMonth
+  ) {
+    const month =
+      cursor.getMonth();
+
+    points.push({
+      key: `${cursor.getFullYear()}-${String(
+        month + 1
+      ).padStart(2, '0')}`,
+      label:
+        cursor.toLocaleDateString(
+          'en-NG',
+          {
+            month: 'short',
+          }
+        ),
+      moneyIn: 0,
+      moneyOut: 0,
+    });
+
+    cursor = new Date(
+      cursor.getFullYear(),
+      cursor.getMonth() + 1,
+      1
+    );
+  }
+
+  transactions.forEach(
+    (transaction) => {
+      const parsed =
+        parseDateOnly(
+          transaction.date
+        );
+
+      if (
+        parsed.getFullYear() !==
+        endDate.getFullYear()
+      ) {
+        return;
+      }
+
+      const key = `${parsed.getFullYear()}-${String(
+        parsed.getMonth() + 1
+      ).padStart(2, '0')}`;
+
+      const point =
+        points.find(
+          (item) =>
+            item.key === key
+        );
+
+      if (!point) {
+        return;
+      }
+
+      if (
+        transaction.type ===
+        'income'
+      ) {
+        point.moneyIn +=
+          transaction.amount;
+      } else {
+        point.moneyOut +=
+          transaction.amount;
+      }
+    }
+  );
+
+  return points;
 }
 
 function downloadCsv(
   transactions: Transaction[]
 ) {
-  if (transactions.length === 0) {
+  if (
+    transactions.length === 0
+  ) {
     return;
   }
 
@@ -405,7 +824,8 @@ function downloadCsv(
     .map((row) =>
       row
         .map((value) => {
-          const stringValue = String(value ?? '');
+          const stringValue =
+            String(value ?? '');
 
           return `"${stringValue.replace(
             /"/g,
@@ -416,21 +836,26 @@ function downloadCsv(
     )
     .join('\n');
 
-  const blob = new Blob([csv], {
-    type: 'text/csv;charset=utf-8;',
-  });
+  const blob = new Blob(
+    [csv],
+    {
+      type: 'text/csv;charset=utf-8;',
+    }
+  );
 
-  const url = URL.createObjectURL(blob);
+  const url =
+    URL.createObjectURL(blob);
 
-  const link = document.createElement('a');
+  const link =
+    document.createElement('a');
 
   link.href = url;
-  link.download = `monietar-transactions-${new Date()
-    .toISOString()
-    .slice(0, 10)}.csv`;
+  link.download = `monietar-transactions-${getLagosDateString()}.csv`;
 
   document.body.appendChild(link);
+
   link.click();
+
   document.body.removeChild(link);
 
   URL.revokeObjectURL(url);
@@ -443,10 +868,13 @@ function downloadCsv(
 */
 
 export default function TransactionsPage() {
-  const supabase = createClient();
+  const [
+    transactions,
+    setTransactions,
+  ] = useState<Transaction[]>([]);
 
-  const [transactions, setTransactions] =
-    useState<Transaction[]>([]);
+  const [accounts, setAccounts] =
+    useState<AccountOption[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -470,7 +898,10 @@ export default function TransactionsPage() {
   const [
     selectedPeriod,
     setSelectedPeriod,
-  ] = useState<PeriodKey>('this-month');
+  ] =
+    useState<PeriodKey>(
+      'this-month'
+    );
 
   const [filterOpen, setFilterOpen] =
     useState(false);
@@ -483,41 +914,185 @@ export default function TransactionsPage() {
     setSelectedTransactions,
   ] = useState<string[]>([]);
 
+  const [canExport, setCanExport] =
+    useState(false);
+
+  const [
+    addTransactionOpen,
+    setAddTransactionOpen,
+  ] = useState(false);
+
+  const [
+    savingTransaction,
+    setSavingTransaction,
+  ] = useState(false);
+
+  const [
+    transactionError,
+    setTransactionError,
+  ] = useState<string | null>(null);
+
+  const [
+    transactionType,
+    setTransactionType,
+  ] =
+    useState<TransactionType>(
+      'income'
+    );
+
+  const [amount, setAmount] =
+    useState('');
+
+  const [category, setCategory] =
+    useState('');
+
+  const [description, setDescription] =
+    useState('');
+
+  const [date, setDate] =
+    useState(getTodayInputValue());
+
+  const [currency, setCurrency] =
+    useState('NGN');
+
+  const [accountId, setAccountId] =
+    useState('');
+
+  const [reference, setReference] =
+    useState('');
+
+  const [notes, setNotes] =
+    useState('');
+
   /*
   |--------------------------------------------------------------------------
-  | Load Transactions
+  | Supabase
+  |--------------------------------------------------------------------------
+  */
+
+  const supabase = useMemo(
+    () => createClient(),
+    []
+  );
+
+  /*
+  |--------------------------------------------------------------------------
+  | Load User Plan
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadTransactions() {
-      try {
-        setLoading(true);
-        setError(null);
+    async function loadPlan() {
+      const {
+        data: { user },
+      } =
+        await supabase.auth.getUser();
 
-        const {
-          data: {
-            user,
-          },
-          error: authError,
-        } = await supabase.auth.getUser();
+      if (!mounted) {
+        return;
+      }
 
-        if (authError) {
-          throw authError;
-        }
+      const plan = normalizePlan(
+        user?.user_metadata
+          ?.subscription_plan ??
+          user?.user_metadata?.plan
+      );
 
-        if (!user) {
-          throw new Error(
-            'You must be signed in to view your transactions.'
-          );
-        }
+      setCanExport(
+        plan === 'borderless-pro'
+      );
+    }
 
-        const {
-          data,
-          error: transactionError,
-        } = await supabase
+    loadPlan();
+
+    return () => {
+      mounted = false;
+    };
+  }, [supabase]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Load Accounts
+  |--------------------------------------------------------------------------
+  */
+
+  async function loadAccounts(
+    userId: string
+  ) {
+    const {
+      data,
+      error: accountError,
+    } =
+      await supabase
+        .from('accounts')
+        .select(
+          `
+            id,
+            name,
+            currency
+          `
+        )
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('is_default', {
+          ascending: false,
+        })
+        .order('name', {
+          ascending: true,
+        });
+
+    if (accountError) {
+      console.error(
+        'Failed to load accounts:',
+        accountError
+      );
+
+      return;
+    }
+
+    setAccounts(
+      (data ?? []) as AccountOption[]
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Load Transactions
+  |--------------------------------------------------------------------------
+  */
+
+  async function loadTransactions() {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const {
+        data: { user },
+        error: authError,
+      } =
+        await supabase.auth.getUser();
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (!user) {
+        throw new Error(
+          'You must be signed in to view your transactions.'
+        );
+      }
+
+      await loadAccounts(
+        user.id
+      );
+
+      const {
+        data,
+        error: transactionError,
+      } =
+        await supabase
           .from('transactions')
           .select(
             `
@@ -538,58 +1113,244 @@ export default function TransactionsPage() {
               notes
             `
           )
-          .eq('user_id', user.id)
-          .eq('is_deleted', false)
-          .eq('status', 'completed')
+          .eq(
+            'user_id',
+            user.id
+          )
+          .eq(
+            'is_deleted',
+            false
+          )
+          .eq(
+            'status',
+            'completed'
+          )
           .order('date', {
             ascending: false,
           })
-          .order('created_at', {
-            ascending: false,
-          });
-
-        if (transactionError) {
-          throw transactionError;
-        }
-
-        if (!mounted) {
-          return;
-        }
-
-        const normalized =
-          ((data ?? []) as TransactionRow[]).map(
-            normalizeTransaction
+          .order(
+            'created_at',
+            {
+              ascending: false,
+            }
           );
 
-        setTransactions(normalized);
-      } catch (err) {
-        console.error(
-          'Failed to load transactions:',
-          err
-        );
-
-        if (!mounted) {
-          return;
-        }
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Unable to load your transactions.'
-        );
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+      if (transactionError) {
+        throw transactionError;
       }
+
+      const normalized =
+        (
+          (data ??
+            []) as TransactionRow[]
+        ).map(
+          normalizeTransaction
+        );
+
+      setTransactions(
+        normalized
+      );
+    } catch (err) {
+      console.error(
+        'Failed to load transactions:',
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to load your transactions.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTransactions();
+  }, [supabase]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Add Transaction Form
+  |--------------------------------------------------------------------------
+  */
+
+  function resetTransactionForm() {
+    setTransactionType(
+      'income'
+    );
+    setAmount('');
+    setCategory('');
+    setDescription('');
+    setDate(
+      getTodayInputValue()
+    );
+    setCurrency('NGN');
+    setAccountId('');
+    setReference('');
+    setNotes('');
+    setTransactionError(null);
+  }
+
+  function openAddTransaction() {
+    resetTransactionForm();
+
+    if (accounts.length > 0) {
+      setAccountId(
+        accounts[0].id
+      );
+
+      setCurrency(
+        accounts[0].currency ||
+          'NGN'
+      );
     }
 
-    loadTransactions();
+    setAddTransactionOpen(true);
+  }
 
-    return () => {
-      mounted = false;
-    };
-  }, [supabase]);
+  function closeAddTransaction() {
+    if (savingTransaction) {
+      return;
+    }
+
+    setAddTransactionOpen(false);
+    resetTransactionForm();
+  }
+
+  async function handleAddTransaction(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    setTransactionError(null);
+
+    const parsedAmount =
+      Number(amount);
+
+    if (
+      !Number.isFinite(
+        parsedAmount
+      ) ||
+      parsedAmount <= 0
+    ) {
+      setTransactionError(
+        'Enter an amount greater than zero.'
+      );
+
+      return;
+    }
+
+    if (!category.trim()) {
+      setTransactionError(
+        'Please choose or enter a category.'
+      );
+
+      return;
+    }
+
+    if (!date) {
+      setTransactionError(
+        'Please select a date.'
+      );
+
+      return;
+    }
+
+    setSavingTransaction(true);
+
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } =
+        await supabase.auth.getUser();
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (!user) {
+        throw new Error(
+          'You must be signed in to add a transaction.'
+        );
+      }
+
+      const selectedAccount =
+        accounts.find(
+          (account) =>
+            account.id ===
+            accountId
+        );
+
+      const {
+        error: insertError,
+      } =
+        await supabase
+          .from('transactions')
+          .insert({
+            user_id: user.id,
+            type: transactionType,
+            amount:
+              parsedAmount,
+            amount_base:
+              parsedAmount,
+            currency:
+              currency ||
+              selectedAccount?.currency ||
+              'NGN',
+            exchange_rate: 1,
+            category:
+              category.trim(),
+            description:
+              description.trim() ||
+              category.trim(),
+            date,
+            account_id:
+              accountId || null,
+            status:
+              'completed',
+            reference:
+              reference.trim() ||
+              null,
+            notes:
+              notes.trim() ||
+              null,
+            is_deleted:
+              false,
+            source:
+              'manual',
+          });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      setAddTransactionOpen(
+        false
+      );
+
+      resetTransactionForm();
+
+      await loadTransactions();
+    } catch (err) {
+      console.error(
+        'Failed to add transaction:',
+        err
+      );
+
+      setTransactionError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to add this transaction.'
+      );
+    } finally {
+      setSavingTransaction(
+        false
+      );
+    }
+  }
 
   /*
   |--------------------------------------------------------------------------
@@ -600,8 +1361,10 @@ export default function TransactionsPage() {
   const periodLabel =
     periods.find(
       (period) =>
-        period.key === selectedPeriod
-    )?.label ?? 'This month';
+        period.key ===
+        selectedPeriod
+    )?.label ??
+    'This month';
 
   /*
   |--------------------------------------------------------------------------
@@ -610,16 +1373,17 @@ export default function TransactionsPage() {
   */
 
   const categories = useMemo(() => {
-    const uniqueCategories = Array.from(
-      new Set(
-        transactions
-          .map(
-            (transaction) =>
-              transaction.category
-          )
-          .filter(Boolean)
-      )
-    ).sort();
+    const uniqueCategories =
+      Array.from(
+        new Set(
+          transactions
+            .map(
+              (transaction) =>
+                transaction.category
+            )
+            .filter(Boolean)
+        )
+      ).sort();
 
     return [
       'All categories',
@@ -627,21 +1391,23 @@ export default function TransactionsPage() {
     ];
   }, [transactions]);
 
-  const accounts = useMemo(() => {
-    const uniqueAccounts = Array.from(
-      new Set(
-        transactions.map(
-          (transaction) =>
-            transaction.accountLabel
-        )
-      )
-    ).sort();
+  const accountFilterOptions =
+    useMemo(() => {
+      const uniqueAccounts =
+        Array.from(
+          new Set(
+            transactions.map(
+              (transaction) =>
+                transaction.accountLabel
+            )
+          )
+        ).sort();
 
-    return [
-      'All accounts',
-      ...uniqueAccounts,
-    ];
-  }, [transactions]);
+      return [
+        'All accounts',
+        ...uniqueAccounts,
+      ];
+    }, [transactions]);
 
   /*
   |--------------------------------------------------------------------------
@@ -649,74 +1415,115 @@ export default function TransactionsPage() {
   |--------------------------------------------------------------------------
   */
 
-  const filteredTransactions = useMemo(() => {
-    const query = search
-      .toLowerCase()
-      .trim();
+  const filteredTransactions =
+    useMemo(() => {
+      const query =
+        search
+          .toLowerCase()
+          .trim();
 
-    const {
-      start,
-      end,
-    } = getPeriodRange(selectedPeriod);
-
-    return transactions.filter(
-      (transaction) => {
-        const transactionDate =
-          getDateValue(transaction.date);
-
-        const matchesPeriod =
-          (!start ||
-            transactionDate >=
-              start.getTime()) &&
-          (!end ||
-            transactionDate <=
-              end.getTime());
-
-        const matchesSearch =
-          !query ||
-          transaction.description
-            .toLowerCase()
-            .includes(query) ||
-          transaction.category
-            .toLowerCase()
-            .includes(query) ||
-          transaction.reference
-            .toLowerCase()
-            .includes(query) ||
-          transaction.accountLabel
-            .toLowerCase()
-            .includes(query) ||
-          transaction.id
-            .toLowerCase()
-            .includes(query);
-
-        const matchesCategory =
-          selectedCategory ===
-            'All categories' ||
-          transaction.category ===
-            selectedCategory;
-
-        const matchesAccount =
-          selectedAccount ===
-            'All accounts' ||
-          transaction.accountLabel ===
-            selectedAccount;
-
-        return (
-          matchesPeriod &&
-          matchesSearch &&
-          matchesCategory &&
-          matchesAccount
+      const {
+        start,
+        end,
+      } =
+        getPeriodRange(
+          selectedPeriod
         );
-      }
+
+      return transactions.filter(
+        (transaction) => {
+          /*
+          |------------------------------------------------------------------
+          | Date filter
+          |------------------------------------------------------------------
+          | Compare YYYY-MM-DD strings directly.
+          | This avoids browser timezone / UTC shifting.
+          */
+
+          const matchesPeriod =
+            transaction.date >=
+              start &&
+            transaction.date <=
+              end;
+
+          const matchesSearch =
+            !query ||
+            transaction.description
+              .toLowerCase()
+              .includes(query) ||
+            transaction.category
+              .toLowerCase()
+              .includes(query) ||
+            transaction.reference
+              .toLowerCase()
+              .includes(query) ||
+            transaction.accountLabel
+              .toLowerCase()
+              .includes(query) ||
+            transaction.id
+              .toLowerCase()
+              .includes(query);
+
+          const matchesCategory =
+            selectedCategory ===
+              'All categories' ||
+            transaction.category ===
+              selectedCategory;
+
+          const matchesAccount =
+            selectedAccount ===
+              'All accounts' ||
+            transaction.accountLabel ===
+              selectedAccount;
+
+          return (
+            matchesPeriod &&
+            matchesSearch &&
+            matchesCategory &&
+            matchesAccount
+          );
+        }
+      );
+    }, [
+      transactions,
+      search,
+      selectedCategory,
+      selectedAccount,
+      selectedPeriod,
+    ]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Chart
+  |--------------------------------------------------------------------------
+  */
+
+  const chartPoints =
+    useMemo(
+      () =>
+        getPeriodChartPoints(
+          selectedPeriod,
+          filteredTransactions
+        ),
+      [
+        selectedPeriod,
+        filteredTransactions,
+      ]
     );
-  }, [
-    transactions,
-    search,
-    selectedCategory,
-    selectedAccount,
-    selectedPeriod,
-  ]);
+
+  const chartMax = useMemo(
+    () =>
+      Math.max(
+        1,
+        ...chartPoints.flatMap(
+          (point) => [
+            point.moneyIn,
+            point.moneyOut,
+          ]
+        )
+      ),
+    [chartPoints]
+  );
 
   /*
   |--------------------------------------------------------------------------
@@ -728,11 +1535,16 @@ export default function TransactionsPage() {
     filteredTransactions
       .filter(
         (transaction) =>
-          transaction.type === 'income'
+          transaction.type ===
+          'income'
       )
       .reduce(
-        (total, transaction) =>
-          total + transaction.amount,
+        (
+          total,
+          transaction
+        ) =>
+          total +
+          transaction.amount,
         0
       );
 
@@ -740,16 +1552,22 @@ export default function TransactionsPage() {
     filteredTransactions
       .filter(
         (transaction) =>
-          transaction.type === 'expense'
+          transaction.type ===
+          'expense'
       )
       .reduce(
-        (total, transaction) =>
-          total + transaction.amount,
+        (
+          total,
+          transaction
+        ) =>
+          total +
+          transaction.amount,
         0
       );
 
   const netMovement =
-    totalMoneyIn - totalMoneyOut;
+    totalMoneyIn -
+    totalMoneyOut;
 
   const transactionCount =
     filteredTransactions.length;
@@ -761,7 +1579,8 @@ export default function TransactionsPage() {
   */
 
   const allVisibleSelected =
-    filteredTransactions.length > 0 &&
+    filteredTransactions.length >
+      0 &&
     filteredTransactions.every(
       (transaction) =>
         selectedTransactions.includes(
@@ -776,10 +1595,16 @@ export default function TransactionsPage() {
       (current) =>
         current.includes(id)
           ? current.filter(
-              (transactionId) =>
-                transactionId !== id
+              (
+                transactionId
+              ) =>
+                transactionId !==
+                id
             )
-          : [...current, id]
+          : [
+              ...current,
+              id,
+            ]
     );
   }
 
@@ -790,8 +1615,11 @@ export default function TransactionsPage() {
           current.filter(
             (id) =>
               !filteredTransactions.some(
-                (transaction) =>
-                  transaction.id === id
+                (
+                  transaction
+                ) =>
+                  transaction.id ===
+                  id
               )
           )
       );
@@ -804,7 +1632,9 @@ export default function TransactionsPage() {
         ...new Set([
           ...current,
           ...filteredTransactions.map(
-            (transaction) =>
+            (
+              transaction
+            ) =>
               transaction.id
           ),
         ]),
@@ -836,16 +1666,27 @@ export default function TransactionsPage() {
   */
 
   function handleExport() {
-    downloadCsv(filteredTransactions);
+    if (!canExport) {
+      return;
+    }
+
+    downloadCsv(
+      filteredTransactions
+    );
   }
 
   function handleExportSelected() {
-    const selected = transactions.filter(
-      (transaction) =>
-        selectedTransactions.includes(
-          transaction.id
-        )
-    );
+    if (!canExport) {
+      return;
+    }
+
+    const selected =
+      transactions.filter(
+        (transaction) =>
+          selectedTransactions.includes(
+            transaction.id
+          )
+      );
 
     downloadCsv(selected);
   }
@@ -856,81 +1697,97 @@ export default function TransactionsPage() {
   |--------------------------------------------------------------------------
   */
 
-  const categoryTotals = useMemo(() => {
-    const totals = new Map<
-      string,
-      number
-    >();
+  const categoryTotals =
+    useMemo(() => {
+      const totals =
+        new Map<
+          string,
+          number
+        >();
 
-    filteredTransactions
-      .filter(
-        (transaction) =>
-          transaction.type === 'expense'
-      )
-      .forEach((transaction) => {
-        totals.set(
-          transaction.category,
-          (totals.get(
-            transaction.category
-          ) ?? 0) + transaction.amount
+      filteredTransactions
+        .filter(
+          (transaction) =>
+            transaction.type ===
+            'expense'
+        )
+        .forEach(
+          (transaction) => {
+            totals.set(
+              transaction.category,
+              (totals.get(
+                transaction.category
+              ) ?? 0) +
+                transaction.amount
+            );
+          }
         );
-      });
 
-    return Array.from(
-      totals.entries()
-    ).sort(
-      (a, b) => b[1] - a[1]
-    );
-  }, [filteredTransactions]);
+      return Array.from(
+        totals.entries()
+      ).sort(
+        (a, b) => b[1] - a[1]
+      );
+    }, [
+      filteredTransactions,
+    ]);
 
   const largestExpenseCategory =
     categoryTotals[0];
 
-  const incomeCategories = useMemo(() => {
-    const totals = new Map<
-      string,
-      number
-    >();
+  const incomeCategories =
+    useMemo(() => {
+      const totals =
+        new Map<
+          string,
+          number
+        >();
 
-    filteredTransactions
-      .filter(
-        (transaction) =>
-          transaction.type === 'income'
-      )
-      .forEach((transaction) => {
-        totals.set(
-          transaction.category,
-          (totals.get(
-            transaction.category
-          ) ?? 0) + transaction.amount
+      filteredTransactions
+        .filter(
+          (transaction) =>
+            transaction.type ===
+            'income'
+        )
+        .forEach(
+          (transaction) => {
+            totals.set(
+              transaction.category,
+              (totals.get(
+                transaction.category
+              ) ?? 0) +
+                transaction.amount
+            );
+          }
         );
-      });
 
-    return Array.from(
-      totals.entries()
-    ).sort(
-      (a, b) => b[1] - a[1]
-    );
-  }, [filteredTransactions]);
+      return Array.from(
+        totals.entries()
+      ).sort(
+        (a, b) => b[1] - a[1]
+      );
+    }, [
+      filteredTransactions,
+    ]);
 
   const largestIncomeCategory =
     incomeCategories[0];
 
   const insightHeadline =
     transactionCount === 0
-      ? 'No recorded activity for this period.'
+      ? 'No money activity yet for this period.'
       : netMovement > 0
-        ? 'Recorded inflows are ahead of outflows.'
+        ? 'More money came in than went out.'
         : netMovement < 0
-          ? 'Recorded outflows are ahead of inflows.'
-          : 'Recorded inflows and outflows are balanced.';
+          ? 'More money went out than came in.'
+          : 'The money in and money out are equal.';
 
   const insightDescription =
     transactionCount === 0
-      ? 'Once transactions are recorded, Monietar will use them to surface useful financial patterns here.'
+      ? 'Once you record some transactions, Monietar will show useful patterns from your business activity here.'
       : largestIncomeCategory
-        ? `${largestIncomeCategory[0]} is your largest recorded inflow category for this period.`
-        : 'Monietar is analyzing your recorded transaction activity.';
+        ? `${largestIncomeCategory[0]} brought in the most money during this period.`
+        : 'Monietar is looking at your recorded money activity.';
 
   /*
   |--------------------------------------------------------------------------
@@ -941,14 +1798,12 @@ export default function TransactionsPage() {
   return (
     <main className="min-h-full bg-[#f1f1f1] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-[1500px]">
-        {/* -------------------------------------------------------------- */}
         {/* Header */}
-        {/* -------------------------------------------------------------- */}
 
         <section className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">
-              Financial activity
+              Money activity
             </p>
 
             <h2 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
@@ -956,12 +1811,38 @@ export default function TransactionsPage() {
             </h2>
 
             <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-              Every movement of money,
-              recorded in one place.
+              See all the money coming
+              into and going out of your
+              business.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Add Transaction */}
+
+            <button
+              type="button"
+              onClick={
+                openAddTransaction
+              }
+              className="
+                flex h-10 items-center gap-2
+                bg-emerald-900
+                px-4
+                text-sm font-medium
+                text-white
+                transition-colors
+                hover:bg-emerald-800
+              "
+            >
+              <Plus
+                size={15}
+                strokeWidth={1.8}
+              />
+
+              Add transaction
+            </button>
+
             {/* Period */}
 
             <div className="relative">
@@ -969,7 +1850,8 @@ export default function TransactionsPage() {
                 type="button"
                 onClick={() =>
                   setPeriodOpen(
-                    (open) => !open
+                    (open) =>
+                      !open
                   )
                 }
                 className="
@@ -1015,6 +1897,7 @@ export default function TransactionsPage() {
                           setSelectedPeriod(
                             period.key
                           );
+
                           setPeriodOpen(
                             false
                           );
@@ -1032,7 +1915,9 @@ export default function TransactionsPage() {
                           }
                         `}
                       >
-                        {period.label}
+                        {
+                          period.label
+                        }
                       </button>
                     )
                   )}
@@ -1040,12 +1925,22 @@ export default function TransactionsPage() {
               )}
             </div>
 
+            {/* Export */}
+
             <button
               type="button"
-              onClick={handleExport}
+              onClick={
+                handleExport
+              }
               disabled={
+                !canExport ||
                 filteredTransactions.length ===
-                0
+                  0
+              }
+              title={
+                canExport
+                  ? 'Export transactions'
+                  : 'Exports are available on Borderless Pro'
               }
               className="
                 flex h-10 items-center gap-2
@@ -1053,31 +1948,37 @@ export default function TransactionsPage() {
                 bg-white
                 px-3
                 text-sm font-medium
-                text-gray-700
+                text-gray-500
                 transition-colors
                 hover:bg-gray-50
                 disabled:cursor-not-allowed
-                disabled:opacity-40
+                disabled:opacity-50
               "
             >
-              <Download
-                size={15}
-                strokeWidth={1.7}
-              />
+              {!canExport ? (
+                <Lock
+                  size={14}
+                  strokeWidth={1.7}
+                />
+              ) : (
+                <Download
+                  size={15}
+                  strokeWidth={1.7}
+                />
+              )}
 
               Export
             </button>
           </div>
         </section>
 
-        {/* -------------------------------------------------------------- */}
         {/* Error */}
-        {/* -------------------------------------------------------------- */}
 
         {error && (
           <div className="mb-6 border border-red-200 bg-red-50 px-5 py-4">
             <p className="text-sm font-medium text-red-800">
-              Unable to load transactions
+              We couldn't load your
+              transactions
             </p>
 
             <p className="mt-1 text-xs leading-5 text-red-600">
@@ -1086,9 +1987,7 @@ export default function TransactionsPage() {
           </div>
         )}
 
-        {/* -------------------------------------------------------------- */}
         {/* Summary */}
-        {/* -------------------------------------------------------------- */}
 
         <section className="grid grid-cols-1 gap-px overflow-hidden border border-gray-200 bg-gray-200 sm:grid-cols-2 xl:grid-cols-4">
           <TransactionMetric
@@ -1100,8 +1999,10 @@ export default function TransactionsPage() {
                     totalMoneyIn
                   )
             }
-            description="Recorded inflows"
-            icon={ArrowDownRight}
+            description="Money recorded as coming in"
+            icon={
+              ArrowDownRight
+            }
             positive
           />
 
@@ -1114,12 +2015,12 @@ export default function TransactionsPage() {
                     totalMoneyOut
                   )
             }
-            description="Recorded outflows"
+            description="Money recorded as going out"
             icon={ArrowUpRight}
           />
 
           <TransactionMetric
-            label="Net movement"
+            label="Money left"
             value={
               loading
                 ? '—'
@@ -1130,17 +2031,20 @@ export default function TransactionsPage() {
                   )
             }
             description={
-              netMovement >= 0
-                ? 'Positive cash movement'
-                : 'Negative cash movement'
+              netMovement >=
+              0
+                ? 'Money in minus money out'
+                : 'More money went out than came in'
             }
             icon={
-              netMovement >= 0
+              netMovement >=
+              0
                 ? TrendingUp
                 : TrendingDown
             }
             positive={
-              netMovement >= 0
+              netMovement >=
+              0
             }
           />
 
@@ -1151,20 +2055,162 @@ export default function TransactionsPage() {
                 ? '—'
                 : transactionCount.toString()
             }
-            description="Recorded this period"
+            description="Money records for this period"
             icon={Receipt}
             neutral
           />
         </section>
 
-        {/* -------------------------------------------------------------- */}
+        {/* Money Chart */}
+
+        <section className="mt-6 border border-gray-200 bg-white">
+          <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <BarChart3
+                    size={16}
+                    strokeWidth={1.7}
+                    className="text-emerald-900"
+                  />
+
+                  <p className="text-sm font-semibold text-gray-900">
+                    Money In & Out
+                  </p>
+                </div>
+
+                <p className="mt-1 text-xs text-gray-400">
+                  See how your money moved
+                  during {periodLabel.toLowerCase()}.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4 text-[10px] text-gray-500">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 bg-emerald-900" />
+                  Money in
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 bg-gray-300" />
+                  Money out
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-5 sm:p-6">
+            {loading ? (
+              <div className="flex h-64 items-center justify-center">
+                <div className="text-center">
+                  <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-900" />
+
+                  <p className="mt-3 text-xs text-gray-400">
+                    Loading money activity...
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto pb-2">
+                <div
+                  className={`flex h-64 min-w-[${Math.max(
+                    640,
+                    chartPoints.length * 55
+                  )}px] items-end gap-2`}
+                >
+                  {chartPoints.map(
+                    (point) => {
+                      const moneyInHeight =
+                        point.moneyIn >
+                        0
+                          ? Math.max(
+                              5,
+                              (point.moneyIn /
+                                chartMax) *
+                                100
+                            )
+                          : 0;
+
+                      const moneyOutHeight =
+                        point.moneyOut >
+                        0
+                          ? Math.max(
+                              5,
+                              (point.moneyOut /
+                                chartMax) *
+                                100
+                            )
+                          : 0;
+
+                      return (
+                        <div
+                          key={
+                            point.key
+                          }
+                          className="flex min-w-[42px] flex-1 flex-col items-center justify-end"
+                        >
+                          <div className="mb-2 flex h-[205px] w-full items-end justify-center gap-1">
+                            <div className="flex h-full w-3 items-end justify-center">
+                              <div
+                                className="w-full bg-emerald-900 transition-all duration-300"
+                                style={{
+                                  height: `${moneyInHeight}%`,
+                                }}
+                                title={`Money in: ${formatCurrency(
+                                  point.moneyIn
+                                )}`}
+                              />
+                            </div>
+
+                            <div className="flex h-full w-3 items-end justify-center">
+                              <div
+                                className="w-full bg-gray-300 transition-all duration-300"
+                                style={{
+                                  height: `${moneyOutHeight}%`,
+                                }}
+                                title={`Money out: ${formatCurrency(
+                                  point.moneyOut
+                                )}`}
+                              />
+                            </div>
+                          </div>
+
+                          <p className="whitespace-nowrap text-[9px] text-gray-400">
+                            {
+                              point.label
+                            }
+                          </p>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!loading &&
+              chartPoints.every(
+                (point) =>
+                  point.moneyIn ===
+                    0 &&
+                  point.moneyOut ===
+                    0
+              ) && (
+                <div className="pointer-events-none -mt-44 flex h-40 items-center justify-center">
+                  <p className="text-xs text-gray-400">
+                    No money activity
+                    recorded for this
+                    period.
+                  </p>
+                </div>
+              )}
+          </div>
+        </section>
+
         {/* Main Content */}
-        {/* -------------------------------------------------------------- */}
 
         <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.7fr)]">
-          {/* ------------------------------------------------------------ */}
           {/* Transaction Ledger */}
-          {/* ------------------------------------------------------------ */}
 
           <section className="min-w-0 border border-gray-200 bg-white">
             {/* Table Header */}
@@ -1173,13 +2219,12 @@ export default function TransactionsPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">
-                    Transaction ledger
+                    Your transactions
                   </p>
 
                   <p className="mt-1 text-xs text-gray-400">
-                    Review and manage
-                    recorded money
-                    movement.
+                    See and manage the money
+                    you've recorded.
                   </p>
                 </div>
 
@@ -1187,7 +2232,8 @@ export default function TransactionsPage() {
                   type="button"
                   onClick={() =>
                     setFilterOpen(
-                      (open) => !open
+                      (open) =>
+                        !open
                     )
                   }
                   className={`
@@ -1212,15 +2258,18 @@ export default function TransactionsPage() {
 
                   {hasActiveFilters && (
                     <span className="flex h-4 min-w-4 items-center justify-center bg-emerald-900 px-1 text-[9px] text-white">
-                      {[
-                        search !== '',
-                        selectedCategory !==
-                          'All categories',
-                        selectedAccount !==
-                          'All accounts',
-                      ].filter(
-                        Boolean
-                      ).length}
+                      {
+                        [
+                          search !==
+                            '',
+                          selectedCategory !==
+                            'All categories',
+                          selectedAccount !==
+                            'All accounts',
+                        ].filter(
+                          Boolean
+                        ).length
+                      }
                     </span>
                   )}
                 </button>
@@ -1238,9 +2287,12 @@ export default function TransactionsPage() {
                 <input
                   type="text"
                   value={search}
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     setSearch(
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                   placeholder="Search transactions..."
@@ -1284,7 +2336,9 @@ export default function TransactionsPage() {
                     value={
                       selectedCategory
                     }
-                    options={categories}
+                    options={
+                      categories
+                    }
                     onChange={
                       setSelectedCategory
                     }
@@ -1295,7 +2349,9 @@ export default function TransactionsPage() {
                     value={
                       selectedAccount
                     }
-                    options={accounts}
+                    options={
+                      accountFilterOptions
+                    }
                     onChange={
                       setSelectedAccount
                     }
@@ -1306,8 +2362,8 @@ export default function TransactionsPage() {
               {hasActiveFilters && (
                 <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
                   <p className="text-[10px] text-gray-400">
-                    Filters are
-                    currently active.
+                    Some filters are
+                    active.
                   </p>
 
                   <button
@@ -1341,8 +2397,33 @@ export default function TransactionsPage() {
                     onClick={
                       handleExportSelected
                     }
-                    className="text-[10px] font-medium text-emerald-900 hover:underline"
+                    disabled={
+                      !canExport
+                    }
+                    title={
+                      canExport
+                        ? 'Export selected transactions'
+                        : 'Exports are available on Borderless Pro'
+                    }
+                    className="
+                      flex items-center gap-1.5
+                      text-[10px] font-medium
+                      text-emerald-900
+                      hover:underline
+                      disabled:cursor-not-allowed
+                      disabled:no-underline
+                      disabled:opacity-50
+                    "
                   >
+                    {!canExport && (
+                      <Lock
+                        size={11}
+                        strokeWidth={
+                          1.7
+                        }
+                      />
+                    )}
+
                     Export selected
                   </button>
 
@@ -1372,8 +2453,8 @@ export default function TransactionsPage() {
                 </p>
 
                 <p className="mt-1 text-xs text-gray-400">
-                  Fetching your recorded
-                  financial activity.
+                  Getting your latest money
+                  records.
                 </p>
               </div>
             ) : (
@@ -1421,10 +2502,16 @@ export default function TransactionsPage() {
                       0 ? (
                         <tr>
                           <td
-                            colSpan={5}
+                            colSpan={
+                              5
+                            }
                             className="px-6 py-16 text-center"
                           >
-                            <EmptyTransactions />
+                            <EmptyTransactions
+                              onAdd={
+                                openAddTransaction
+                              }
+                            />
                           </td>
                         </tr>
                       ) : (
@@ -1457,16 +2544,12 @@ export default function TransactionsPage() {
                               <td className="px-3 py-4">
                                 <div className="flex items-center gap-3">
                                   <div
-                                    className={`
-                                      flex h-9 w-9 shrink-0
-                                      items-center justify-center
-                                      ${
-                                        transaction.type ===
-                                        'income'
-                                          ? 'bg-emerald-50 text-emerald-900'
-                                          : 'bg-gray-100 text-gray-500'
-                                      }
-                                    `}
+                                    className={`flex h-9 w-9 shrink-0 items-center justify-center ${
+                                      transaction.type ===
+                                      'income'
+                                        ? 'bg-emerald-50 text-emerald-900'
+                                        : 'bg-gray-100 text-gray-500'
+                                    }`}
                                   >
                                     {transaction.type ===
                                     'income' ? (
@@ -1505,10 +2588,6 @@ export default function TransactionsPage() {
                                       {formatTransactionDate(
                                         transaction.date
                                       )}
-                                      {formatTransactionTime(
-                                        null
-                                      ) &&
-                                        ` · ${formatTransactionTime(null)}`}
                                     </p>
                                   </div>
                                 </div>
@@ -1522,7 +2601,10 @@ export default function TransactionsPage() {
                                 </p>
 
                                 <p className="mt-1 text-[10px] text-gray-400">
-                                  Recorded
+                                  {transaction.type ===
+                                  'income'
+                                    ? 'Money in'
+                                    : 'Money out'}
                                 </p>
                               </td>
 
@@ -1536,15 +2618,12 @@ export default function TransactionsPage() {
 
                               <td className="px-3 py-4 text-right">
                                 <p
-                                  className={`
-                                    text-sm font-semibold
-                                    ${
-                                      transaction.type ===
-                                      'income'
-                                        ? 'text-emerald-900'
-                                        : 'text-gray-900'
-                                    }
-                                  `}
+                                  className={`text-sm font-semibold ${
+                                    transaction.type ===
+                                    'income'
+                                      ? 'text-emerald-900'
+                                      : 'text-gray-900'
+                                  }`}
                                 >
                                   {transaction.type ===
                                   'income'
@@ -1570,7 +2649,11 @@ export default function TransactionsPage() {
                   {filteredTransactions.length ===
                   0 ? (
                     <div className="px-5 py-16 text-center">
-                      <EmptyTransactions />
+                      <EmptyTransactions
+                        onAdd={
+                          openAddTransaction
+                        }
+                      />
                     </div>
                   ) : (
                     filteredTransactions.map(
@@ -1600,16 +2683,12 @@ export default function TransactionsPage() {
                               />
 
                               <div
-                                className={`
-                                  flex h-9 w-9 shrink-0
-                                  items-center justify-center
-                                  ${
-                                    transaction.type ===
-                                    'income'
-                                      ? 'bg-emerald-50 text-emerald-900'
-                                      : 'bg-gray-100 text-gray-500'
-                                  }
-                                `}
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center ${
+                                  transaction.type ===
+                                  'income'
+                                    ? 'bg-emerald-50 text-emerald-900'
+                                    : 'bg-gray-100 text-gray-500'
+                                }`}
                               >
                                 {transaction.type ===
                                 'income' ? (
@@ -1653,15 +2732,12 @@ export default function TransactionsPage() {
                             </div>
 
                             <p
-                              className={`
-                                shrink-0 text-sm font-semibold
-                                ${
-                                  transaction.type ===
-                                  'income'
-                                    ? 'text-emerald-900'
-                                    : 'text-gray-900'
-                                }
-                              `}
+                              className={`shrink-0 text-sm font-semibold ${
+                                transaction.type ===
+                                'income'
+                                  ? 'text-emerald-900'
+                                  : 'text-gray-900'
+                              }`}
                             >
                               {transaction.type ===
                               'income'
@@ -1703,23 +2779,26 @@ export default function TransactionsPage() {
                 {
                   filteredTransactions.length
                 }{' '}
-                of {transactions.length}{' '}
+                of{' '}
+                {transactions.length}{' '}
                 transactions
               </p>
 
               <div className="flex items-center gap-4 text-[10px]">
                 <span className="text-gray-400">
-                  Net movement
+                  Money left
                 </span>
 
                 <span
                   className={`font-semibold ${
-                    netMovement >= 0
+                    netMovement >=
+                    0
                       ? 'text-emerald-900'
                       : 'text-red-600'
                   }`}
                 >
-                  {netMovement >= 0
+                  {netMovement >=
+                  0
                     ? '+'
                     : '-'}
                   {formatCurrency(
@@ -1732,12 +2811,10 @@ export default function TransactionsPage() {
             </div>
           </section>
 
-          {/* ------------------------------------------------------------ */}
           {/* Right Column */}
-          {/* ------------------------------------------------------------ */}
 
           <div className="space-y-6">
-            {/* AI / Monietar Insight */}
+            {/* Monietar Insight */}
 
             <section className="border border-gray-200 bg-emerald-900 text-white">
               <div className="border-b border-white/10 px-5 py-5">
@@ -1748,7 +2825,7 @@ export default function TransactionsPage() {
                     </p>
 
                     <p className="mt-1 text-xs text-emerald-200">
-                      From your transaction
+                      Based on your money
                       activity
                     </p>
                   </div>
@@ -1764,13 +2841,18 @@ export default function TransactionsPage() {
 
               <div className="p-5">
                 <p className="text-lg font-medium leading-7">
-                  {insightHeadline}
+                  {
+                    insightHeadline
+                  }
                 </p>
 
                 <p className="mt-4 text-sm leading-6 text-emerald-100">
-                  {insightDescription}
+                  {
+                    insightDescription
+                  }
+
                   {largestExpenseCategory &&
-                    ` ${largestExpenseCategory[0]} is currently your largest recorded outflow category at ${formatCurrency(
+                    ` ${largestExpenseCategory[0]} is where you spent the most during this period, at ${formatCurrency(
                       largestExpenseCategory[1]
                     )}.`}
                 </p>
@@ -1778,7 +2860,7 @@ export default function TransactionsPage() {
                 <div className="mt-7 border-t border-white/10 pt-5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-emerald-200">
-                      Net movement
+                      Money left
                     </span>
 
                     <span className="text-sm font-semibold">
@@ -1802,18 +2884,20 @@ export default function TransactionsPage() {
             <section className="border border-gray-200 bg-white">
               <div className="border-b border-gray-200 px-5 py-5">
                 <p className="text-sm font-semibold text-gray-900">
-                  Money Movement
+                  Money In & Out
                 </p>
 
                 <p className="mt-1 text-xs text-gray-400">
-                  Where your recorded
-                  money is moving.
+                  See how much money came
+                  in and went out.
                 </p>
               </div>
 
               <div className="p-5">
                 <MovementRow
-                  icon={ArrowDownRight}
+                  icon={
+                    ArrowDownRight
+                  }
                   label="Money in"
                   value={formatCurrency(
                     totalMoneyIn
@@ -1823,13 +2907,16 @@ export default function TransactionsPage() {
                 />
 
                 <MovementRow
-                  icon={ArrowUpRight}
+                  icon={
+                    ArrowUpRight
+                  }
                   label="Money out"
                   value={formatCurrency(
                     totalMoneyOut
                   )}
                   percentage={
-                    totalMoneyIn > 0
+                    totalMoneyIn >
+                    0
                       ? Math.round(
                           (totalMoneyOut /
                             totalMoneyIn) *
@@ -1842,8 +2929,7 @@ export default function TransactionsPage() {
                 <div className="mt-5 border-t border-gray-100 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400">
-                      Balance after
-                      movement
+                      Money left
                     </span>
 
                     <span className="text-sm font-semibold text-gray-900">
@@ -1867,33 +2953,36 @@ export default function TransactionsPage() {
                 </p>
 
                 <p className="mt-1 text-xs text-gray-400">
-                  Keep your books up to
-                  date.
+                  Do common tasks quickly.
                 </p>
               </div>
 
               <div className="divide-y divide-gray-100">
                 <button
                   type="button"
+                  onClick={
+                    openAddTransaction
+                  }
                   className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-gray-50"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center bg-gray-50 text-gray-500">
                       <Receipt
                         size={15}
-                        strokeWidth={1.7}
+                        strokeWidth={
+                          1.7
+                        }
                       />
                     </div>
 
                     <div>
                       <p className="text-xs font-medium text-gray-900">
-                        Record
-                        transaction
+                        Add transaction
                       </p>
 
                       <p className="mt-0.5 text-[10px] text-gray-400">
-                        Add a manual
-                        entry
+                        Add money in or
+                        money out
                       </p>
                     </div>
                   </div>
@@ -1913,18 +3002,19 @@ export default function TransactionsPage() {
                     <div className="flex h-8 w-8 items-center justify-center bg-gray-50 text-gray-500">
                       <Wallet
                         size={15}
-                        strokeWidth={1.7}
+                        strokeWidth={
+                          1.7
+                        }
                       />
                     </div>
 
                     <div>
                       <p className="text-xs font-medium text-gray-900">
-                        Manage
-                        accounts
+                        Manage accounts
                       </p>
 
                       <p className="mt-0.5 text-[10px] text-gray-400">
-                        View connected
+                        View your connected
                         accounts
                       </p>
                     </div>
@@ -1941,6 +3031,515 @@ export default function TransactionsPage() {
           </div>
         </div>
       </div>
+
+      {/* Add Transaction Modal */}
+
+      {addTransactionOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6"
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeAddTransaction();
+            }
+          }}
+        >
+          <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto border border-gray-200 bg-white shadow-xl">
+            {/* Modal Header */}
+
+            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-5 sm:px-6">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  Add transaction
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-gray-400">
+                  Record money coming in or
+                  going out of your business.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  closeAddTransaction
+                }
+                disabled={
+                  savingTransaction
+                }
+                className="flex h-8 w-8 items-center justify-center text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Close"
+              >
+                <X
+                  size={17}
+                  strokeWidth={
+                    1.7
+                  }
+                />
+              </button>
+            </div>
+
+            <form
+              onSubmit={
+                handleAddTransaction
+              }
+            >
+              <div className="space-y-5 px-5 py-6 sm:px-6">
+                {/* Type */}
+
+                <div>
+                  <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                    Transaction type
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTransactionType(
+                          'income'
+                        )
+                      }
+                      className={`flex h-11 items-center justify-center gap-2 border text-sm font-medium transition-colors ${
+                        transactionType ===
+                        'income'
+                          ? 'border-emerald-900 bg-emerald-50 text-emerald-900'
+                          : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      <ArrowDownRight
+                        size={16}
+                        strokeWidth={
+                          1.7
+                        }
+                      />
+
+                      Money in
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTransactionType(
+                          'expense'
+                        )
+                      }
+                      className={`flex h-11 items-center justify-center gap-2 border text-sm font-medium transition-colors ${
+                        transactionType ===
+                        'expense'
+                          ? 'border-gray-800 bg-gray-100 text-gray-900'
+                          : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      <ArrowUpRight
+                        size={16}
+                        strokeWidth={
+                          1.7
+                        }
+                      />
+
+                      Money out
+                    </button>
+                  </div>
+                </div>
+
+                {/* Amount */}
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                    Amount
+                  </label>
+
+                  <div className="flex border border-gray-200 bg-white focus-within:border-emerald-900">
+                    <div className="flex w-16 items-center justify-center border-r border-gray-200 text-sm text-gray-500">
+                      {currency ===
+                      'NGN'
+                        ? '₦'
+                        : currency ===
+                            'USD'
+                          ? '$'
+                          : currency ===
+                              'EUR'
+                            ? '€'
+                            : currency ===
+                                'XOF'
+                              ? 'CFA'
+                              : currency}
+                    </div>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={
+                        amount
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setAmount(
+                          event.target
+                            .value
+                        )
+                      }
+                      placeholder="0.00"
+                      required
+                      className="h-12 min-w-0 flex-1 bg-transparent px-3 text-lg font-semibold text-gray-900 outline-none placeholder:text-gray-300"
+                    />
+                  </div>
+                </div>
+
+                {/* Category + Date */}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                      Category
+                    </span>
+
+                    <input
+                      list="transaction-categories"
+                      value={
+                        category
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setCategory(
+                          event.target
+                            .value
+                        )
+                      }
+                      placeholder={
+                        transactionType ===
+                        'income'
+                          ? 'e.g. Sales'
+                          : 'e.g. Inventory'
+                      }
+                      required
+                      className="h-10 w-full border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-900"
+                    />
+
+                    <datalist id="transaction-categories">
+                      {DEFAULT_CATEGORIES.map(
+                        (item) => (
+                          <option
+                            key={
+                              item
+                            }
+                            value={
+                              item
+                            }
+                          />
+                        )
+                      )}
+                    </datalist>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                      Date
+                    </span>
+
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(
+                        event
+                      ) =>
+                        setDate(
+                          event.target
+                            .value
+                        )
+                      }
+                      required
+                      className="h-10 w-full border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-emerald-900"
+                    />
+                  </label>
+                </div>
+
+                {/* Currency + Account */}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                      Currency
+                    </span>
+
+                    <div className="relative">
+                      <select
+                        value={
+                          currency
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setCurrency(
+                            event.target
+                              .value
+                          )
+                        }
+                        className="h-10 w-full appearance-none border border-gray-200 bg-white px-3 pr-8 text-sm text-gray-900 outline-none focus:border-emerald-900"
+                      >
+                        <option value="NGN">
+                          NGN — Nigerian Naira
+                        </option>
+
+                        <option value="USD">
+                          USD — US Dollar
+                        </option>
+
+                        <option value="EUR">
+                          EUR — Euro
+                        </option>
+
+                        <option value="XOF">
+                          XOF — CFA Franc
+                        </option>
+                      </select>
+
+                      <ChevronDown
+                        size={13}
+                        strokeWidth={
+                          1.7
+                        }
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      />
+                    </div>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                      Account
+                    </span>
+
+                    <div className="relative">
+                      <select
+                        value={
+                          accountId
+                        }
+                        onChange={(
+                          event
+                        ) => {
+                          const nextId =
+                            event
+                              .target
+                              .value;
+
+                          setAccountId(
+                            nextId
+                          );
+
+                          const selected =
+                            accounts.find(
+                              (
+                                account
+                              ) =>
+                                account.id ===
+                                nextId
+                            );
+
+                          if (
+                            selected?.currency
+                          ) {
+                            setCurrency(
+                              selected.currency
+                            );
+                          }
+                        }}
+                        className="h-10 w-full appearance-none border border-gray-200 bg-white px-3 pr-8 text-sm text-gray-900 outline-none focus:border-emerald-900"
+                      >
+                        <option value="">
+                          No account
+                        </option>
+
+                        {accounts.map(
+                          (
+                            account
+                          ) => (
+                            <option
+                              key={
+                                account.id
+                              }
+                              value={
+                                account.id
+                              }
+                            >
+                              {
+                                account.name
+                              }{' '}
+                              ·{' '}
+                              {
+                                account.currency
+                              }
+                            </option>
+                          )
+                        )}
+                      </select>
+
+                      <ChevronDown
+                        size={13}
+                        strokeWidth={
+                          1.7
+                        }
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      />
+                    </div>
+                  </label>
+                </div>
+
+                {/* Description */}
+
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                    Description
+                  </span>
+
+                  <input
+                    type="text"
+                    value={
+                      description
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setDescription(
+                        event.target
+                          .value
+                      )
+                    }
+                    placeholder={
+                      transactionType ===
+                      'income'
+                        ? 'e.g. Customer payment'
+                        : 'e.g. Stock purchase'
+                    }
+                    className="h-10 w-full border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-900"
+                  />
+                </label>
+
+                {/* Reference */}
+
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                    Reference
+                    <span className="ml-1 normal-case tracking-normal text-gray-300">
+                      (optional)
+                    </span>
+                  </span>
+
+                  <input
+                    type="text"
+                    value={
+                      reference
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setReference(
+                        event.target
+                          .value
+                      )
+                    }
+                    placeholder="e.g. INV-1024"
+                    className="h-10 w-full border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-900"
+                  />
+                </label>
+
+                {/* Notes */}
+
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                    Notes
+                    <span className="ml-1 normal-case tracking-normal text-gray-300">
+                      (optional)
+                    </span>
+                  </span>
+
+                  <textarea
+                    value={
+                      notes
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setNotes(
+                        event.target
+                          .value
+                      )
+                    }
+                    placeholder="Add any extra details..."
+                    rows={3}
+                    className="w-full resize-none border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-900"
+                  />
+                </label>
+
+                {transactionError && (
+                  <div className="border border-red-200 bg-red-50 px-4 py-3">
+                    <p className="text-xs leading-5 text-red-700">
+                      {
+                        transactionError
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+
+              <div className="flex flex-col-reverse gap-2 border-t border-gray-200 bg-[#fafafa] px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+                <button
+                  type="button"
+                  onClick={
+                    closeAddTransaction
+                  }
+                  disabled={
+                    savingTransaction
+                  }
+                  className="h-10 border border-gray-200 bg-white px-4 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    savingTransaction
+                  }
+                  className="flex h-10 items-center justify-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingTransaction ? (
+                    <>
+                      <Loader2
+                        size={15}
+                        className="animate-spin"
+                      />
+
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Plus
+                        size={15}
+                        strokeWidth={
+                          1.8
+                        }
+                      />
+
+                      Add transaction
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -1951,7 +3550,11 @@ export default function TransactionsPage() {
 |--------------------------------------------------------------------------
 */
 
-function EmptyTransactions() {
+function EmptyTransactions({
+  onAdd,
+}: {
+  onAdd: () => void;
+}) {
   return (
     <>
       <div className="mx-auto flex h-10 w-10 items-center justify-center bg-gray-50 text-gray-400">
@@ -1969,6 +3572,19 @@ function EmptyTransactions() {
         Try changing your search,
         period, or filters.
       </p>
+
+      <button
+        type="button"
+        onClick={onAdd}
+        className="mx-auto mt-4 flex h-9 items-center gap-2 bg-emerald-900 px-3 text-xs font-medium text-white transition-colors hover:bg-emerald-800"
+      >
+        <Plus
+          size={13}
+          strokeWidth={1.8}
+        />
+
+        Add transaction
+      </button>
     </>
   );
 }
@@ -2008,16 +3624,13 @@ function TransactionMetric({
         </div>
 
         <div
-          className={`
-            flex h-9 w-9 items-center justify-center
-            ${
-              positive
-                ? 'bg-emerald-50 text-emerald-900'
-                : neutral
-                  ? 'bg-gray-50 text-gray-500'
-                  : 'bg-gray-100 text-gray-500'
-            }
-          `}
+          className={`flex h-9 w-9 items-center justify-center ${
+            positive
+              ? 'bg-emerald-50 text-emerald-900'
+              : neutral
+                ? 'bg-gray-50 text-gray-500'
+                : 'bg-gray-100 text-gray-500'
+          }`}
         >
           <Icon
             size={17}
@@ -2048,7 +3661,9 @@ function FilterSelect({
   label: string;
   value: string;
   options: string[];
-  onChange: (value: string) => void;
+  onChange: (
+    value: string
+  ) => void;
 }) {
   return (
     <label className="block">

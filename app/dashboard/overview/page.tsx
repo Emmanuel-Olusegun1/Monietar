@@ -21,35 +21,70 @@ import { createClient } from '@/lib/supabase/client';
 
 /*
 |--------------------------------------------------------------------------
+| Constants
+|--------------------------------------------------------------------------
+*/
+
+const BUSINESS_TIME_ZONE = 'Africa/Lagos';
+
+const DAY_IN_MS = 1000 * 60 * 60 * 24;
+
+/*
+|--------------------------------------------------------------------------
 | Plan
 |--------------------------------------------------------------------------
 */
 
 type Plan =
-  | 'RETAIL_STARTER'
-  | 'GROWING_MERCHANT'
-  | 'BORDERLESS_PRO';
+  | 'retail-starter'
+  | 'growing-merchant'
+  | 'borderless-pro';
 
-const CURRENT_PLAN: Plan = 'RETAIL_STARTER';
-
-const PLAN_CONFIG = {
-  RETAIL_STARTER: {
+const PLAN_CONFIG: Record<
+  Plan,
+  {
+    name: string;
+    transactionLimit: number;
+  }
+> = {
+  'retail-starter': {
     name: 'Retail Starter',
     transactionLimit: 500,
   },
 
-  GROWING_MERCHANT: {
+  'growing-merchant': {
     name: 'Growing Merchant',
     transactionLimit: 2500,
   },
 
-  BORDERLESS_PRO: {
+  'borderless-pro': {
     name: 'Borderless Pro',
     transactionLimit: Infinity,
   },
 };
 
-const plan = PLAN_CONFIG[CURRENT_PLAN];
+function normalizePlan(value: unknown): Plan {
+  if (typeof value !== 'string') {
+    return 'retail-starter';
+  }
+
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-');
+
+  switch (normalized) {
+    case 'growing-merchant':
+      return 'growing-merchant';
+
+    case 'borderless-pro':
+      return 'borderless-pro';
+
+    case 'retail-starter':
+    default:
+      return 'retail-starter';
+  }
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -62,8 +97,7 @@ type PeriodKey =
   | 'this-week'
   | 'this-month'
   | 'last-month'
-  | 'this-year'
-  | 'all-time';
+  | 'this-year';
 
 const PERIODS: Record<
   PeriodKey,
@@ -89,10 +123,6 @@ const PERIODS: Record<
 
   'this-year': {
     label: 'This year',
-  },
-
-  'all-time': {
-    label: 'All time',
   },
 };
 
@@ -120,6 +150,69 @@ type Transaction = {
   reference: string | null;
   notes: string | null;
   is_deleted: boolean | null;
+  source: string | null;
+};
+
+type Account = {
+  id: string;
+  business_id: string;
+  name: string;
+  account_type: string;
+  currency: string | null;
+  opening_balance: number | string | null;
+  current_balance: number | string | null;
+  institution: string | null;
+  account_number: string | null;
+  is_default: boolean | null;
+  is_active: boolean | null;
+  user_id: string;
+};
+
+type BankConnection = {
+  id: string;
+  business_id: string;
+  mono_account_id: string | null;
+  mono_display_id: string | null;
+  institution: string | null;
+  account_name: string | null;
+  account_number: string | null;
+  balance: number | string | null;
+  status: string | null;
+  last_sync: string | null;
+};
+
+type CashVault = {
+  id: string;
+  business_id: string;
+  name: string;
+  currency: string | null;
+  balance: number | string | null;
+};
+
+type Product = {
+  id: string;
+  business_id: string;
+  name: string;
+  current_stock: number | null;
+  available_stock: number | null;
+  is_active: boolean | null;
+};
+
+type Sale = {
+  id: string;
+  business_id: string;
+  total_amount: number | string;
+  currency: string | null;
+  status: string | null;
+  sale_date: string;
+};
+
+type Business = {
+  id: string;
+  owner_id: string;
+  name: string;
+  currency: string | null;
+  is_active: boolean | null;
 };
 
 type CashFlowDay = {
@@ -138,33 +231,96 @@ type PeriodRange = {
 
 /*
 |--------------------------------------------------------------------------
-| Helpers
+| Date Helpers
+|--------------------------------------------------------------------------
+|
+| Important:
+| Transactions.date is a DATE column, not a timestamp.
+| We therefore avoid toISOString() for date filtering because it can
+| shift the calendar date depending on timezone.
 |--------------------------------------------------------------------------
 */
 
-function formatCurrency(
-  amount: number,
-  currency = '₦'
-) {
-  return `${currency}${Math.round(amount).toLocaleString(
-    'en-NG'
-  )}`;
+function getLagosDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-NG', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  return {
+    year: Number(
+      parts.find((part) => part.type === 'year')?.value ?? 0
+    ),
+    month: Number(
+      parts.find((part) => part.type === 'month')?.value ?? 0
+    ),
+    day: Number(
+      parts.find((part) => part.type === 'day')?.value ?? 0
+    ),
+  };
 }
 
-function formatPercentage(value: number | null) {
-  if (value === null || !Number.isFinite(value)) {
-    return '—';
-  }
+function getLagosHour(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-NG', {
+    timeZone: BUSINESS_TIME_ZONE,
+    hour: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
 
-  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+  return Number(
+    parts.find((part) => part.type === 'hour')?.value ?? 0
+  );
 }
 
-function toNumber(
-  value: number | string | null | undefined
-) {
-  const parsed = Number(value ?? 0);
+function getLagosDateString(date = new Date()) {
+  const { year, month, day } = getLagosDateParts(date);
 
-  return Number.isFinite(parsed) ? parsed : 0;
+  return `${year}-${String(month).padStart(
+    2,
+    '0'
+  )}-${String(day).padStart(2, '0')}`;
+}
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value
+    .split('-')
+    .map(Number);
+
+  return new Date(
+    year,
+    (month || 1) - 1,
+    day || 1,
+    0,
+    0,
+    0,
+    0
+  );
+}
+
+function formatDateOnly(date: Date) {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+
+  return `${year}-${String(month).padStart(
+    2,
+    '0'
+  )}-${String(day).padStart(2, '0')}`;
+}
+
+function addDays(
+  date: Date,
+  amount: number
+) {
+  const result = new Date(date);
+
+  result.setDate(
+    result.getDate() + amount
+  );
+
+  return result;
 }
 
 function startOfDay(date: Date) {
@@ -188,9 +344,12 @@ function startOfWeek(date: Date) {
 
   const day = result.getDay();
 
-  const difference = day === 0 ? 6 : day - 1;
+  const difference =
+    day === 0 ? 6 : day - 1;
 
-  result.setDate(result.getDate() - difference);
+  result.setDate(
+    result.getDate() - difference
+  );
 
   return result;
 }
@@ -243,22 +402,44 @@ function endOfYear(date: Date) {
   );
 }
 
+function getLagosCalendarDate() {
+  const { year, month, day } =
+    getLagosDateParts();
+
+  return new Date(
+    year,
+    month - 1,
+    day,
+    0,
+    0,
+    0,
+    0
+  );
+}
+
 function getPeriodRange(
   period: PeriodKey,
-  now = new Date()
+  now = getLagosCalendarDate()
 ): PeriodRange {
-  if (period === 'today') {
-    const start = startOfDay(now);
-    const end = endOfDay(now);
+  const today = getLagosCalendarDate();
 
-    const previousStart = new Date(start);
-    previousStart.setDate(
-      previousStart.getDate() - 1
+  /*
+  |--------------------------------------------------------------------------
+  | Today
+  |--------------------------------------------------------------------------
+  */
+
+  if (period === 'today') {
+    const start = startOfDay(today);
+    const end = endOfDay(today);
+
+    const previousStart = addDays(
+      start,
+      -1
     );
 
-    const previousEnd = new Date(end);
-    previousEnd.setDate(
-      previousEnd.getDate() - 1
+    const previousEnd = endOfDay(
+      previousStart
     );
 
     return {
@@ -268,22 +449,27 @@ function getPeriodRange(
       previousEnd,
     };
   }
+
+  /*
+  |--------------------------------------------------------------------------
+  | This Week
+  |--------------------------------------------------------------------------
+  |
+  | Monday -> today.
+  |
+  */
 
   if (period === 'this-week') {
     const start = startOfWeek(now);
+    const end = endOfDay(today);
 
-    const end = new Date(start);
-    end.setDate(end.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-
-    const previousStart = new Date(start);
-    previousStart.setDate(
-      previousStart.getDate() - 7
+    const previousStart = addDays(
+      start,
+      -7
     );
 
-    const previousEnd = new Date(end);
-    previousEnd.setDate(
-      previousEnd.getDate() - 7
+    const previousEnd = endOfDay(
+      addDays(today, -7)
     );
 
     return {
@@ -294,9 +480,18 @@ function getPeriodRange(
     };
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | This Month
+  |--------------------------------------------------------------------------
+  |
+  | First day of current month -> today.
+  |
+  */
+
   if (period === 'this-month') {
     const start = startOfMonth(now);
-    const end = endOfMonth(now);
+    const end = endOfDay(today);
 
     const previousMonth = new Date(
       now.getFullYear(),
@@ -307,14 +502,18 @@ function getPeriodRange(
     return {
       start,
       end,
-      previousStart: startOfMonth(
-        previousMonth
-      ),
-      previousEnd: endOfMonth(
-        previousMonth
-      ),
+      previousStart:
+        startOfMonth(previousMonth),
+      previousEnd:
+        endOfMonth(previousMonth),
     };
   }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Last Month
+  |--------------------------------------------------------------------------
+  */
 
   if (period === 'last-month') {
     const lastMonth = new Date(
@@ -339,46 +538,84 @@ function getPeriodRange(
     };
   }
 
-  if (period === 'this-year') {
-    const start = startOfYear(now);
-    const end = endOfYear(now);
-
-    const previousYear = new Date(
-      now.getFullYear() - 1,
-      0,
-      1
-    );
-
-    return {
-      start,
-      end,
-      previousStart:
-        startOfYear(previousYear),
-      previousEnd:
-        endOfYear(previousYear),
-    };
-  }
-
   /*
   |--------------------------------------------------------------------------
-  | All time
+  | This Year
   |--------------------------------------------------------------------------
   |
-  | There is no meaningful "previous all-time" period.
-  | Therefore comparison percentages are intentionally omitted.
-  |--------------------------------------------------------------------------
+  | January 1 -> today.
+  |
   */
 
+  const start = startOfYear(now);
+  const end = endOfDay(today);
+
+  const previousYear = new Date(
+    now.getFullYear() - 1,
+    0,
+    1
+  );
+
   return {
-    start: new Date(1970, 0, 1),
-    end: endOfDay(now),
-    previousStart: null,
-    previousEnd: null,
+    start,
+    end,
+    previousStart:
+      startOfYear(previousYear),
+    previousEnd:
+      endOfYear(previousYear),
   };
 }
 
 function dateToISO(date: Date) {
-  return date.toISOString().split('T')[0];
+  /*
+  * Never use date.toISOString() here.
+  * This is a calendar date for a DATE column.
+  */
+  return formatDateOnly(date);
+}
+
+/*
+|--------------------------------------------------------------------------
+| General Helpers
+|--------------------------------------------------------------------------
+*/
+
+function formatCurrency(
+  amount: number,
+  currency = '₦'
+) {
+  return `${currency}${Math.round(
+    amount
+  ).toLocaleString('en-NG')}`;
+}
+
+function formatPercentage(
+  value: number | null
+) {
+  if (
+    value === null ||
+    !Number.isFinite(value)
+  ) {
+    return '—';
+  }
+
+  return `${
+    value > 0 ? '+' : ''
+  }${value.toFixed(1)}%`;
+}
+
+function toNumber(
+  value:
+    | number
+    | string
+    | null
+    | undefined
+) {
+  const parsed = Number(value ?? 0);
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : 0;
 }
 
 function calculateChange(
@@ -393,7 +630,10 @@ function calculateChange(
     return null;
   }
 
-  return ((current - previous) / previous) * 100;
+  return (
+    ((current - previous) / previous) *
+    100
+  );
 }
 
 function getTransactionAmount(
@@ -424,7 +664,9 @@ function getIncome(
     .reduce(
       (total, transaction) =>
         total +
-        getTransactionAmount(transaction),
+        getTransactionAmount(
+          transaction
+        ),
       0
     );
 }
@@ -440,14 +682,60 @@ function getExpenses(
     .reduce(
       (total, transaction) =>
         total +
-        getTransactionAmount(transaction),
+        getTransactionAmount(
+          transaction
+        ),
       0
     );
 }
 
-function getDisplayName(
+function getUserDisplayName(
+  metadata: Record<
+    string,
+    unknown
+  > | null,
   email: string | undefined
 ) {
+  if (metadata) {
+    const displayNameCandidates = [
+      metadata.display_name,
+      metadata.full_name,
+      metadata.name,
+    ];
+
+    for (const candidate of displayNameCandidates) {
+      if (
+        typeof candidate === 'string' &&
+        candidate.trim()
+      ) {
+        return candidate.trim();
+      }
+    }
+
+    const firstName =
+      typeof metadata.first_name ===
+      'string'
+        ? metadata.first_name.trim()
+        : '';
+
+    const lastName =
+      typeof metadata.last_name ===
+      'string'
+        ? metadata.last_name.trim()
+        : '';
+
+    const combinedName = [
+      firstName,
+      lastName,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    if (combinedName) {
+      return combinedName;
+    }
+  }
+
   if (!email) {
     return 'there';
   }
@@ -478,18 +766,26 @@ function formatTransactionDate(
 ) {
   const dateValue = createdAt
     ? new Date(createdAt)
-    : new Date(`${date}T00:00:00`);
+    : parseDateOnly(date);
 
-  if (Number.isNaN(dateValue.getTime())) {
+  if (
+    Number.isNaN(
+      dateValue.getTime()
+    )
+  ) {
     return date;
   }
 
-  return dateValue.toLocaleString('en-NG', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  return new Intl.DateTimeFormat(
+    'en-NG',
+    {
+      timeZone: BUSINESS_TIME_ZONE,
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }
+  ).format(dateValue);
 }
 
 /*
@@ -500,44 +796,10 @@ function formatTransactionDate(
 
 function getChartRange(
   period: PeriodKey,
-  now = new Date()
+  now = getLagosCalendarDate()
 ) {
-  const selectedRange = getPeriodRange(
-    period,
-    now
-  );
-
-  /*
-  |--------------------------------------------------------------------------
-  | For today, show today.
-  |--------------------------------------------------------------------------
-  */
-
-  if (period === 'today') {
-    return {
-      start: selectedRange.start,
-      end: selectedRange.end,
-    };
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | For this week, show the actual seven days.
-  |--------------------------------------------------------------------------
-  */
-
-  if (period === 'this-week') {
-    return {
-      start: selectedRange.start,
-      end: selectedRange.end,
-    };
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | For longer periods, keep the existing seven-bar visual language.
-  |--------------------------------------------------------------------------
-  */
+  const selectedRange =
+    getPeriodRange(period, now);
 
   return {
     start: selectedRange.start,
@@ -545,96 +807,254 @@ function getChartRange(
   };
 }
 
+function getTodayChartDays(
+  transactions: Transaction[],
+  now = new Date()
+): CashFlowDay[] {
+  const todayString =
+    getLagosDateString(now);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Six 4-hour blocks
+  |--------------------------------------------------------------------------
+  |
+  | 12 AM
+  | 4 AM
+  | 8 AM
+  | 12 PM
+  | 4 PM
+  | 8 PM
+  |
+  */
+
+  const buckets = [
+    {
+      start: 0,
+      end: 3,
+      label: '12 AM',
+    },
+    {
+      start: 4,
+      end: 7,
+      label: '4 AM',
+    },
+    {
+      start: 8,
+      end: 11,
+      label: '8 AM',
+    },
+    {
+      start: 12,
+      end: 15,
+      label: '12 PM',
+    },
+    {
+      start: 16,
+      end: 19,
+      label: '4 PM',
+    },
+    {
+      start: 20,
+      end: 23,
+      label: '8 PM',
+    },
+  ];
+
+  return buckets.map(
+    (bucket, index) => {
+      const bucketTransactions =
+        transactions.filter(
+          (transaction) => {
+            if (
+              transaction.date !==
+                todayString ||
+              !transaction.created_at
+            ) {
+              return false;
+            }
+
+            const hour =
+              getLagosHour(
+                new Date(
+                  transaction.created_at
+                )
+              );
+
+            return (
+              hour >= bucket.start &&
+              hour <= bucket.end
+            );
+          }
+        );
+
+      return {
+        key: `today-${index}`,
+        label: bucket.label,
+        income: getIncome(
+          bucketTransactions
+        ),
+        expenses: getExpenses(
+          bucketTransactions
+        ),
+      };
+    }
+  );
+}
+
 function getChartDays(
   period: PeriodKey,
   transactions: Transaction[],
   now = new Date()
 ): CashFlowDay[] {
-  const { start, end } = getChartRange(
+  /*
+  |--------------------------------------------------------------------------
+  | Today
+  |--------------------------------------------------------------------------
+  */
+
+  if (period === 'today') {
+    return getTodayChartDays(
+      transactions,
+      now
+    );
+  }
+
+  const {
+    start,
+    end,
+  } = getChartRange(
     period,
-    now
+    getLagosCalendarDate()
   );
+
+  /*
+  |--------------------------------------------------------------------------
+  | This Year
+  |--------------------------------------------------------------------------
+  |
+  | January -> current month.
+  |
+  */
+
+  if (period === 'this-year') {
+    const startYear =
+      start.getFullYear();
+
+    const currentMonth =
+      getLagosDateParts(now).month - 1;
+
+    const days: CashFlowDay[] = [];
+
+    for (
+      let month = 0;
+      month <= currentMonth;
+      month++
+    ) {
+      const bucketStart =
+        new Date(
+          startYear,
+          month,
+          1
+        );
+
+      const bucketEnd =
+        month === currentMonth
+          ? end
+          : endOfMonth(
+              bucketStart
+            );
+
+      const bucketTransactions =
+        transactions.filter(
+          (transaction) => {
+            const transactionDate =
+              parseDateOnly(
+                transaction.date
+              );
+
+            return (
+              transactionDate >=
+                bucketStart &&
+              transactionDate <=
+                bucketEnd
+            );
+          }
+        );
+
+      days.push({
+        key: `year-${startYear}-${month}`,
+        label:
+          bucketStart.toLocaleDateString(
+            'en-NG',
+            {
+              month: 'short',
+            }
+          ),
+        income:
+          getIncome(
+            bucketTransactions
+          ),
+        expenses:
+          getExpenses(
+            bucketTransactions
+          ),
+      });
+    }
+
+    return days;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Daily periods
+  |--------------------------------------------------------------------------
+  |
+  | This week / this month / last month use actual calendar days.
+  |--------------------------------------------------------------------------
+  */
+
+  const startDate =
+    startOfDay(start);
+
+  const endDate =
+    startOfDay(end);
 
   const totalDays =
     Math.floor(
-      (end.getTime() - start.getTime()) /
-        (1000 * 60 * 60 * 24)
+      (endDate.getTime() -
+        startDate.getTime()) /
+        DAY_IN_MS
     ) + 1;
-
-  const bucketCount = Math.min(
-    7,
-    Math.max(1, totalDays)
-  );
 
   const days: CashFlowDay[] = [];
 
   for (
     let index = 0;
-    index < bucketCount;
+    index < totalDays;
     index++
   ) {
-    const startOffset = Math.floor(
-      (index * totalDays) /
-        bucketCount
-    );
+    const bucketStart =
+      addDays(
+        startDate,
+        index
+      );
 
-    const endOffset =
-      Math.floor(
-        ((index + 1) * totalDays) /
-          bucketCount
-      ) - 1;
-
-    const bucketStart = new Date(start);
-
-    bucketStart.setDate(
-      bucketStart.getDate() +
-        startOffset
-    );
-
-    const bucketEnd = new Date(start);
-
-    bucketEnd.setDate(
-      bucketEnd.getDate() +
-        Math.max(
-          startOffset,
-          endOffset
-        )
-    );
-
-    bucketEnd.setHours(
-      23,
-      59,
-      59,
-      999
-    );
+    const dateString =
+      formatDateOnly(
+        bucketStart
+      );
 
     const bucketTransactions =
       transactions.filter(
-        (transaction) => {
-          const transactionDate =
-            new Date(
-              `${transaction.date}T00:00:00`
-            );
-
-          return (
-            transactionDate >=
-              bucketStart &&
-            transactionDate <= bucketEnd
-          );
-        }
+        (transaction) =>
+          transaction.date ===
+          dateString
       );
-
-    const income =
-      getIncome(bucketTransactions);
-
-    const expenses =
-      getExpenses(bucketTransactions);
 
     let label = '';
 
-    if (period === 'today') {
-      label = 'Today';
-    } else if (
+    if (
       period === 'this-week'
     ) {
       label =
@@ -644,64 +1064,42 @@ function getChartDays(
             weekday: 'short',
           }
         );
-    } else if (
-      period === 'this-month'
-    ) {
-      label =
-        bucketStart.toLocaleDateString(
-          'en-NG',
-          {
-            day: 'numeric',
-          }
-        );
-    } else if (
-      period === 'last-month'
-    ) {
-      label =
-        bucketStart.toLocaleDateString(
-          'en-NG',
-          {
-            day: 'numeric',
-          }
-        );
-    } else if (
-      period === 'this-year'
-    ) {
-      label =
-        bucketStart.toLocaleDateString(
-          'en-NG',
-          {
-            month: 'short',
-          }
-        );
     } else {
       label =
         bucketStart.toLocaleDateString(
           'en-NG',
           {
-            month: 'short',
-            year: '2-digit',
+            day: 'numeric',
           }
         );
     }
 
     days.push({
-      key: `${dateToISO(
-        bucketStart
-      )}-${index}`,
+      key: `${dateString}-${index}`,
       label,
-      income,
-      expenses,
+      income:
+        getIncome(
+          bucketTransactions
+        ),
+      expenses:
+        getExpenses(
+          bucketTransactions
+        ),
     });
   }
 
   return days;
 }
 
+/*
+|--------------------------------------------------------------------------
+| Greeting
+|--------------------------------------------------------------------------
+*/
 
-// Greating function
 function getGreeting() {
-  const hour = new Date().getHours();
+  const hour =
+    getLagosHour();
 
   if (hour < 12) {
     return 'Good morning';
@@ -726,8 +1124,17 @@ export default function OverviewPage() {
     []
   );
 
-  const [selectedPeriod, setSelectedPeriod] =
-    useState<PeriodKey>('this-month');
+  const [currentPlan, setCurrentPlan] =
+    useState<Plan>(
+      'retail-starter'
+    );
+
+  const [
+    selectedPeriod,
+    setSelectedPeriod,
+  ] = useState<PeriodKey>(
+    'this-month'
+  );
 
   const [periodOpen, setPeriodOpen] =
     useState(false);
@@ -735,8 +1142,10 @@ export default function OverviewPage() {
   const [hoveredDay, setHoveredDay] =
     useState<string | null>(null);
 
-  const [transactions, setTransactions] =
-    useState<Transaction[]>([]);
+  const [
+    transactions,
+    setTransactions,
+  ] = useState<Transaction[]>([]);
 
   const [
     previousTransactions,
@@ -748,6 +1157,37 @@ export default function OverviewPage() {
     setRecentTransactions,
   ] = useState<Transaction[]>([]);
 
+  const [business, setBusiness] =
+    useState<Business | null>(
+      null
+    );
+
+  const [accounts, setAccounts] =
+    useState<Account[]>([]);
+
+  const [
+    bankConnections,
+    setBankConnections,
+  ] = useState<BankConnection[]>(
+    []
+  );
+
+  const [
+    cashVaults,
+    setCashVaults,
+  ] = useState<CashVault[]>([]);
+
+  const [products, setProducts] =
+    useState<Product[]>([]);
+
+  const [sales, setSales] =
+    useState<Sale[]>([]);
+
+  const [
+    automaticTransactionCount,
+    setAutomaticTransactionCount,
+  ] = useState(0);
+
   const [userName, setUserName] =
     useState('there');
 
@@ -756,6 +1196,9 @@ export default function OverviewPage() {
 
   const [error, setError] =
     useState<string | null>(null);
+
+  const plan =
+    PLAN_CONFIG[currentPlan];
 
   const period =
     PERIODS[selectedPeriod];
@@ -790,22 +1233,40 @@ export default function OverviewPage() {
           );
         }
 
-        const metadataName =
-          typeof user.user_metadata
-            ?.full_name === 'string'
-            ? user.user_metadata
-                .full_name
-            : typeof user.user_metadata
-                ?.name === 'string'
-            ? user.user_metadata.name
-            : undefined;
+        /*
+        |--------------------------------------------------------------------------
+        | User / Plan
+        |--------------------------------------------------------------------------
+        */
+
+        const metadata =
+          user.user_metadata || {};
+
+        const userPlan =
+          normalizePlan(
+            metadata.subscription_plan ??
+              metadata.plan
+          );
+
+        const displayName =
+          getUserDisplayName(
+            metadata as Record<
+              string,
+              unknown
+            >,
+            user.email
+          );
 
         if (mounted) {
-          setUserName(
-            metadataName ||
-              getDisplayName(user.email)
-          );
+          setCurrentPlan(userPlan);
+          setUserName(displayName);
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Current Period
+        |--------------------------------------------------------------------------
+        */
 
         const {
           start,
@@ -816,9 +1277,92 @@ export default function OverviewPage() {
           selectedPeriod
         );
 
+        const currentMonthStart =
+          startOfMonth(
+            getLagosCalendarDate()
+          );
+
+        const currentMonthEnd =
+          endOfDay(
+            getLagosCalendarDate()
+          );
+
         /*
         |--------------------------------------------------------------------------
-        | Current transaction query
+        | Business
+        |--------------------------------------------------------------------------
+        */
+
+        const {
+          data: businesses,
+          error: businessError,
+        } = await supabase
+          .from('businesses')
+          .select(
+            `
+              id,
+              owner_id,
+              name,
+              currency,
+              is_active
+            `
+          )
+          .eq(
+            'owner_id',
+            user.id
+          )
+          .eq(
+            'is_active',
+            true
+          )
+          .order('created_at', {
+            ascending: true,
+          });
+
+        if (businessError) {
+          throw businessError;
+        }
+
+        const activeBusiness =
+          (businesses?.[0] ??
+            null) as Business | null;
+
+        if (mounted) {
+          setBusiness(
+            activeBusiness
+          );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Transaction Select
+        |--------------------------------------------------------------------------
+        */
+
+        const transactionSelect = `
+          id,
+          user_id,
+          business_id,
+          account_id,
+          type,
+          amount,
+          category,
+          description,
+          date,
+          created_at,
+          status,
+          currency,
+          exchange_rate,
+          amount_base,
+          reference,
+          notes,
+          is_deleted,
+          source
+        `;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Current Transactions
         |--------------------------------------------------------------------------
         */
 
@@ -826,25 +1370,7 @@ export default function OverviewPage() {
           supabase
             .from('transactions')
             .select(
-              `
-                id,
-                user_id,
-                business_id,
-                account_id,
-                type,
-                amount,
-                category,
-                description,
-                date,
-                created_at,
-                status,
-                currency,
-                exchange_rate,
-                amount_base,
-                reference,
-                notes,
-                is_deleted
-              `
+              transactionSelect
             )
             .eq(
               'user_id',
@@ -865,7 +1391,28 @@ export default function OverviewPage() {
             .lte(
               'date',
               dateToISO(end)
-            )
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Business Scope
+        |--------------------------------------------------------------------------
+        |
+        | When a business exists, use business-scoped transactions.
+        | If there is no business yet, fall back to the user's transactions.
+        |
+        */
+
+        if (activeBusiness) {
+          currentQuery =
+            currentQuery.eq(
+              'business_id',
+              activeBusiness.id
+            );
+        }
+
+        currentQuery =
+          currentQuery
             .order('date', {
               ascending: false,
             })
@@ -875,7 +1422,7 @@ export default function OverviewPage() {
 
         /*
         |--------------------------------------------------------------------------
-        | Previous period query
+        | Previous Transactions
         |--------------------------------------------------------------------------
         */
 
@@ -883,25 +1430,7 @@ export default function OverviewPage() {
           supabase
             .from('transactions')
             .select(
-              `
-                id,
-                user_id,
-                business_id,
-                account_id,
-                type,
-                amount,
-                category,
-                description,
-                date,
-                created_at,
-                status,
-                currency,
-                exchange_rate,
-                amount_base,
-                reference,
-                notes,
-                is_deleted
-              `
+              transactionSelect
             )
             .eq(
               'user_id',
@@ -915,12 +1444,6 @@ export default function OverviewPage() {
               'is_deleted',
               false
             );
-
-        /*
-        |--------------------------------------------------------------------------
-        | All time has no previous period.
-        |--------------------------------------------------------------------------
-        */
 
         if (
           previousStart &&
@@ -939,7 +1462,18 @@ export default function OverviewPage() {
                 dateToISO(
                   previousEnd
                 )
-              )
+              );
+
+          if (activeBusiness) {
+            previousQuery =
+              previousQuery.eq(
+                'business_id',
+                activeBusiness.id
+              );
+          }
+
+          previousQuery =
+            previousQuery
               .order('date', {
                 ascending: false,
               })
@@ -950,49 +1484,80 @@ export default function OverviewPage() {
                 }
               );
         } else {
-          /*
-          |--------------------------------------------------------------------------
-          | Keep this query valid while returning no previous transactions.
-          |--------------------------------------------------------------------------
-          */
-
           previousQuery =
-            previousQuery
-              .eq(
-                'id',
-                '00000000-0000-0000-0000-000000000000'
-              );
+            previousQuery.eq(
+              'id',
+              '00000000-0000-0000-0000-000000000000'
+            );
         }
 
         /*
         |--------------------------------------------------------------------------
-        | Recent transactions
+        | Recent Transactions
         |--------------------------------------------------------------------------
         */
 
-        const recentQuery =
+        let recentQuery =
+          supabase
+            .from('transactions')
+            .select(
+              transactionSelect
+            )
+            .eq(
+              'user_id',
+              user.id
+            )
+            .eq(
+              'status',
+              'completed'
+            )
+            .eq(
+              'is_deleted',
+              false
+            );
+
+        if (activeBusiness) {
+          recentQuery =
+            recentQuery.eq(
+              'business_id',
+              activeBusiness.id
+            );
+        }
+
+        recentQuery =
+          recentQuery
+            .order('date', {
+              ascending: false,
+            })
+            .order(
+              'created_at',
+              {
+                ascending: false,
+              }
+            )
+            .limit(4);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Automatic Transactions — Current Month
+        |--------------------------------------------------------------------------
+        |
+        | This is intentionally independent of the selected dashboard period.
+        |
+        */
+
+        let automaticQuery =
           supabase
             .from('transactions')
             .select(
               `
                 id,
-                user_id,
-                business_id,
-                account_id,
-                type,
-                amount,
-                category,
-                description,
-                date,
-                created_at,
-                status,
-                currency,
-                exchange_rate,
-                amount_base,
-                reference,
-                notes,
-                is_deleted
-              `
+                source
+              `,
+              {
+                count: 'exact',
+                head: true,
+              }
             )
             .eq(
               'user_id',
@@ -1006,17 +1571,225 @@ export default function OverviewPage() {
               'is_deleted',
               false
             )
-            .order('date', {
-              ascending: false,
-            })
-            .order('created_at', {
-              ascending: false,
-            })
-            .limit(4);
+            .neq(
+              'source',
+              'manual'
+            )
+            .gte(
+              'date',
+              dateToISO(
+                currentMonthStart
+              )
+            )
+            .lte(
+              'date',
+              dateToISO(
+                currentMonthEnd
+              )
+            );
+
+        if (activeBusiness) {
+          automaticQuery =
+            automaticQuery.eq(
+              'business_id',
+              activeBusiness.id
+            );
+        }
 
         /*
         |--------------------------------------------------------------------------
-        | Run queries
+        | Business Data
+        |--------------------------------------------------------------------------
+        */
+
+        let accountsResult:
+          | {
+              data: Account[] | null;
+              error: Error | null;
+            }
+          | null = null;
+
+        let bankConnectionsResult:
+          | {
+              data:
+                | BankConnection[]
+                | null;
+              error: Error | null;
+            }
+          | null = null;
+
+        let cashVaultsResult:
+          | {
+              data:
+                | CashVault[]
+                | null;
+              error: Error | null;
+            }
+          | null = null;
+
+        let productsResult:
+          | {
+              data:
+                | Product[]
+                | null;
+              error: Error | null;
+            }
+          | null = null;
+
+        let salesResult:
+          | {
+              data: Sale[] | null;
+              error: Error | null;
+            }
+          | null = null;
+
+        if (activeBusiness) {
+          const businessId =
+            activeBusiness.id;
+
+          const [
+            accountsResponse,
+            bankConnectionsResponse,
+            cashVaultsResponse,
+            productsResponse,
+            salesResponse,
+          ] = await Promise.all([
+            supabase
+              .from('accounts')
+              .select(
+                `
+                  id,
+                  business_id,
+                  name,
+                  account_type,
+                  currency,
+                  opening_balance,
+                  current_balance,
+                  institution,
+                  account_number,
+                  is_default,
+                  is_active,
+                  user_id
+                `
+              )
+              .eq(
+                'business_id',
+                businessId
+              )
+              .eq(
+                'is_active',
+                true
+              ),
+
+            supabase
+              .from(
+                'bank_connections'
+              )
+              .select(
+                `
+                  id,
+                  business_id,
+                  mono_account_id,
+                  mono_display_id,
+                  institution,
+                  account_name,
+                  account_number,
+                  balance,
+                  status,
+                  last_sync
+                `
+              )
+              .eq(
+                'business_id',
+                businessId
+              ),
+
+            supabase
+              .from('cash_vaults')
+              .select(
+                `
+                  id,
+                  business_id,
+                  name,
+                  currency,
+                  balance
+                `
+              )
+              .eq(
+                'business_id',
+                businessId
+              ),
+
+            supabase
+              .from('products')
+              .select(
+                `
+                  id,
+                  business_id,
+                  name,
+                  current_stock,
+                  available_stock,
+                  is_active
+                `
+              )
+              .eq(
+                'business_id',
+                businessId
+              )
+              .eq(
+                'is_active',
+                true
+              ),
+
+            supabase
+              .from('sales')
+              .select(
+                `
+                  id,
+                  business_id,
+                  total_amount,
+                  currency,
+                  status,
+                  sale_date
+                `
+              )
+              .eq(
+                'business_id',
+                businessId
+              )
+              .eq(
+                'status',
+                'completed'
+              )
+              .gte(
+                'sale_date',
+                dateToISO(start)
+              )
+              .lte(
+                'sale_date',
+                dateToISO(end)
+              ),
+          ]);
+
+          accountsResult =
+            accountsResponse;
+
+          bankConnectionsResult =
+            bankConnectionsResponse;
+
+          cashVaultsResult =
+            cashVaultsResponse;
+
+          productsResult =
+            productsResponse;
+
+          salesResult =
+            salesResponse;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Run Requests
         |--------------------------------------------------------------------------
         */
 
@@ -1024,10 +1797,12 @@ export default function OverviewPage() {
           currentResult,
           previousResult,
           recentResult,
+          automaticResult,
         ] = await Promise.all([
           currentQuery,
           previousQuery,
           recentQuery,
+          automaticQuery,
         ]);
 
         if (currentResult.error) {
@@ -1040,6 +1815,40 @@ export default function OverviewPage() {
 
         if (recentResult.error) {
           throw recentResult.error;
+        }
+
+        if (automaticResult.error) {
+          throw automaticResult.error;
+        }
+
+        if (
+          accountsResult?.error
+        ) {
+          throw accountsResult.error;
+        }
+
+        if (
+          bankConnectionsResult?.error
+        ) {
+          throw bankConnectionsResult.error;
+        }
+
+        if (
+          cashVaultsResult?.error
+        ) {
+          throw cashVaultsResult.error;
+        }
+
+        if (
+          productsResult?.error
+        ) {
+          throw productsResult.error;
+        }
+
+        if (
+          salesResult?.error
+        ) {
+          throw salesResult.error;
         }
 
         if (!mounted) {
@@ -1060,6 +1869,35 @@ export default function OverviewPage() {
           (recentResult.data ??
             []) as Transaction[]
         );
+
+        setAutomaticTransactionCount(
+          automaticResult.count ?? 0
+        );
+
+        setAccounts(
+          accountsResult?.data ??
+            []
+        );
+
+        setBankConnections(
+          bankConnectionsResult?.data ??
+            []
+        );
+
+        setCashVaults(
+          cashVaultsResult?.data ??
+            []
+        );
+
+        setProducts(
+          productsResult?.data ??
+            []
+        );
+
+        setSales(
+          salesResult?.data ??
+            []
+        );
       } catch (loadError) {
         console.error(
           'Failed to load dashboard overview:',
@@ -1073,14 +1911,21 @@ export default function OverviewPage() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : 'Unable to load your financial overview.'
+            : 'We could not load your business overview.'
         );
 
         setTransactions([]);
-        setPreviousTransactions(
-          []
-        );
+        setPreviousTransactions([]);
         setRecentTransactions([]);
+        setBusiness(null);
+        setAccounts([]);
+        setBankConnections([]);
+        setCashVaults([]);
+        setProducts([]);
+        setSales([]);
+        setAutomaticTransactionCount(
+          0
+        );
       } finally {
         if (mounted) {
           setLoading(false);
@@ -1100,7 +1945,7 @@ export default function OverviewPage() {
 
   /*
   |--------------------------------------------------------------------------
-  | Financial Calculations
+  | Money Calculations
   |--------------------------------------------------------------------------
   */
 
@@ -1111,7 +1956,9 @@ export default function OverviewPage() {
 
   const moneyOut = useMemo(
     () =>
-      getExpenses(transactions),
+      getExpenses(
+        transactions
+      ),
     [transactions]
   );
 
@@ -1145,20 +1992,147 @@ export default function OverviewPage() {
   const profit = netMovement;
 
   const revenueChange =
-    selectedPeriod === 'all-time'
-      ? null
-      : calculateChange(
-          revenue,
-          previousMoneyIn
-        );
+    calculateChange(
+      revenue,
+      previousMoneyIn
+    );
 
   const profitChange =
-    selectedPeriod === 'all-time'
+    calculateChange(
+      profit,
+      previousNetMovement
+    );
+
+  /*
+  |--------------------------------------------------------------------------
+  | Money You Have
+  |--------------------------------------------------------------------------
+  */
+
+  const accountBalance =
+    useMemo(
+      () =>
+        accounts.reduce(
+          (
+            total,
+            account
+          ) =>
+            total +
+            toNumber(
+              account.current_balance
+            ),
+          0
+        ),
+      [accounts]
+    );
+
+  const cashVaultBalance =
+    useMemo(
+      () =>
+        cashVaults.reduce(
+          (
+            total,
+            vault
+          ) =>
+            total +
+            toNumber(
+              vault.balance
+            ),
+          0
+        ),
+      [cashVaults]
+    );
+
+  const cashPosition =
+    accounts.length > 0
+      ? accountBalance +
+        cashVaultBalance
+      : cashVaults.length > 0
+      ? cashVaultBalance
+      : bankConnections.length >
+        0
+      ? bankConnections.reduce(
+          (
+            total,
+            connection
+          ) =>
+            total +
+            toNumber(
+              connection.balance
+            ),
+          0
+        )
+      : 0;
+
+  const hasCashPositionData =
+    accounts.length > 0 ||
+    cashVaults.length > 0 ||
+    bankConnections.length > 0;
+
+  const displayCurrency =
+    business?.currency === 'NGN'
+      ? '₦'
+      : business?.currency || '₦';
+
+  /*
+  |--------------------------------------------------------------------------
+  | Bank Activity
+  |--------------------------------------------------------------------------
+  */
+
+  const connectedBankCount =
+    bankConnections.filter(
+      (connection) =>
+        !connection.status ||
+        connection.status
+          .toLowerCase() ===
+          'connected'
+    ).length;
+
+  const automaticTransactions =
+    automaticTransactionCount;
+
+  const transactionUsage =
+    plan.transactionLimit === Infinity
       ? null
-      : calculateChange(
-          profit,
-          previousNetMovement
+      : Math.min(
+          100,
+          Math.round(
+            (automaticTransactions /
+              plan.transactionLimit) *
+              100
+          )
         );
+
+  const remainingTransactions =
+    plan.transactionLimit === Infinity
+      ? null
+      : Math.max(
+          0,
+          plan.transactionLimit -
+            automaticTransactions
+        );
+
+  /*
+  |--------------------------------------------------------------------------
+  | Business Snapshot
+  |--------------------------------------------------------------------------
+  */
+
+  const salesCount =
+    sales.length;
+
+  const lowStockCount =
+    products.filter(
+      (product) => {
+        const available =
+          product.available_stock ??
+          product.current_stock ??
+          0;
+
+        return available <= 0;
+      }
+    ).length;
 
   /*
   |--------------------------------------------------------------------------
@@ -1180,15 +2154,17 @@ export default function OverviewPage() {
 
   const chartMax = Math.max(
     1,
-    ...cashFlow.flatMap((item) => [
-      item.income,
-      item.expenses,
-    ])
+    ...cashFlow.flatMap(
+      (item) => [
+        item.income,
+        item.expenses,
+      ]
+    )
   );
 
   /*
   |--------------------------------------------------------------------------
-  | Current transaction count
+  | Transaction Counts
   |--------------------------------------------------------------------------
   */
 
@@ -1200,89 +2176,54 @@ export default function OverviewPage() {
 
   /*
   |--------------------------------------------------------------------------
-  | Automatic transaction usage
-  |--------------------------------------------------------------------------
-  |
-  | The existing transactions schema does not currently expose whether a
-  | transaction was automatically imported from a bank connection.
-  |
-  | We therefore do NOT pretend that recorded transactions are automatic
-  | bank transactions.
-  |--------------------------------------------------------------------------
-  */
-
-  const automaticTransactions:
-    | number
-    | null = null;
-
-  const transactionUsage =
-    automaticTransactions ===
-      null ||
-    plan.transactionLimit ===
-      Infinity
-      ? null
-      : Math.min(
-          100,
-          Math.round(
-            (automaticTransactions /
-              plan.transactionLimit) *
-              100
-          )
-        );
-
-  const remainingTransactions =
-    automaticTransactions ===
-      null ||
-    plan.transactionLimit ===
-      Infinity
-      ? null
-      : Math.max(
-          0,
-          plan.transactionLimit -
-            automaticTransactions
-        );
-
-  /*
-  |--------------------------------------------------------------------------
   | Insight
   |--------------------------------------------------------------------------
   */
 
   let insightTitle =
-    'Start recording activity to unlock financial insights.';
+    'Start recording your business activity to see useful money insights.';
 
   let insightDescription =
-    'Monietar will use your recorded transactions to surface useful patterns in your cash flow.';
+    'As you record sales, expenses and other money movements, Monietar will help you understand what is happening with your money.';
 
   if (!loading) {
-    if (transactions.length > 0) {
+    if (
+      transactions.length > 0
+    ) {
       if (netMovement > 0) {
         insightTitle =
-          'More money came in than went out during this period.';
+          'More money came in than went out this period.';
 
         insightDescription =
-          'Your recorded inflows are ahead of your recorded outflows. Keep monitoring expenses as the period progresses.';
+          'You received more money than you spent during this period. Keep an eye on your spending as the period continues.';
       } else if (
         netMovement < 0
       ) {
         insightTitle =
-          'Recorded outflows are currently ahead of inflows.';
+          'More money went out than came in this period.';
 
         insightDescription =
-          'Review your recent expenses and monitor upcoming payments to understand what is driving the movement.';
+          'Take a look at your recent spending to see what is taking the most money out of your business.';
       } else {
         insightTitle =
-          'Your recorded money in and money out are currently balanced.';
+          'The money coming in and going out is about the same.';
 
         insightDescription =
-          'Continue recording activity to give Monietar more context about your financial movement.';
+          'Keep recording your business activity so Monietar can give you a clearer picture of your money.';
       }
     }
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | Render
+  |--------------------------------------------------------------------------
+  */
+
   return (
     <main className="min-h-full bg-[#f1f1f1] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-[1500px]">
+
         {/* -------------------------------------------------------------- */}
         {/* Page Introduction */}
         {/* -------------------------------------------------------------- */}
@@ -1290,16 +2231,23 @@ export default function OverviewPage() {
         <section className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">
-              Financial overview
+              Your business
             </p>
 
-            <h2 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-  {getGreeting()}, {userName}.
-</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+                {getGreeting()}, {userName}.
+              </h2>
+
+              <span className="border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-emerald-900">
+                {plan.name}
+              </span>
+            </div>
 
             <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-              Here&apos;s what&apos;s happening
-              with your business.
+              {business?.name
+                ? `Here is what is happening with ${business.name}.`
+                : 'Here is what is happening with your business.'}
             </p>
           </div>
 
@@ -1424,7 +2372,7 @@ export default function OverviewPage() {
               <div>
                 <p className="text-sm font-medium text-red-900">
                   We couldn&apos;t load your
-                  financial overview.
+                  business information.
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-red-700">
@@ -1440,39 +2388,55 @@ export default function OverviewPage() {
         {/* -------------------------------------------------------------- */}
 
         <section className="grid grid-cols-1 gap-px overflow-hidden border border-gray-200 bg-gray-200 sm:grid-cols-2 xl:grid-cols-4">
+
           <MetricCard
-            label="Revenue"
+            label="Money In"
             value={
               loading
                 ? '—'
                 : formatCurrency(
-                    revenue
+                    revenue,
+                    displayCurrency
                   )
             }
             change={revenueChange}
-            description="Total money received"
+            description="Money received during this period"
             icon={ArrowDownRight}
           />
 
           <MetricCard
-            label="Profit"
+            label="What You Made"
             value={
               loading
                 ? '—'
                 : formatCurrency(
-                    profit
+                    profit,
+                    displayCurrency
                   )
             }
             change={profitChange}
-            description="Income less recorded expenses"
+            description="Money in after recorded spending"
             icon={BarChart3}
           />
 
           <MetricCard
-            label="Cash Position"
-            value="—"
+            label="Money You Have"
+            value={
+              loading
+                ? '—'
+                : hasCashPositionData
+                ? formatCurrency(
+                    cashPosition,
+                    displayCurrency
+                  )
+                : '—'
+            }
             change={null}
-            description="Connect an account to track balance"
+            description={
+              hasCashPositionData
+                ? 'Money in your bank and cash'
+                : 'Connect a bank or add cash'
+            }
             icon={Wallet}
           />
 
@@ -1481,12 +2445,11 @@ export default function OverviewPage() {
             <div className="mb-5 flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-gray-400">
-                  Bank Activity
+                  Bank Transactions
                 </p>
 
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-gray-900">
-                  {automaticTransactions ===
-                  null
+                  {loading
                     ? '—'
                     : automaticTransactions}
 
@@ -1509,11 +2472,23 @@ export default function OverviewPage() {
               </div>
             </div>
 
-            <p className="text-xs text-gray-400">
-              Automatic transaction tracking
-              will appear here when bank
-              connections are enabled.
+            <p className="text-xs leading-5 text-gray-400">
+              {currentPlan ===
+              'retail-starter'
+                ? 'You can record up to 500 bank transactions automatically each month. You can add your own entries without a limit.'
+                : currentPlan ===
+                  'growing-merchant'
+                ? 'You can record up to 2,500 bank transactions automatically each month. You can add your own entries without a limit.'
+                : 'You can record bank transactions automatically without a monthly limit.'}
             </p>
+
+            <div className="mt-3 text-[10px] text-gray-400">
+              {connectedBankCount}{' '}
+              connected bank{' '}
+              {connectedBankCount === 1
+                ? 'account'
+                : 'accounts'}
+            </div>
 
             {transactionUsage !==
               null && (
@@ -1532,11 +2507,11 @@ export default function OverviewPage() {
                     {
                       remainingTransactions
                     }{' '}
-                    remaining
+                    left this month
                   </span>
 
                   <span>
-                    {transactionUsage}%
+                    {transactionUsage}%{' '}
                     used
                   </span>
                 </div>
@@ -1550,26 +2525,25 @@ export default function OverviewPage() {
         {/* -------------------------------------------------------------- */}
 
         <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.8fr)]">
+
           {/* ------------------------------------------------------------ */}
-          {/* Cash Flow */}
+          {/* Money Flow */}
           {/* ------------------------------------------------------------ */}
 
           <section className="border border-gray-200 bg-white">
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-5 sm:px-6">
               <div>
                 <p className="text-sm font-semibold text-gray-900">
-                  Cash Flow
+                  Money In &amp; Out
                 </p>
 
                 <p className="mt-1 text-xs text-gray-400">
-                  Money in versus money out
+                  See how much money came in and went out
                 </p>
               </div>
 
-              <a
-                href="reports"
-                target ='_blank'
-                rel ='norefopener'
+              <Link
+                href="/dashboard/reports"
                 className="flex items-center gap-1.5 text-xs font-medium text-emerald-900 hover:underline"
               >
                 View report
@@ -1577,10 +2551,11 @@ export default function OverviewPage() {
                   size={13}
                   strokeWidth={1.8}
                 />
-              </a>
+              </Link>
             </div>
 
             <div className="p-5 sm:p-6">
+
               {/* Summary */}
               <div className="mb-7 grid grid-cols-2 gap-6 sm:grid-cols-3">
                 <div>
@@ -1592,7 +2567,8 @@ export default function OverviewPage() {
                     {loading
                       ? '—'
                       : formatCurrency(
-                          moneyIn
+                          moneyIn,
+                          displayCurrency
                         )}
                   </p>
                 </div>
@@ -1606,14 +2582,15 @@ export default function OverviewPage() {
                     {loading
                       ? '—'
                       : formatCurrency(
-                          moneyOut
+                          moneyOut,
+                          displayCurrency
                         )}
                   </p>
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
                   <p className="text-[10px] uppercase tracking-[0.12em] text-gray-400">
-                    Net movement
+                    Difference
                   </p>
 
                   <p
@@ -1632,7 +2609,8 @@ export default function OverviewPage() {
                             ? '+'
                             : ''
                         }${formatCurrency(
-                          netMovement
+                          netMovement,
+                          displayCurrency
                         )}`}
                   </p>
                 </div>
@@ -1654,17 +2632,26 @@ export default function OverviewPage() {
                     </div>
 
                     <p className="mt-3 text-sm font-medium text-gray-700">
-                      No transactions for
-                      this period
+                      No money records for this period
                     </p>
 
                     <p className="mt-1 max-w-sm text-xs leading-5 text-gray-400">
-                      Record your first
-                      financial activity
-                      to start seeing
-                      your cash flow
-                      here.
+                      Add your first sale,
+                      expense or other money
+                      activity to start seeing
+                      your business here.
                     </p>
+
+                    <Link
+                      href="/dashboard/transactions"
+                      className="mt-4 inline-flex items-center gap-2 bg-emerald-900 px-4 py-2.5 text-xs font-medium text-white transition-colors hover:bg-emerald-800"
+                    >
+                      <Plus
+                        size={13}
+                        strokeWidth={1.8}
+                      />
+                      Add money record
+                    </Link>
                   </div>
                 )}
 
@@ -1673,6 +2660,7 @@ export default function OverviewPage() {
                 transactions.length >
                   0) && (
                 <div className="relative h-[230px]">
+
                   {/* Grid */}
                   <div className="absolute inset-0 flex flex-col justify-between">
                     {[
@@ -1734,7 +2722,14 @@ export default function OverviewPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="absolute inset-x-0 bottom-6 top-2 flex items-end justify-between gap-2">
+                    <div
+                      className={`absolute inset-x-0 bottom-6 top-2 flex items-end justify-between ${
+                        cashFlow.length >
+                        20
+                          ? 'gap-0'
+                          : 'gap-2'
+                      }`}
+                    >
                       {cashFlow.map(
                         (day) => {
                           const incomeHeight =
@@ -1756,7 +2751,7 @@ export default function OverviewPage() {
                               key={
                                 day.key
                               }
-                              className="relative flex h-full flex-1 items-end justify-center gap-1"
+                              className="relative flex h-full min-w-0 flex-1 items-end justify-center gap-px"
                               onMouseEnter={() =>
                                 setHoveredDay(
                                   day.key
@@ -1790,7 +2785,8 @@ export default function OverviewPage() {
 
                                       <span className="text-[10px] font-semibold text-gray-900">
                                         {formatCurrency(
-                                          day.income
+                                          day.income,
+                                          displayCurrency
                                         )}
                                       </span>
                                     </div>
@@ -1807,7 +2803,8 @@ export default function OverviewPage() {
 
                                       <span className="text-[10px] font-semibold text-gray-900">
                                         {formatCurrency(
-                                          day.expenses
+                                          day.expenses,
+                                          displayCurrency
                                         )}
                                       </span>
                                     </div>
@@ -1815,7 +2812,7 @@ export default function OverviewPage() {
                                     <div className="mt-2 border-t border-gray-100 pt-2">
                                       <div className="flex items-center justify-between">
                                         <span className="text-[10px] text-gray-400">
-                                          Net
+                                          Difference
                                         </span>
 
                                         <span
@@ -1836,7 +2833,8 @@ export default function OverviewPage() {
                                             Math.abs(
                                               day.income -
                                                 day.expenses
-                                            )
+                                            ),
+                                            displayCurrency
                                           )}
                                         </span>
                                       </div>
@@ -1846,7 +2844,12 @@ export default function OverviewPage() {
                               )}
 
                               <div
-                                className="w-2.5 bg-emerald-900 transition-opacity sm:w-3"
+                                className={`bg-emerald-900 transition-opacity ${
+                                  cashFlow.length >
+                                  20
+                                    ? 'w-1'
+                                    : 'w-2.5 sm:w-3'
+                                }`}
                                 style={{
                                   height: `${Math.max(
                                     day.income >
@@ -1865,7 +2868,12 @@ export default function OverviewPage() {
                               />
 
                               <div
-                                className="w-2.5 bg-gray-200 transition-opacity sm:w-3"
+                                className={`bg-gray-200 transition-opacity ${
+                                  cashFlow.length >
+                                  20
+                                    ? 'w-1'
+                                    : 'w-2.5 sm:w-3'
+                                }`}
                                 style={{
                                   height: `${Math.max(
                                     day.expenses >
@@ -1890,7 +2898,14 @@ export default function OverviewPage() {
                   )}
 
                   {/* Labels */}
-                  <div className="absolute inset-x-0 bottom-0 flex justify-between gap-2">
+                  <div
+                    className={`absolute inset-x-0 bottom-0 flex gap-0 ${
+                      cashFlow.length >
+                      20
+                        ? 'justify-between'
+                        : 'justify-between'
+                    }`}
+                  >
                     {loading
                       ? Array.from({
                           length: 7,
@@ -1908,23 +2923,45 @@ export default function OverviewPage() {
                           )
                         )
                       : cashFlow.map(
-                          (day) => (
-                            <span
-                              key={
-                                day.key
-                              }
-                              className={`flex-1 text-center text-[10px] ${
-                                hoveredDay ===
-                                day.key
-                                  ? 'font-medium text-emerald-900'
-                                  : 'text-gray-400'
-                              }`}
-                            >
-                              {
-                                day.label
-                              }
-                            </span>
-                          )
+                          (
+                            day,
+                            index
+                          ) => {
+                            /*
+                            * For long monthly charts, show fewer
+                            * labels so the dates do not overlap.
+                            */
+                            const shouldShowLabel =
+                              cashFlow.length <=
+                                16 ||
+                              index === 0 ||
+                              index ===
+                                cashFlow.length -
+                                  1 ||
+                              index %
+                                5 ===
+                                0;
+
+                            return (
+                              <span
+                                key={
+                                  day.key
+                                }
+                                className={`min-w-0 flex-1 text-center text-[9px] ${
+                                  shouldShowLabel
+                                    ? hoveredDay ===
+                                      day.key
+                                      ? 'font-medium text-emerald-900'
+                                      : 'text-gray-400'
+                                    : 'text-transparent'
+                                }`}
+                              >
+                                {
+                                  day.label
+                                }
+                              </span>
+                            );
+                          }
                         )}
                   </div>
                 </div>
@@ -1964,7 +3001,7 @@ export default function OverviewPage() {
                   </p>
 
                   <p className="mt-1 text-xs text-emerald-200">
-                    Based on your recorded activity
+                    A simple look at your money
                   </p>
                 </div>
 
@@ -2007,7 +3044,7 @@ export default function OverviewPage() {
               <div className="mt-7 border-t border-white/10 pt-5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-emerald-200">
-                    Net cash movement
+                    Money left after spending
                   </span>
 
                   <span
@@ -2028,7 +3065,8 @@ export default function OverviewPage() {
                         }${formatCurrency(
                           Math.abs(
                             netMovement
-                          )
+                          ),
+                          displayCurrency
                         )}`}
                   </span>
                 </div>
@@ -2042,22 +3080,23 @@ export default function OverviewPage() {
         {/* -------------------------------------------------------------- */}
 
         <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
+
           {/* Recent Transactions */}
 
           <section className="border border-gray-200 bg-white">
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-5 sm:px-6">
               <div>
                 <p className="text-sm font-semibold text-gray-900">
-                  Recent Transactions
+                  Recent Money Activity
                 </p>
 
                 <p className="mt-1 text-xs text-gray-400">
-                  Latest money movement recorded
+                  Your latest money records
                 </p>
               </div>
 
-              <button
-                type="button"
+              <Link
+                href="/dashboard/transactions"
                 className="flex items-center gap-1.5 text-xs font-medium text-emerald-900 hover:underline"
               >
                 View all
@@ -2065,7 +3104,7 @@ export default function OverviewPage() {
                   size={13}
                   strokeWidth={1.8}
                 />
-              </button>
+              </Link>
             </div>
 
             {loading ? (
@@ -2110,14 +3149,27 @@ export default function OverviewPage() {
                 </div>
 
                 <p className="mt-3 text-sm font-medium text-gray-700">
-                  No transactions yet
+                  No money activity yet
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-gray-400">
-                  Your latest financial
-                  activity will
-                  appear here.
+                  Your latest sales,
+                  expenses and other money
+                  activity will appear here.
                 </p>
+
+                <Link
+                  href="/dashboard/transactions"
+                  className="mt-4 inline-flex items-center gap-2 border border-gray-200 px-4 py-2.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  <Plus
+                    size={13}
+                    strokeWidth={
+                      1.8
+                    }
+                  />
+                  Add money activity
+                </Link>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -2174,7 +3226,7 @@ export default function OverviewPage() {
                             <p className="truncate text-sm font-medium text-gray-900">
                               {transaction.description?.trim() ||
                                 transaction.category ||
-                                'Financial activity'}
+                                'Money activity'}
                             </p>
 
                             <div className="mt-1 flex items-center gap-2">
@@ -2206,7 +3258,8 @@ export default function OverviewPage() {
                               ? '+'
                               : '-'}
                             {formatCurrency(
-                              amount
+                              amount,
+                              displayCurrency
                             )}
                           </p>
 
@@ -2230,51 +3283,91 @@ export default function OverviewPage() {
           <section className="border border-gray-200 bg-white">
             <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
               <p className="text-sm font-semibold text-gray-900">
-                Business Snapshot
+                Business at a Glance
               </p>
 
               <p className="mt-1 text-xs text-gray-400">
-                A quick look at your operations
+                A quick look at your business
               </p>
             </div>
 
             <div className="divide-y divide-gray-100">
+
               <SnapshotRow
                 icon={Receipt}
-                label="Transactions"
+                label="Money Records"
                 value={
                   loading
                     ? 'Loading...'
                     : `${transactionCount} recorded`
                 }
-                detail={
+                detail="This period"
+              />
+
+              <SnapshotRow
+                icon={Receipt}
+                label="Sales"
+                value={
                   loading
-                    ? '—'
-                    : selectedPeriod ===
-                      'all-time'
-                    ? 'All time'
-                    : 'Current period'
+                    ? 'Loading...'
+                    : `${salesCount} recorded`
                 }
+                detail={
+                  salesCount > 0
+                    ? 'This period'
+                    : 'No sales yet'
+                }
+                href="/dashboard/sales"
               />
 
               <SnapshotRow
                 icon={Package}
                 label="Products"
-                value="—"
-                detail="Not connected yet"
+                value={
+                  loading
+                    ? 'Loading...'
+                    : `${products.length} active`
+                }
+                detail={
+                  lowStockCount > 0
+                    ? `${lowStockCount} need restocking`
+                    : 'View products'
+                }
+                href="/dashboard/products"
+                warning={
+                  lowStockCount > 0
+                }
               />
 
               <SnapshotRow
                 icon={Wallet}
                 label="Cash Vault"
-                value="—"
-                detail="Not connected yet"
+                value={
+                  loading
+                    ? 'Loading...'
+                    : `${cashVaults.length} ${
+                        cashVaults.length ===
+                        1
+                          ? 'vault'
+                          : 'vaults'
+                      }`
+                }
+                detail={
+                  cashVaults.length >
+                  0
+                    ? formatCurrency(
+                        cashVaultBalance,
+                        displayCurrency
+                      )
+                    : 'Add cash vault'
+                }
+                href="/dashboard/cash-vault"
               />
             </div>
 
             <div className="border-t border-gray-200 p-4">
-              <button
-                type="button"
+              <Link
+                href="/dashboard/transactions"
                 className="flex w-full items-center justify-center gap-2 border border-gray-200 bg-white px-4 py-2.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
                 <Plus
@@ -2282,18 +3375,18 @@ export default function OverviewPage() {
                   strokeWidth={1.8}
                 />
 
-                Record activity
-              </button>
+                Add money record
+              </Link>
             </div>
           </section>
         </div>
 
         {/* -------------------------------------------------------------- */}
-        {/* Plan Usage */}
+        {/* Retail Starter Plan */}
         {/* -------------------------------------------------------------- */}
 
-        {CURRENT_PLAN !==
-          'BORDERLESS_PRO' && (
+        {currentPlan ===
+          'retail-starter' && (
           <section className="mt-6 border border-gray-200 bg-white">
             <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-4">
@@ -2306,18 +3399,19 @@ export default function OverviewPage() {
 
                 <div>
                   <p className="text-sm font-semibold text-gray-900">
-                    Your automatic transaction
-                    allowance
+                    Retail Starter
                   </p>
 
                   <p className="mt-1 max-w-xl text-xs leading-5 text-gray-400">
-                    Monietar automatically records
-                    transactions from your connected
-                    bank account. Your current plan
-                    includes{' '}
-                    {plan.transactionLimit.toLocaleString()}
-                    {' '}
-                    automatic logs each month.
+                    Your plan gives you the basics
+                    you need to keep track of your
+                    business money. You get one
+                    physical Cash Vault, one
+                    connected bank account and up
+                    to 500 bank transactions
+                    recorded automatically each
+                    month. You can add your own
+                    entries without a limit.
                   </p>
                 </div>
               </div>
@@ -2325,36 +3419,32 @@ export default function OverviewPage() {
               <div className="flex shrink-0 items-center gap-5">
                 <div className="text-right">
                   <p className="text-lg font-semibold text-gray-900">
-                    {automaticTransactions ===
-                    null
+                    {loading
                       ? '—'
                       : automaticTransactions}
 
                     <span className="text-sm font-normal text-gray-400">
                       {' '}
-                      /{' '}
-                      {
-                        plan.transactionLimit
-                      }
+                      / 500
                     </span>
                   </p>
 
                   <p className="text-[10px] text-gray-400">
-                    automatic usage
+                    bank transactions this month
                   </p>
                 </div>
 
-                <button
-                  type="button"
+                <Link
+                  href="/pricing"
                   className="flex items-center gap-2 bg-emerald-900 px-4 py-2.5 text-xs font-medium text-white transition-colors hover:bg-emerald-800"
                 >
-                  Explore plans
+                  See other plans
 
                   <ArrowRight
                     size={13}
                     strokeWidth={1.8}
                   />
-                </button>
+                </Link>
               </div>
             </div>
           </section>
@@ -2454,16 +3544,18 @@ function SnapshotRow({
   label,
   value,
   detail,
+  href,
   warning = false,
 }: {
   icon: LucideIcon;
   label: string;
   value: string;
   detail: string;
+  href?: string;
   warning?: boolean;
 }) {
-  return (
-    <div className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
+  const content = (
+    <div className="flex items-center justify-between gap-4 px-5 py-4 transition-colors sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gray-50 text-gray-500">
           <Icon
@@ -2487,6 +3579,8 @@ function SnapshotRow({
         className={`flex shrink-0 items-center gap-1 text-[10px] ${
           warning
             ? 'text-amber-600'
+            : href
+            ? 'text-emerald-900'
             : 'text-gray-400'
         }`}
       >
@@ -2498,7 +3592,27 @@ function SnapshotRow({
         )}
 
         {detail}
+
+        {href && (
+          <ArrowRight
+            size={11}
+            strokeWidth={1.8}
+          />
+        )}
       </div>
     </div>
   );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="block hover:bg-gray-50"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 }

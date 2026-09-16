@@ -691,8 +691,6 @@ export default function PricingPage() {
 
               <p className="max-w-md text-[10px] leading-5 text-gray-400 md:text-right">
                 * Subscriptions are processed in local currency.
-                {currency === 'XOF' &&
-                  ' Current corridor reference rate: 1 XOF ≈ 2.61 NGN.'}
               </p>
             </div>
           </div>
