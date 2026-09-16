@@ -5,36 +5,35 @@ import { usePathname } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { sidebarNavigation } from '../../../../config/sidebar.config';
-import { createClient } from '@/lib/supabase/client';
+import {
+  sidebarNavigation,
+  type Plan,
+} from '../../../../config/sidebar.config';
 
-type Plan =
-  | 'RETAIL_STARTER'
-  | 'GROWING_MERCHANT'
-  | 'BORDERLESS_PRO';
+import { createClient } from '@/lib/supabase/client';
 
 const normalizePlan = (
   value: unknown
 ): Plan => {
   if (typeof value !== 'string') {
-    return 'RETAIL_STARTER';
+    return 'retail-starter';
   }
 
   const normalized = value
     .trim()
-    .toUpperCase()
-    .replace(/[\s-]+/g, '_');
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-');
 
   switch (normalized) {
-    case 'GROWING_MERCHANT':
-      return 'GROWING_MERCHANT';
+    case 'growing-merchant':
+      return 'growing-merchant';
 
-    case 'BORDERLESS_PRO':
-      return 'BORDERLESS_PRO';
+    case 'borderless-pro':
+      return 'borderless-pro';
 
-    case 'RETAIL_STARTER':
+    case 'retail-starter':
     default:
-      return 'RETAIL_STARTER';
+      return 'retail-starter';
   }
 };
 
@@ -42,7 +41,7 @@ export default function SidebarNavigation() {
   const pathname = usePathname();
 
   const [currentPlan, setCurrentPlan] =
-    useState<Plan>('RETAIL_STARTER');
+    useState<Plan>('retail-starter');
 
   const [loadingPlan, setLoadingPlan] =
     useState(true);
@@ -68,7 +67,7 @@ export default function SidebarNavigation() {
          * This prevents an unauthenticated/loading state
          * from accidentally exposing premium navigation.
          */
-        setCurrentPlan('RETAIL_STARTER');
+        setCurrentPlan('retail-starter');
         setLoadingPlan(false);
         return;
       }
