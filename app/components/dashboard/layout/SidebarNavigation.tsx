@@ -3,14 +3,94 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Lock } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-import {
-  sidebarNavigation,
-  CURRENT_PLAN,
-} from '../../../../config/sidebar.config';
+import { sidebarNavigation } from '../../../../config/sidebar.config';
+import { createClient } from '@/lib/supabase/client';
+
+type Plan =
+  | 'RETAIL_STARTER'
+  | 'GROWING_MERCHANT'
+  | 'BORDERLESS_PRO';
+
+const normalizePlan = (
+  value: unknown
+): Plan => {
+  if (typeof value !== 'string') {
+    return 'RETAIL_STARTER';
+  }
+
+  const normalized = value
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+
+  switch (normalized) {
+    case 'GROWING_MERCHANT':
+      return 'GROWING_MERCHANT';
+
+    case 'BORDERLESS_PRO':
+      return 'BORDERLESS_PRO';
+
+    case 'RETAIL_STARTER':
+    default:
+      return 'RETAIL_STARTER';
+  }
+};
 
 export default function SidebarNavigation() {
   const pathname = usePathname();
+
+  const [currentPlan, setCurrentPlan] =
+    useState<Plan>('RETAIL_STARTER');
+
+  const [loadingPlan, setLoadingPlan] =
+    useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const supabase = createClient();
+
+    const loadPlan = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (error || !user) {
+        /*
+         * Retail Starter is the safe default.
+         * This prevents an unauthenticated/loading state
+         * from accidentally exposing premium navigation.
+         */
+        setCurrentPlan('RETAIL_STARTER');
+        setLoadingPlan(false);
+        return;
+      }
+
+      const metadata =
+        user.user_metadata || {};
+
+      const userPlan = normalizePlan(
+        metadata.subscription_plan ??
+          metadata.plan
+      );
+
+      setCurrentPlan(userPlan);
+      setLoadingPlan(false);
+    };
+
+    loadPlan();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <nav className="flex-1 overflow-y-auto px-4 py-6">
@@ -30,17 +110,34 @@ export default function SidebarNavigation() {
 
               const active =
                 pathname === item.href ||
-                pathname.startsWith(`${item.href}/`);
+                pathname.startsWith(
+                  `${item.href}/`
+                );
 
-              const enabled = item.plans.includes(CURRENT_PLAN);
+              /*
+               * While the user's plan is loading, keep
+               * navigation locked rather than exposing
+               * premium pages momentarily.
+               */
+              const enabled =
+                !loadingPlan &&
+                item.plans.includes(
+                  currentPlan
+                );
 
-              {/* Locked Item */}
+              /*
+               * Locked Item
+               */
               if (!enabled) {
                 return (
                   <div
                     key={item.href}
                     aria-disabled="true"
-                    title={`${item.name} is not available on your current plan`}
+                    title={
+                      loadingPlan
+                        ? 'Checking your plan...'
+                        : `${item.name} is not available on your current plan`
+                    }
                     className="
                       flex min-h-[42px]
                       cursor-not-allowed
@@ -72,7 +169,9 @@ export default function SidebarNavigation() {
                 );
               }
 
-              {/* Active / Available Item */}
+              /*
+               * Active / Available Item
+               */
               return (
                 <Link
                   key={item.href}
@@ -92,7 +191,9 @@ export default function SidebarNavigation() {
                 >
                   <Icon
                     size={18}
-                    strokeWidth={active ? 2 : 1.7}
+                    strokeWidth={
+                      active ? 2 : 1.7
+                    }
                     className="shrink-0"
                   />
 

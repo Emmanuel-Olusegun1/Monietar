@@ -190,5 +190,3 @@ export const sidebarNavigation: NavigationGroup[] = [
     ],
   },
 ];
-
-export const CURRENT_PLAN: Plan = 'retail-starter';
