@@ -627,7 +627,7 @@ function calculateChange(
       return 0;
     }
 
-    return null;
+    return 100;
   }
 
   return (

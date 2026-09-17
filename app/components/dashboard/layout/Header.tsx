@@ -13,6 +13,7 @@ import {
   Activity,
   Lock,
   X,
+  Loader2,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -25,7 +26,13 @@ type Plan =
   | 'GROWING_MERCHANT'
   | 'BORDERLESS_PRO';
 
-const CURRENT_PLAN: Plan = 'RETAIL_STARTER';
+type Profile = {
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+};
 
 const PLAN_CONFIG = {
   RETAIL_STARTER: {
@@ -57,6 +64,127 @@ const titles: Record<string, string> = {
   '/dashboard/help': 'Help',
 };
 
+const BUSINESS_TIME_ZONE = 'Africa/Lagos';
+
+function normalizePlan(value: unknown): Plan {
+  if (typeof value !== 'string') {
+    return 'RETAIL_STARTER';
+  }
+
+  const normalized = value.toLowerCase().trim();
+
+  switch (normalized) {
+    case 'growing-merchant':
+    case 'growing_merchant':
+    case 'growing merchant':
+    case 'growingmerchant':
+      return 'GROWING_MERCHANT';
+
+    case 'borderless-pro':
+    case 'borderless_pro':
+    case 'borderless pro':
+    case 'borderlesspro':
+      return 'BORDERLESS_PRO';
+
+    case 'retail-starter':
+    case 'retail_starter':
+    case 'retail starter':
+    case 'retailstarter':
+    default:
+      return 'RETAIL_STARTER';
+  }
+}
+
+function getLagosDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-NG', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  return {
+    year: Number(
+      parts.find((part) => part.type === 'year')?.value
+    ),
+    month: Number(
+      parts.find((part) => part.type === 'month')?.value
+    ),
+    day: Number(
+      parts.find((part) => part.type === 'day')?.value
+    ),
+  };
+}
+
+function getLagosDateString(date = new Date()) {
+  const { year, month, day } = getLagosDateParts(date);
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(
+    day
+  ).padStart(2, '0')}`;
+}
+
+function getLagosMonthRange() {
+  const { year, month } = getLagosDateParts();
+
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+
+  const lastDay = new Date(
+    year,
+    month,
+    0
+  ).getDate();
+
+  const end = `${year}-${String(month).padStart(2, '0')}-${String(
+    lastDay
+  ).padStart(2, '0')}`;
+
+  return {
+    start,
+    end,
+  };
+}
+
+function getDisplayName(profile: Profile | null, email: string | null) {
+  if (profile?.display_name?.trim()) {
+    return profile.display_name.trim();
+  }
+
+  const fullName = [
+    profile?.first_name?.trim(),
+    profile?.last_name?.trim(),
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (fullName) {
+    return fullName;
+  }
+
+  if (email) {
+    return email.split('@')[0];
+  }
+
+  return 'User';
+}
+
+function getInitials(name: string) {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return 'U';
+  }
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
@@ -67,28 +195,123 @@ export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [currentPlan, setCurrentPlan] =
+    useState<Plan>('RETAIL_STARTER');
+  const [monthlyTransactions, setMonthlyTransactions] =
+    useState(0);
+  const [loadingHeaderData, setLoadingHeaderData] =
+    useState(true);
+
   const profileRef = useRef<HTMLDivElement>(null);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
 
-  const plan = PLAN_CONFIG[CURRENT_PLAN];
+  const plan = PLAN_CONFIG[currentPlan];
   const title = titles[pathname] ?? 'Dashboard';
 
-  /*
-   * Temporary display value until this is connected
-   * to the Monietar rate/indexing service.
-   */
-  const nairaToCfaRate = '1 NGN = 0.65 XOF';
+  const displayName = getDisplayName(profile, email);
+  const initials = getInitials(displayName);
 
-  /*
-   * Replace this with actual dashboard usage data.
-   */
-  const automaticTransactions = 327;
+  useEffect(() => {
+    let mounted = true;
+
+    const loadHeaderData = async () => {
+      setLoadingHeaderData(true);
+
+      try {
+        const supabase = createClient();
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          if (mounted) {
+            setLoadingHeaderData(false);
+          }
+
+          return;
+        }
+
+        if (!mounted) return;
+
+        setEmail(user.email ?? null);
+
+        const metadataPlan = normalizePlan(
+          user.user_metadata?.subscription_plan ??
+            user.user_metadata?.plan
+        );
+
+        setCurrentPlan(metadataPlan);
+
+        const [
+          profileResult,
+          transactionResult,
+        ] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select(
+              'first_name, last_name, display_name, email, avatar_url'
+            )
+            .eq('id', user.id)
+            .maybeSingle(),
+
+          (() => {
+            const { start, end } = getLagosMonthRange();
+
+            return supabase
+              .from('transactions')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', user.id)
+              .eq('is_deleted', false)
+              .eq('status', 'completed')
+              .neq('source', 'manual')
+              .gte('date', start)
+              .lte('date', end);
+          })(),
+        ]);
+
+        if (!mounted) return;
+
+        if (!profileResult.error && profileResult.data) {
+          setProfile(profileResult.data);
+        }
+
+        if (!transactionResult.error) {
+          setMonthlyTransactions(
+            transactionResult.count ?? 0
+          );
+        } else {
+          setMonthlyTransactions(0);
+        }
+      } catch (error) {
+        console.error(
+          'Failed to load header data:',
+          error
+        );
+      } finally {
+        if (mounted) {
+          setLoadingHeaderData(false);
+        }
+      }
+    };
+
+    loadHeaderData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         profileRef.current &&
-        !profileRef.current.contains(event.target as Node)
+        !profileRef.current.contains(
+          event.target as Node
+        )
       ) {
         setProfileOpen(false);
       }
@@ -125,24 +348,36 @@ export default function Header() {
 
     setSigningOut(true);
 
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    await supabase.auth.signOut();
+      await supabase.auth.signOut();
 
-    router.replace('/auth/signin');
+      router.replace('/auth/signin');
+    } catch (error) {
+      console.error(
+        'Failed to sign out:',
+        error
+      );
+
+      setSigningOut(false);
+    }
   };
 
   return (
     <header
-  className="
-    fixed inset-x-0 top-0 z-50
-    border-b border-gray-200
-    bg-[#f1f1f1]/95
-    backdrop-blur
-    lg:sticky
-    lg:top-0
-  "
->
+      className="
+        fixed
+        inset-x-0
+        top-0
+        z-40
+        w-full
+        border-b
+        border-gray-200
+        bg-[#f1f1f1]/95
+        backdrop-blur
+      "
+    >
       <div className="flex h-[72px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* Left */}
         <div className="flex min-w-0 items-center gap-3">
@@ -208,7 +443,9 @@ export default function Header() {
           {/* Mobile Search Toggle */}
           <button
             type="button"
-            onClick={() => setSearchOpen((open) => !open)}
+            onClick={() =>
+              setSearchOpen((open) => !open)
+            }
             aria-label={
               searchOpen
                 ? 'Close search'
@@ -241,7 +478,7 @@ export default function Header() {
           </button>
 
           {/* Plan-aware Indicator */}
-          {CURRENT_PLAN === 'BORDERLESS_PRO' ? (
+          {currentPlan === 'BORDERLESS_PRO' ? (
             <button
               type="button"
               onClick={() =>
@@ -272,7 +509,7 @@ export default function Header() {
                 </p>
 
                 <p className="mt-1 text-[11px] font-medium text-gray-900">
-                  {nairaToCfaRate}
+                  —
                 </p>
               </div>
             </button>
@@ -280,7 +517,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() =>
-                router.push('/dashboard/overview')
+                router.push('/dashboard/transactions')
               }
               className="
                 hidden h-10 items-center gap-2
@@ -305,10 +542,19 @@ export default function Header() {
                 </p>
 
                 <p className="mt-1 text-[11px] font-medium text-gray-900">
-                  {automaticTransactions}
-                  {plan.transactionLimit !== Infinity
-                    ? ` / ${plan.transactionLimit}`
-                    : ' transactions'}
+                  {loadingHeaderData ? (
+                    <Loader2
+                      size={12}
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <>
+                      {monthlyTransactions}
+                      {plan.transactionLimit !== Infinity
+                        ? ` / ${plan.transactionLimit}`
+                        : ' transactions'}
+                    </>
+                  )}
                 </p>
               </div>
             </button>
@@ -366,13 +612,23 @@ export default function Header() {
                 hover:bg-gray-50
               "
             >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-900 text-[10px] font-semibold text-white">
-                EO
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-900 text-[10px] font-semibold text-white">
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initials
+                )}
               </div>
 
-              <div className="hidden text-left lg:block">
-                <p className="text-xs font-medium text-gray-900">
-                  Emmanuel
+              <div className="hidden min-w-0 text-left lg:block">
+                <p className="max-w-[120px] truncate text-xs font-medium text-gray-900">
+                  {loadingHeaderData
+                    ? 'Loading...'
+                    : displayName}
                 </p>
 
                 <p className="text-[10px] text-gray-400">
@@ -405,17 +661,25 @@ export default function Header() {
               >
                 <div className="border-b border-gray-200 px-4 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-900 text-xs font-semibold text-white">
-                      EO
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-900 text-xs font-semibold text-white">
+                      {profile?.avatar_url ? (
+                        <img
+                          src={profile.avatar_url}
+                          alt={displayName}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        initials
+                      )}
                     </div>
 
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-gray-900">
-                        Emmanuel
+                        {displayName}
                       </p>
 
                       <p className="truncate text-[11px] text-gray-400">
-                        {plan.name}
+                        {email ?? 'No email available'}
                       </p>
                     </div>
                   </div>
@@ -513,7 +777,7 @@ export default function Header() {
                       </p>
                     </div>
 
-                    {CURRENT_PLAN !==
+                    {currentPlan !==
                       'BORDERLESS_PRO' && (
                       <Lock
                         size={13}

@@ -423,29 +423,7 @@ export default function PricingPage() {
                       )}
                     </div>
 
-                    {/* Positioning */}
-                    <div className="mt-6 border-l-2 border-emerald-900 pl-4">
-                      {key === 'free' && (
-                        <p className="text-xs font-medium leading-5 text-gray-700">
-                          Get the real Monietar experience — with limits
-                          designed for smaller businesses.
-                        </p>
-                      )}
-
-                      {key === 'pro' && (
-                        <p className="text-xs font-medium leading-5 text-gray-700">
-                          More automation, more connected accounts, and more
-                          visibility as your daily business activity increases.
-                        </p>
-                      )}
-
-                      {key === 'premium' && (
-                        <p className="text-xs font-medium leading-5 text-gray-700">
-                          Built for merchants whose money, sourcing, and sales
-                          move across currencies and regions.
-                        </p>
-                      )}
-                    </div>
+                 
 
                     {/* Features */}
                     <ul className="mt-7 flex-1 space-y-3.5">
