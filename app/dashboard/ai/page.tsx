@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpRight,
   Bot,
@@ -8,6 +8,7 @@ import {
   CircleAlert,
   Clock3,
   Lightbulb,
+  Lock,
   MessageSquare,
   Package,
   Send,
@@ -15,8 +16,14 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 type InsightType = 'positive' | 'warning' | 'neutral';
+
+type Plan =
+  | 'retail-starter'
+  | 'growing-merchant'
+  | 'borderless-pro';
 
 interface Insight {
   title: string;
@@ -123,13 +130,79 @@ function getInsightClasses(type: InsightType) {
   };
 }
 
+function normalizePlan(value: unknown): Plan {
+  const plan = String(value ?? '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    plan === 'borderless-pro' ||
+    plan === 'borderless_pro' ||
+    plan === 'borderless pro'
+  ) {
+    return 'borderless-pro';
+  }
+
+  if (
+    plan === 'growing-merchant' ||
+    plan === 'growing_merchant' ||
+    plan === 'growing merchant'
+  ) {
+    return 'growing-merchant';
+  }
+
+  return 'retail-starter';
+}
+
 export default function AICFOPage() {
+  const [supabase] = useState(() => createClient());
+
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<
     { role: 'user' | 'assistant'; content: string }[]
   >([]);
 
   const [period, setPeriod] = useState('This month');
+
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkAccess() {
+      setCheckingAccess(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!mounted) return;
+
+      if (!user) {
+        setPlan('retail-starter');
+        setCheckingAccess(false);
+        return;
+      }
+
+      const metadata = user.user_metadata ?? {};
+
+      const userPlan = normalizePlan(
+        metadata.subscription_plan ?? metadata.plan
+      );
+
+      setPlan(userPlan);
+      setCheckingAccess(false);
+    }
+
+    checkAccess();
+
+    return () => {
+      mounted = false;
+    };
+  }, [supabase]);
+
+  const hasAccess = plan === 'borderless-pro';
 
   const currentInsight = useMemo(() => {
     if (period === 'Today') {
@@ -191,6 +264,87 @@ export default function AICFOPage() {
 
     setQuestion('');
   };
+
+  if (checkingAccess) {
+    return (
+      <main className="min-h-screen bg-[#f1f1f1] text-gray-900">
+        <div className="mx-auto flex min-h-screen max-w-[1600px] items-center justify-center px-5 py-10">
+          <div className="flex items-center gap-3 text-sm text-gray-500">
+            <span className="flex h-9 w-9 items-center justify-center bg-emerald-900 text-white">
+              <Bot size={17} />
+            </span>
+
+            Loading AI CFO...
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <main className="min-h-screen bg-[#f1f1f1] text-gray-900">
+        <div className="mx-auto flex min-h-screen max-w-[1600px] items-center justify-center px-5 py-10 sm:px-8 lg:px-10">
+          <section className="w-full max-w-2xl border border-gray-200 bg-white p-8 text-center sm:p-12">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center bg-emerald-900 text-white">
+              <Lock size={22} />
+            </div>
+
+            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-900">
+              Borderless Pro
+            </p>
+
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Your AI CFO is waiting for you.
+            </h1>
+
+            <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-gray-600 sm:text-base">
+              AI CFO is part of Monietar&apos;s Borderless Pro plan. Get
+              deeper financial intelligence across your sales, expenses,
+              inventory, cash flow, and multi-currency activity.
+            </p>
+
+            <div className="mx-auto mt-8 grid max-w-md gap-3 text-left">
+              {[
+                'Understand what is driving your cash flow',
+                'Identify financial pressure before it becomes a problem',
+                'Get intelligent insights across your business activity',
+                'Ask questions about your financial performance',
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="flex items-start gap-3 border border-gray-200 bg-[#f8f8f8] p-3"
+                >
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-emerald-900 text-white">
+                    <ChevronRight size={12} />
+                  </span>
+
+                  <p className="text-sm text-gray-700">{item}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <a
+                href="/pricing"
+                className="inline-flex items-center justify-center gap-2 bg-emerald-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
+              >
+                Upgrade to Borderless Pro
+                <ArrowUpRight size={15} />
+              </a>
+
+              <a
+                href="/dashboard"
+                className="inline-flex items-center justify-center border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Back to dashboard
+              </a>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#f1f1f1] text-gray-900">
