@@ -27,6 +27,11 @@ import {
 
 import { createClient } from '@/lib/supabase/client';
 
+type Plan =
+  | 'retail-starter'
+  | 'growing-merchant'
+  | 'borderless-pro';
+
 type Transaction = {
   id: string;
   user_id: string;
@@ -84,132 +89,223 @@ const PERIOD_DAYS: Record<Period, number> = {
   '90D': 90,
 };
 
-const formatNumber = (
+function normalizePlan(value: unknown): Plan {
+  if (
+    value === 'growing-merchant' ||
+    value === 'borderless-pro'
+  ) {
+    return value;
+  }
+
+  return 'retail-starter';
+}
+
+function formatNumber(
   value: number,
-  maximumFractionDigits = 2,
-) =>
-  new Intl.NumberFormat('en-NG', {
+  maximumFractionDigits = 0,
+) {
+  if (!Number.isFinite(value)) {
+    return '0';
+  }
+
+  return new Intl.NumberFormat('en-NG', {
     maximumFractionDigits,
-    minimumFractionDigits:
-      maximumFractionDigits === 2 ? 2 : 0,
   }).format(value);
+}
 
-const formatCurrency = (
+function formatCurrency(
   value: number,
   currency: 'NGN' | 'XOF',
-) => {
+) {
   if (!Number.isFinite(value)) {
-    return currency === 'NGN'
-      ? '₦0.00'
-      : '0 XOF';
+    return currency === 'NGN' ? '₦0' : '0 XOF';
   }
 
   if (currency === 'NGN') {
-    return `₦${formatNumber(value, 2)}`;
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      maximumFractionDigits: 2,
+    }).format(value);
   }
 
-  return `${formatNumber(value, 0)} XOF`;
-};
+  return `${new Intl.NumberFormat('en-NG', {
+    maximumFractionDigits: 2,
+  }).format(value)} XOF`;
+}
 
-const formatCompactCurrency = (
+function formatCompactCurrency(
   value: number,
   currency: 'NGN' | 'XOF',
-) => {
+) {
   if (!Number.isFinite(value)) {
-    return currency === 'NGN'
-      ? '₦0'
-      : '0 XOF';
+    return currency === 'NGN' ? '₦0' : '0 XOF';
   }
 
   if (currency === 'NGN') {
-    return `₦${formatNumber(value, 0)}`;
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(value);
   }
 
-  return `${formatNumber(value, 0)} XOF`;
-};
+  return `${new Intl.NumberFormat('en-NG', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value)} XOF`;
+}
 
-const formatDate = (date: string) => {
-  const parsed = new Date(date);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return date;
+function formatDate(value: string) {
+  if (!value) {
+    return '—';
   }
 
-  return parsed.toLocaleDateString('en-NG', {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return new Intl.DateTimeFormat('en-NG', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-  });
-};
+  }).format(date);
+}
 
-const formatShortDate = (date: string) => {
-  const parsed = new Date(`${date}T00:00:00`);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return date;
+function formatShortDate(value: string) {
+  if (!value) {
+    return '—';
   }
 
-  return parsed.toLocaleDateString('en-NG', {
-    day: 'numeric',
-    month: 'short',
-  });
-};
+  const date = new Date(value);
 
-const formatDateTime = (date: string) => {
-  const parsed = new Date(date);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return date;
+  if (Number.isNaN(date.getTime())) {
+    return '—';
   }
 
-  return parsed.toLocaleString('en-NG', {
+  return new Intl.DateTimeFormat('en-NG', {
     day: 'numeric',
     month: 'short',
+  }).format(date);
+}
+
+function formatDateTime(value: string) {
+  if (!value) {
+    return '—';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return new Intl.DateTimeFormat('en-NG', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  });
-};
+  }).format(date);
+}
 
-const getTransactionAmount = (
+function getTransactionAmount(
   transaction: Transaction,
-) => {
+) {
   const amount = Number(transaction.amount);
 
   return Number.isFinite(amount) ? amount : 0;
-};
+}
 
-const getTransactionBaseAmount = (
+function getTransactionBaseAmount(
   transaction: Transaction,
-) => {
-  const amountBase = Number(transaction.amount_base);
+) {
+  const amountBase = Number(
+    transaction.amount_base,
+  );
 
-  return Number.isFinite(amountBase)
-    ? amountBase
-    : 0;
-};
+  if (Number.isFinite(amountBase)) {
+    return amountBase;
+  }
 
-const getRecordedXofRate = (
-  transaction: Transaction,
-) => {
-  const amount =
-    getTransactionAmount(transaction);
-
-  const amountBase =
-    getTransactionBaseAmount(transaction);
+  const amount = getTransactionAmount(transaction);
+  const rate = Number(transaction.exchange_rate);
 
   if (
-    transaction.currency?.toUpperCase() !==
-      'XOF' ||
-    amount <= 0 ||
-    amountBase <= 0
+    transaction.currency?.toUpperCase() === 'NGN'
+  ) {
+    return amount;
+  }
+
+  if (
+    transaction.currency?.toUpperCase() === 'XOF' &&
+    Number.isFinite(rate) &&
+    rate > 0
+  ) {
+    return amount * rate;
+  }
+
+  return 0;
+}
+
+function getRecordedXofRate(
+  transaction: Transaction,
+) {
+  if (
+    transaction.currency?.toUpperCase() !== 'XOF'
   ) {
     return null;
   }
 
-  return amountBase / amount;
-};
+  const exchangeRate = Number(
+    transaction.exchange_rate,
+  );
+
+  if (
+    Number.isFinite(exchangeRate) &&
+    exchangeRate > 0
+  ) {
+    return exchangeRate;
+  }
+
+  const amount = Math.abs(
+    getTransactionAmount(transaction),
+  );
+
+  const baseAmount = Math.abs(
+    getTransactionBaseAmount(transaction),
+  );
+
+  if (
+    amount > 0 &&
+    baseAmount > 0
+  ) {
+    const calculatedRate =
+      baseAmount / amount;
+
+    return calculatedRate > 0
+      ? calculatedRate
+      : null;
+  }
+
+  return null;
+}
 
 export default function DualCurrencyPage() {
+  const supabase = useMemo(
+    () => createClient(),
+    [],
+  );
+
+  const [currentPlan, setCurrentPlan] =
+    useState<Plan>('retail-starter');
+
+  const [planLoading, setPlanLoading] =
+    useState(true);
+
   const [transactions, setTransactions] =
     useState<Transaction[]>([]);
 
@@ -257,82 +353,113 @@ export default function DualCurrencyPage() {
   const [
     selectedChartPoint,
     setSelectedChartPoint,
-  ] =
-    useState<RateHistoryPoint | null>(null);
+  ] = useState<RateHistoryPoint | null>(
+    null,
+  );
 
   const [purchaseXof, setPurchaseXof] =
-    useState<number>(10000);
+    useState(10000);
 
   const [
     sellingPriceNgn,
     setSellingPriceNgn,
-  ] = useState<number>(30000);
+  ] = useState(30000);
 
-  const [targetMargin, setTargetMargin] =
-    useState<number>(20);
+  const [
+    targetMargin,
+    setTargetMargin,
+  ] = useState(20);
 
   const [
     conversionAmount,
     setConversionAmount,
-  ] = useState<number>(10000);
+  ] = useState(10000);
 
-  const [scenarioRate, setScenarioRate] =
-    useState<number>(2.5);
+  const [
+    scenarioRate,
+    setScenarioRate,
+  ] = useState(2.5);
 
-  const supabase = useMemo(
-    () => createClient(),
-    [],
+  const hasDualCurrencyAccess =
+    currentPlan === 'borderless-pro';
+
+  const loadPlan = useCallback(
+    async () => {
+      setPlanLoading(true);
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          setCurrentPlan('retail-starter');
+          return;
+        }
+
+        const metadataPlan =
+          user.user_metadata
+            ?.subscription_plan ??
+          user.user_metadata?.plan;
+
+        setCurrentPlan(
+          normalizePlan(metadataPlan),
+        );
+      } catch {
+        setCurrentPlan('retail-starter');
+      } finally {
+        setPlanLoading(false);
+      }
+    },
+    [supabase],
   );
 
-  const loadTransactions = useCallback(
-    async (showRefresh = false) => {
-      if (showRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (
-        sessionError ||
-        !session?.user
-      ) {
+  const loadTransactions =
+    useCallback(async () => {
+      if (!hasDualCurrencyAccess) {
         setTransactions([]);
-
         setLoading(false);
-        setRefreshing(false);
-
         return;
       }
 
-      const user = session.user;
+      setLoading(true);
 
-      const { data, error } =
-        await supabase
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          setTransactions([]);
+          return;
+        }
+
+        const {
+          data,
+          error,
+        } = await supabase
           .from('transactions')
-          .select(`
-            id,
-            user_id,
-            business_id,
-            account_id,
-            type,
-            amount,
-            category,
-            description,
-            date,
-            created_at,
-            status,
-            currency,
-            exchange_rate,
-            amount_base,
-            reference,
-            notes,
-            is_deleted
-          `)
+          .select(
+            `
+              id,
+              user_id,
+              business_id,
+              account_id,
+              type,
+              amount,
+              category,
+              description,
+              date,
+              created_at,
+              status,
+              currency,
+              exchange_rate,
+              amount_base,
+              reference,
+              notes,
+              is_deleted
+            `,
+          )
           .eq('user_id', user.id)
           .eq('status', 'completed')
           .eq('is_deleted', false)
@@ -343,209 +470,214 @@ export default function DualCurrencyPage() {
             ascending: false,
           });
 
-      if (error) {
-        console.error(
-          'Unable to load transactions:',
-          error,
-        );
+        if (error) {
+          throw error;
+        }
 
-        setTransactions([]);
-      } else {
         setTransactions(
           (data ?? []) as Transaction[],
         );
+      } catch {
+        setTransactions([]);
+      } finally {
+        setLoading(false);
+      }
+    }, [
+      hasDualCurrencyAccess,
+      supabase,
+    ]);
+
+  const loadLiveRate =
+    useCallback(async () => {
+      if (!hasDualCurrencyAccess) {
+        setFxLoading(false);
+        return;
       }
 
-      setLoading(false);
-      setRefreshing(false);
-    },
-    [supabase],
-  );
-
-  const loadLiveRate = useCallback(
-    async (showLoading = true) => {
-      if (showLoading) {
-        setFxLoading(true);
-      }
-
+      setFxLoading(true);
       setFxError(null);
 
       try {
         const response = await fetch(
           '/api/exchange-rate',
           {
-            method: 'GET',
             cache: 'no-store',
           },
         );
 
-        const data =
-          (await response.json()) as
-            | LiveRateResponse
-            | { error?: string };
-
         if (!response.ok) {
           throw new Error(
-            'error' in data && data.error
-              ? data.error
-              : 'Unable to retrieve the live exchange rate.',
+            'Unable to load the live exchange rate.',
           );
         }
+
+        const data =
+          (await response.json()) as LiveRateResponse;
+
+        const rate = Number(data.rate);
 
         if (
-          !('rate' in data) ||
-          typeof data.rate !== 'number' ||
-          !Number.isFinite(data.rate) ||
-          data.rate <= 0
+          !Number.isFinite(rate) ||
+          rate <= 0
         ) {
           throw new Error(
-            'The exchange-rate provider returned an invalid rate.',
+            'Invalid exchange rate received.',
           );
         }
 
-        setLiveRate(data.rate);
-
+        setLiveRate(rate);
         setLiveRateUpdatedAt(
           data.updatedAt ?? null,
         );
-
         setLiveRateSource(
           data.source ?? null,
         );
       } catch (error) {
-        console.error(
-          'Unable to load live exchange rate:',
-          error,
-        );
-
         setFxError(
           error instanceof Error
             ? error.message
-            : 'Unable to retrieve the live exchange rate.',
+            : 'Unable to load the live exchange rate.',
         );
+        setLiveRate(null);
       } finally {
         setFxLoading(false);
       }
-    },
-    [],
-  );
+    }, [hasDualCurrencyAccess]);
 
   const loadRateHistory =
-    useCallback(
-      async (
-        selectedPeriod: Period,
-        showLoading = true,
-      ) => {
-        if (showLoading) {
-          setRateHistoryLoading(true);
-        }
+    useCallback(async () => {
+      if (!hasDualCurrencyAccess) {
+        setRateHistoryLoading(false);
+        return;
+      }
 
-        setRateHistoryError(null);
+      setRateHistoryLoading(true);
+      setRateHistoryError(null);
 
-        try {
-          const response = await fetch(
-            `/api/exchange-rate/history?period=${selectedPeriod}`,
+      try {
+        const response =
+          await fetch(
+            `/api/exchange-rate/history?period=${period}`,
             {
-              method: 'GET',
               cache: 'no-store',
             },
           );
 
-          const data =
-            (await response.json()) as
-              | RateHistoryResponse
-              | { error?: string };
-
-          if (!response.ok) {
-            throw new Error(
-              'error' in data && data.error
-                ? data.error
-                : 'Unable to retrieve historical exchange rates.',
-            );
-          }
-
-          if (
-            !('history' in data) ||
-            !Array.isArray(data.history)
-          ) {
-            throw new Error(
-              'The historical exchange-rate provider returned an invalid response.',
-            );
-          }
-
-          const validHistory =
-            data.history.filter(
-              (item) =>
-                item &&
-                typeof item.date ===
-                  'string' &&
-                typeof item.rate ===
-                  'number' &&
-                Number.isFinite(
-                  item.rate,
-                ) &&
-                item.rate > 0,
-            );
-
-          setRateHistory(
-            validHistory,
+        if (!response.ok) {
+          throw new Error(
+            'Unable to load exchange-rate history.',
           );
-
-          if (
-            validHistory.length > 0
-          ) {
-            setSelectedChartPoint(
-              validHistory[
-                validHistory.length - 1
-              ],
-            );
-          } else {
-            setSelectedChartPoint(null);
-          }
-        } catch (error) {
-          console.error(
-            'Unable to load rate history:',
-            error,
-          );
-
-          setRateHistory([]);
-
-          setSelectedChartPoint(null);
-
-          setRateHistoryError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to retrieve historical exchange rates.',
-          );
-        } finally {
-          setRateHistoryLoading(false);
         }
-      },
-      [],
-    );
+
+        const data =
+          (await response.json()) as RateHistoryResponse;
+
+        const history = Array.isArray(
+          data.history,
+        )
+          ? data.history
+              .map((item) => ({
+                date: item.date,
+                rate: Number(item.rate),
+              }))
+              .filter(
+                (item) =>
+                  Boolean(item.date) &&
+                  Number.isFinite(item.rate) &&
+                  item.rate > 0,
+              )
+          : [];
+
+        setRateHistory(history);
+
+        if (history.length > 0) {
+          setSelectedChartPoint(
+            history[
+              history.length - 1
+            ],
+          );
+        } else {
+          setSelectedChartPoint(null);
+        }
+      } catch (error) {
+        setRateHistory([]);
+        setSelectedChartPoint(null);
+
+        setRateHistoryError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to load exchange-rate history.',
+        );
+      } finally {
+        setRateHistoryLoading(false);
+      }
+    }, [
+      hasDualCurrencyAccess,
+      period,
+    ]);
 
   useEffect(() => {
-    loadTransactions();
-    loadLiveRate();
+    void loadPlan();
+  }, [loadPlan]);
+
+  useEffect(() => {
+    if (planLoading) {
+      return;
+    }
+
+    if (!hasDualCurrencyAccess) {
+      setTransactions([]);
+      setLoading(false);
+      setFxLoading(false);
+      setRateHistoryLoading(false);
+      return;
+    }
+
+    void loadTransactions();
+    void loadLiveRate();
   }, [
+    planLoading,
+    hasDualCurrencyAccess,
     loadTransactions,
     loadLiveRate,
   ]);
 
   useEffect(() => {
-    loadRateHistory(period);
+    if (
+      planLoading ||
+      !hasDualCurrencyAccess
+    ) {
+      return;
+    }
+
+    void loadRateHistory();
   }, [
-    period,
+    planLoading,
+    hasDualCurrencyAccess,
     loadRateHistory,
   ]);
 
-  const handleRefresh = async () => {
-    await Promise.all([
-      loadTransactions(true),
-      loadLiveRate(true),
-      loadRateHistory(period, true),
+  const handleRefresh =
+    useCallback(async () => {
+      if (!hasDualCurrencyAccess) {
+        return;
+      }
+
+      setRefreshing(true);
+
+      await Promise.all([
+        loadTransactions(),
+        loadLiveRate(),
+        loadRateHistory(),
+      ]);
+
+      setRefreshing(false);
+    }, [
+      hasDualCurrencyAccess,
+      loadTransactions,
+      loadLiveRate,
+      loadRateHistory,
     ]);
-  };
 
   const periodStart = useMemo(() => {
     const date = new Date();
@@ -555,59 +687,69 @@ export default function DualCurrencyPage() {
         PERIOD_DAYS[period],
     );
 
-    date.setHours(0, 0, 0, 0);
+    date.setHours(
+      0,
+      0,
+      0,
+      0,
+    );
 
     return date;
   }, [period]);
 
-  const periodTransactions = useMemo(
-    () =>
-      transactions.filter(
+  const periodTransactions =
+    useMemo(() => {
+      return transactions.filter(
         (transaction) => {
-          const date = new Date(
-            transaction.date,
-          );
+          const transactionDate =
+            new Date(transaction.date);
 
           return (
             !Number.isNaN(
-              date.getTime(),
+              transactionDate.getTime(),
             ) &&
-            date >= periodStart
+            transactionDate >=
+              periodStart
           );
         },
-      ),
-    [transactions, periodStart],
-  );
+      );
+    }, [
+      transactions,
+      periodStart,
+    ]);
 
-  const xofTransactions = useMemo(
-    () =>
-      periodTransactions.filter(
+  const xofTransactions =
+    useMemo(() => {
+      return periodTransactions.filter(
         (transaction) =>
           transaction.currency?.toUpperCase() ===
           'XOF',
-      ),
-    [periodTransactions],
-  );
+      );
+    }, [periodTransactions]);
 
-  const ngnTransactions = useMemo(
-    () =>
-      periodTransactions.filter(
+  const ngnTransactions =
+    useMemo(() => {
+      return periodTransactions.filter(
         (transaction) =>
           transaction.currency?.toUpperCase() ===
           'NGN',
-      ),
-    [periodTransactions],
-  );
+      );
+    }, [periodTransactions]);
 
   const latestRecordedRate =
     useMemo(() => {
-      for (const transaction of transactions) {
+      for (
+        const transaction of transactions
+      ) {
         const rate =
           getRecordedXofRate(
             transaction,
           );
 
-        if (rate) {
+        if (
+          rate &&
+          rate > 0
+        ) {
           return rate;
         }
       }
@@ -618,79 +760,41 @@ export default function DualCurrencyPage() {
   const activeRate = liveRate;
 
   const purchaseCostNgn =
-    useMemo(() => {
-      if (!activeRate) {
-        return 0;
-      }
-
-      return (
-        purchaseXof * activeRate
-      );
-    }, [purchaseXof, activeRate]);
+    activeRate
+      ? purchaseXof * activeRate
+      : 0;
 
   const currentProfit =
-    useMemo(
-      () =>
-        sellingPriceNgn > 0
-          ? sellingPriceNgn -
-            purchaseCostNgn
-          : 0,
-      [
-        sellingPriceNgn,
-        purchaseCostNgn,
-      ],
-    );
+    sellingPriceNgn -
+    purchaseCostNgn;
 
   const currentMargin =
-    useMemo(() => {
-      if (sellingPriceNgn <= 0) {
-        return 0;
-      }
-
-      return (
-        (currentProfit /
+    sellingPriceNgn > 0
+      ? (currentProfit /
           sellingPriceNgn) *
         100
-      );
-    }, [
-      currentProfit,
-      sellingPriceNgn,
-    ]);
+      : 0;
+
+  const safeTargetMargin =
+    Math.min(
+      99,
+      Math.max(
+        0,
+        targetMargin,
+      ),
+    );
 
   const minimumSellingPrice =
-    useMemo(() => {
-      if (!activeRate) {
-        return 0;
-      }
-
-      const margin = Math.min(
-        Math.max(
-          targetMargin,
-          0,
-        ),
-        99,
-      );
-
-      return (
-        purchaseCostNgn /
-        (1 - margin / 100)
-      );
-    }, [
-      activeRate,
-      purchaseCostNgn,
-      targetMargin,
-    ]);
+    activeRate
+      ? purchaseCostNgn /
+        (1 -
+          safeTargetMargin /
+            100)
+      : 0;
 
   const scenarioPurchaseCost =
-    useMemo(
-      () =>
-        purchaseXof *
-        scenarioRate,
-      [
-        purchaseXof,
-        scenarioRate,
-      ],
-    );
+    purchaseXof *
+    scenarioRate;
 
   const scenarioProfit =
     sellingPriceNgn -
@@ -704,24 +808,13 @@ export default function DualCurrencyPage() {
       : 0;
 
   const rateChangePercent =
-    useMemo(() => {
-      if (
-        !activeRate ||
-        activeRate <= 0
-      ) {
-        return 0;
-      }
-
-      return (
-        ((scenarioRate -
+    activeRate &&
+    activeRate > 0
+      ? ((scenarioRate -
           activeRate) /
           activeRate) *
         100
-      );
-    }, [
-      activeRate,
-      scenarioRate,
-    ]);
+      : 0;
 
   const convertedNgn =
     activeRate
@@ -730,30 +823,24 @@ export default function DualCurrencyPage() {
       : 0;
 
   const convertedXof =
-    activeRate &&
-    activeRate > 0
+    activeRate
       ? conversionAmount /
         activeRate
       : 0;
 
   const totalXofSpend =
-    useMemo(
-      () =>
-        xofTransactions.reduce(
-          (
-            total,
-            transaction,
-          ) =>
-            total +
-            Math.abs(
-              getTransactionAmount(
-                transaction,
-              ),
+    useMemo(() => {
+      return xofTransactions.reduce(
+        (total, transaction) =>
+          total +
+          Math.abs(
+            getTransactionAmount(
+              transaction,
             ),
-          0,
-        ),
-      [xofTransactions],
-    );
+          ),
+        0,
+      );
+    }, [xofTransactions]);
 
   const totalNgnValueOfXofSpend =
     activeRate
@@ -762,666 +849,580 @@ export default function DualCurrencyPage() {
       : 0;
 
   const totalNgnActivity =
-    useMemo(
-      () =>
-        ngnTransactions.reduce(
-          (
-            total,
-            transaction,
-          ) =>
-            total +
-            Math.abs(
-              getTransactionAmount(
-                transaction,
-              ),
+    useMemo(() => {
+      return ngnTransactions.reduce(
+        (total, transaction) =>
+          total +
+          Math.abs(
+            getTransactionAmount(
+              transaction,
             ),
-          0,
-        ),
-      [ngnTransactions],
-    );
+          ),
+        0,
+      );
+    }, [ngnTransactions]);
 
   const recordedRateHistory =
     useMemo(() => {
       return transactions
-        .map((transaction) => {
-          const rate =
+        .filter(
+          (transaction) =>
+            transaction.currency?.toUpperCase() ===
+            'XOF',
+        )
+        .map((transaction) => ({
+          id: transaction.id,
+          description:
+            transaction.description ||
+            transaction.category ||
+            'XOF transaction',
+          date: transaction.date,
+          rate:
             getRecordedXofRate(
               transaction,
-            );
-
-          if (!rate) {
-            return null;
-          }
-
-          return {
-            id: transaction.id,
-            date: transaction.date,
-            rate,
-            description:
-              transaction.description ||
-              transaction.category ||
-              'XOF transaction',
-          };
-        })
+            ),
+        }))
         .filter(
           (
             item,
           ): item is {
             id: string;
+            description: string;
             date: string;
             rate: number;
-            description: string;
-          } => item !== null,
+          } =>
+            item.rate !== null &&
+            item.rate > 0,
         )
         .slice(0, 6);
     }, [transactions]);
 
   const liveRateDifference =
-    activeRate &&
-    latestRecordedRate
+    activeRate !== null &&
+    latestRecordedRate !== null
       ? activeRate -
         latestRecordedRate
       : null;
 
   const liveRateDifferencePercent =
-    activeRate &&
-    latestRecordedRate
+    activeRate !== null &&
+    activeRate > 0 &&
+    latestRecordedRate !== null
       ? ((activeRate -
           latestRecordedRate) /
           latestRecordedRate) *
         100
       : null;
 
-  const chartMetrics = useMemo(() => {
-    if (rateHistory.length === 0) {
-      return null;
-    }
+  const chartMetrics =
+    useMemo(() => {
+      if (
+        rateHistory.length === 0
+      ) {
+        return {
+          firstRate: null,
+          latestRate: null,
+          change: null,
+          changePercent: null,
+          min: null,
+          max: null,
+        };
+      }
 
-    const first =
-      rateHistory[0].rate;
+      const firstRate =
+        rateHistory[0].rate;
 
-    const latest =
-      rateHistory[
-        rateHistory.length - 1
-      ].rate;
+      const latestRate =
+        rateHistory[
+          rateHistory.length - 1
+        ].rate;
 
-    const change =
-      latest - first;
+      const change =
+        latestRate - firstRate;
 
-    const changePercent =
-      first > 0
-        ? (change / first) * 100
-        : 0;
+      const changePercent =
+        firstRate > 0
+          ? (change /
+              firstRate) *
+            100
+          : 0;
 
-    const rates =
-      rateHistory.map(
-        (item) => item.rate,
-      );
+      const rates =
+        rateHistory.map(
+          (item) => item.rate,
+        );
 
-    const min = Math.min(
-      ...rates,
-    );
+      return {
+        firstRate,
+        latestRate,
+        change,
+        changePercent,
+        min: Math.min(...rates),
+        max: Math.max(...rates),
+      };
+    }, [rateHistory]);
 
-    const max = Math.max(
-      ...rates,
-    );
+  const chartGeometry =
+    useMemo(() => {
+      const width = 1000;
+      const height = 360;
+      const paddingX = 54;
+      const paddingTop = 24;
+      const paddingBottom = 42;
 
-    return {
-      first,
-      latest,
-      change,
-      changePercent,
-      min,
-      max,
-    };
-  }, [rateHistory]);
+      if (
+        rateHistory.length === 0
+      ) {
+        return {
+          width,
+          height,
+          points: '',
+          area: '',
+          min: 0,
+          max: 0,
+          yTicks: [],
+        };
+      }
 
-  /*
-   * The chart uses a fixed internal SVG coordinate system.
-   * The SVG itself is responsive through viewBox + width: 100%.
-   *
-   * The tooltip coordinates are calculated from these same
-   * coordinates, which means the tooltip stays attached
-   * to the actual point even when the chart scales.
-   */
-  const chart = useMemo(() => {
-    if (
-      rateHistory.length === 0
-    ) {
-      return null;
-    }
+      const rates =
+        rateHistory.map(
+          (item) => item.rate,
+        );
 
-    const width = 1000;
-    const height = 360;
+      let min = Math.min(...rates);
+      let max = Math.max(...rates);
 
-    const paddingLeft = 62;
-    const paddingRight = 22;
-    const paddingTop = 28;
-    const paddingBottom = 48;
+      if (min === max) {
+        min -= 0.01;
+        max += 0.01;
+      }
 
-    const chartWidth =
-      width -
-      paddingLeft -
-      paddingRight;
+      const range = max - min;
 
-    const chartHeight =
-      height -
-      paddingTop -
-      paddingBottom;
+      const innerWidth =
+        width -
+        paddingX * 2;
 
-    const rates =
-      rateHistory.map(
-        (item) => item.rate,
-      );
+      const innerHeight =
+        height -
+        paddingTop -
+        paddingBottom;
 
-    const minRate =
-      Math.min(...rates);
-
-    const maxRate =
-      Math.max(...rates);
-
-    const range =
-      maxRate - minRate;
-
-    const verticalPadding =
-      range === 0
-        ? Math.max(
-            maxRate * 0.015,
-            0.01,
-          )
-        : range * 0.15;
-
-    const minY =
-      minRate -
-      verticalPadding;
-
-    const maxY =
-      maxRate +
-      verticalPadding;
-
-    const yRange =
-      maxY - minY || 1;
-
-    const points =
-      rateHistory.map(
-        (item, index) => {
-          const x =
-            paddingLeft +
-            (index /
-              Math.max(
-                rateHistory.length -
+      const points =
+        rateHistory
+          .map((item, index) => {
+            const x =
+              paddingX +
+              (index /
+                Math.max(
                   1,
-                1,
-              )) *
-              chartWidth;
+                  rateHistory.length -
+                    1,
+                )) *
+                innerWidth;
+
+            const y =
+              paddingTop +
+              (1 -
+                (item.rate -
+                  min) /
+                  range) *
+                innerHeight;
+
+            return `${x},${y}`;
+          })
+          .join(' ');
+
+      const firstPoint =
+        points.split(' ')[0];
+
+      const lastPoint =
+        points.split(' ')[
+          points.split(' ').length - 1
+        ];
+
+      const [
+        lastX,
+        ,
+      ] = lastPoint
+        .split(',')
+        .map(Number);
+
+      const area =
+        `${firstPoint} ${points} ${lastX},${height - paddingBottom} ${paddingX},${height - paddingBottom}`;
+
+      const tickCount = 5;
+
+      const yTicks = Array.from(
+        {
+          length: tickCount,
+        },
+        (_, index) => {
+          const value =
+            max -
+            (range /
+              (tickCount - 1)) *
+              index;
 
           const y =
             paddingTop +
-            (1 -
-              (item.rate -
-                minY) /
-                yRange) *
-              chartHeight;
+            (index /
+              (tickCount - 1)) *
+              innerHeight;
 
           return {
-            ...item,
-            x,
+            value,
             y,
           };
         },
       );
 
-    const linePath =
-      points
-        .map(
-          (point, index) =>
-            `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`,
-        )
-        .join(' ');
-
-    const areaPath = `${linePath} L ${
-      points[points.length - 1].x
-    } ${
-      paddingTop +
-      chartHeight
-    } L ${
-      points[0].x
-    } ${
-      paddingTop +
-      chartHeight
-    } Z`;
-
-    const yTicks = Array.from(
-      { length: 5 },
-      (_, index) => {
-        const ratio =
-          index / 4;
-
-        const value =
-          maxY -
-          ratio * yRange;
-
-        const y =
-          paddingTop +
-          ratio *
-            chartHeight;
-
-        return {
-          value,
-          y,
-        };
-      },
-    );
-
-    /*
-     * On short ranges show more labels.
-     * On longer ranges keep the chart clean.
-     */
-    let labelIndexes: number[];
-
-    if (rateHistory.length <= 4) {
-      labelIndexes =
-        rateHistory.map(
-          (_, index) => index,
-        );
-    } else if (
-      rateHistory.length <= 10
-    ) {
-      labelIndexes = [
-        0,
-        Math.floor(
-          (rateHistory.length - 1) /
-            3,
-        ),
-        Math.floor(
-          ((rateHistory.length - 1) *
-            2) /
-            3,
-        ),
-        rateHistory.length - 1,
-      ];
-    } else {
-      labelIndexes = [
-        0,
-        Math.floor(
-          (rateHistory.length - 1) /
-            2,
-        ),
-        rateHistory.length - 1,
-      ];
-    }
-
-    const xLabels =
-      labelIndexes.map(
-        (index) => ({
-          ...points[index],
-          label:
-            formatShortDate(
-              points[index].date,
-            ),
-        }),
-      );
-
-    return {
-      width,
-      height,
-      paddingLeft,
-      paddingRight,
-      paddingTop,
-      paddingBottom,
-      chartHeight,
-      chartWidth,
-      points,
-      linePath,
-      areaPath,
-      yTicks,
-      xLabels,
-    };
-  }, [rateHistory]);
-
-  /*
-   * Calculate tooltip position from the selected point.
-   *
-   * Instead of using:
-   *   absolute right-4 top-4
-   *
-   * the tooltip follows the selected point.
-   *
-   * We also flip it horizontally/vertically when the
-   * selected point is near an edge.
-   */
-  const chartTooltipPosition = useMemo(() => {
-    if (
-      !chart ||
-      !selectedChartPoint
-    ) {
-      return null;
-    }
-
-    const point = chart.points.find(
-      (item) =>
-        item.date ===
-        selectedChartPoint.date,
-    );
-
-    if (!point) {
-      return null;
-    }
-
-    const leftPercent =
-      (point.x / chart.width) * 100;
-
-    const topPercent =
-      (point.y / chart.height) * 100;
-
-    const isNearLeft =
-      leftPercent < 20;
-
-    const isNearRight =
-      leftPercent > 80;
-
-    const isNearTop =
-      topPercent < 28;
-
-    return {
-      left: `${leftPercent}%`,
-      top: `${topPercent}%`,
-      transform: isNearLeft
-        ? 'translate(0, -115%)'
-        : isNearRight
-          ? 'translate(-100%, -115%)'
-          : isNearTop
-            ? 'translate(-50%, 18px)'
-            : 'translate(-50%, -115%)',
-    };
-  }, [
-    chart,
-    selectedChartPoint,
-  ]);
+      return {
+        width,
+        height,
+        points,
+        area,
+        min,
+        max,
+        yTicks,
+      };
+    }, [rateHistory]);
 
   const insight = useMemo(() => {
     if (!activeRate) {
-      return 'The live XOF/NGN rate is currently unavailable. Once it loads, Monietar will calculate the current Naira cost of your XOF purchases.';
+      return 'The live XOF/NGN rate is not available yet. Once it loads, Monietar can help you understand your current sourcing cost and pricing position.';
     }
 
     if (currentMargin < 0) {
-      return `At the current rate, this item is selling below its converted purchase cost by ${formatCurrency(
-        Math.abs(currentProfit),
-        'NGN',
-      )}. Your selling price needs to increase to protect your margin.`;
+      return `Your current selling price is below the converted purchase cost at today's rate. A weaker Naira against the XOF can reduce your margin quickly, so review your selling price before placing your next order.`;
     }
 
     if (
       currentMargin >= 0 &&
-      currentMargin < 10
+      currentMargin <= 10
     ) {
       return `Your current margin is ${formatNumber(
         currentMargin,
         1,
-      )}%. A small XOF/NGN movement could materially reduce the profit on this item.`;
+      )}%. That leaves limited room for FX movement, delivery costs, or other operating expenses.`;
     }
 
     if (
-      latestRecordedRate &&
       liveRateDifferencePercent !==
         null &&
       Math.abs(
         liveRateDifferencePercent,
       ) >= 3
     ) {
-      const direction =
-        liveRateDifferencePercent >
-        0
-          ? 'higher'
-          : 'lower';
-
-      return `The live reference rate is ${formatNumber(
+      return `The live rate is ${formatNumber(
         Math.abs(
           liveRateDifferencePercent,
         ),
         1,
-      )}% ${direction} than your latest recorded transaction rate. Review XOF-priced stock before setting your next Naira selling price.`;
+      )}% ${
+        liveRateDifferencePercent > 0
+          ? 'higher'
+          : 'lower'
+      } than the latest XOF rate recorded in your transactions. That difference can materially change the Naira cost of your next purchase.`;
     }
 
-    return `At the current reference rate, your ${formatCurrency(
+    return `At the current live rate, ${formatCurrency(
       purchaseXof,
       'XOF',
-    )} purchase costs about ${formatCurrency(
+    )} costs approximately ${formatCurrency(
       purchaseCostNgn,
       'NGN',
-    )}. Use the calculator to check whether your selling price still protects your target margin.`;
+    )}. Use the pricing calculator to check whether your current selling price still protects your target margin.`;
   }, [
     activeRate,
     currentMargin,
-    currentProfit,
-    latestRecordedRate,
     liveRateDifferencePercent,
     purchaseXof,
     purchaseCostNgn,
   ]);
 
-  return (
-    <main className="min-h-screen bg-[#f7f8f6] text-gray-900">
-      <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 sm:py-7 lg:px-10">
-        {/* Header */}
-        <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-emerald-700">
-              <Globe2 size={14} />
-              Dual Currency
+  if (planLoading) {
+    return (
+      <main className="min-h-screen bg-[#f7f8f6] text-gray-900">
+        <div className="mx-auto flex min-h-[70vh] max-w-[1500px] items-center justify-center px-5 sm:px-8 lg:px-12">
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <Loader2
+              size={17}
+              className="animate-spin"
+            />
+            Loading your plan...
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!hasDualCurrencyAccess) {
+    const planName =
+      currentPlan ===
+      'growing-merchant'
+        ? 'Growing Merchant'
+        : 'Retail Starter';
+
+    return (
+      <main className="min-h-screen bg-[#f7f8f6] text-gray-900">
+        <div className="mx-auto max-w-[1500px] px-5 pb-16 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-14">
+          <section className="border border-gray-200 bg-white">
+            <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gray-100 text-gray-600">
+                  <Globe2 size={17} />
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                    Dual Currency
+                  </p>
+
+                  <h1 className="mt-1 text-lg font-semibold text-gray-950">
+                    Understand your XOF to NGN costs
+                  </h1>
+                </div>
+              </div>
             </div>
 
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
-              Understand your XOF to NGN
-              costs
+            <div className="flex min-h-[420px] items-center justify-center px-6 py-16">
+              <div className="max-w-md text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center bg-gray-100 text-gray-500">
+                  <Globe2 size={21} />
+                </div>
+
+                <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                  Borderless Pro feature
+                </p>
+
+                <h2 className="mt-2 text-xl font-semibold tracking-tight text-gray-950">
+                  Track XOF and NGN together
+                </h2>
+
+                <p className="mt-3 text-sm leading-6 text-gray-500">
+                  Dual Currency helps you monitor
+                  XOF-to-NGN rates, understand your
+                  sourcing costs, model pricing changes,
+                  and see how FX movement affects your
+                  margins.
+                </p>
+
+                <div className="mt-6 border border-gray-200 bg-gray-50 p-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <Info
+                      size={16}
+                      className="mt-0.5 shrink-0 text-gray-400"
+                    />
+
+                    <div>
+                      <p className="text-xs font-semibold text-gray-800">
+                        You&apos;re currently on{' '}
+                        {planName}
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-gray-500">
+                        Dual Currency is available on
+                        Borderless Pro.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="mt-6 inline-flex h-10 items-center justify-center bg-gray-900 px-5 text-xs font-semibold text-white transition hover:bg-gray-800"
+                >
+                  View Borderless Pro
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-[#f7f8f6] text-gray-900">
+      <div className="mx-auto max-w-[1500px] px-5 pb-16 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-14">
+        {/* Header */}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+              Dual Currency
+            </p>
+
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
+              Understand your XOF to NGN costs
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-              See what your XOF purchases cost in
-              Naira today, what you actually make
-              when you sell, and when an exchange-rate
-              change means you need to update your
-              selling price.
+              Track exchange-rate movement, understand
+              your sourcing costs, and see how FX changes
+              can affect your margins.
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={
-              refreshing ||
-              fxLoading ||
-              rateHistoryLoading
-            }
-            className="inline-flex h-10 w-full items-center justify-center gap-2 border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            disabled={refreshing}
+            className="inline-flex h-10 items-center justify-center gap-2 border border-gray-200 bg-white px-4 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw
-              size={15}
+              size={14}
               className={
-                refreshing ||
-                fxLoading ||
-                rateHistoryLoading
+                refreshing
                   ? 'animate-spin'
                   : ''
               }
             />
-            Refresh
+            {refreshing
+              ? 'Refreshing...'
+              : 'Refresh'}
           </button>
         </div>
 
-        {/* Live rate */}
+        {/* Live reference rate */}
         <section className="mb-6 border border-gray-200 bg-white">
-          <div className="grid lg:grid-cols-[1.2fr_1fr]">
-            <div className="border-b border-gray-200 p-5 sm:p-6 lg:border-b-0 lg:border-r">
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-400">
-                    Live reference rate
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap items-baseline gap-2 sm:gap-3">
-                    {fxLoading ? (
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <Loader2
-                          size={20}
-                          className="animate-spin"
-                        />
-                        <span className="text-sm">
-                          Loading live rate...
-                        </span>
-                      </div>
-                    ) : activeRate ? (
-                      <>
-                        <span className="text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
-                          1 XOF
-                        </span>
-
-                        <ArrowRight
-                          size={18}
-                          className="text-gray-400"
-                        />
-
-                        <span className="text-2xl font-semibold tracking-tight text-emerald-700 sm:text-3xl">
-                          ₦
-                          {formatNumber(
-                            activeRate,
-                            4,
-                          )}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-lg font-medium text-red-600">
-                        Rate unavailable
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-                  <Globe2 size={19} />
-                </div>
+          <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gray-100 text-gray-700">
+                <Globe2 size={17} />
               </div>
 
-              {fxError ? (
-                <div className="flex items-start gap-3 border border-red-100 bg-red-50 p-3 text-xs leading-5 text-red-700">
+              <div>
+                <h2 className="text-base font-semibold text-gray-950">
+                  Live reference rate
+                </h2>
+
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Current XOF to NGN reference value used
+                  across this page.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-[1.4fr_1fr]">
+            <div className="border-b border-gray-200 p-5 sm:p-6 lg:border-b-0 lg:border-r">
+              <p className="text-xs text-gray-400">
+                1 XOF =
+              </p>
+
+              <div className="mt-2 flex items-end gap-2">
+                <p className="text-3xl font-semibold tracking-tight text-gray-950">
+                  {fxLoading
+                    ? '—'
+                    : activeRate
+                      ? `₦${formatNumber(
+                          activeRate,
+                          4,
+                        )}`
+                      : '—'}
+                </p>
+
+                {activeRate && (
+                  <span className="pb-1 text-xs text-gray-400">
+                    NGN
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-400">
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock3 size={13} />
+                  {liveRateUpdatedAt
+                    ? formatDateTime(
+                        liveRateUpdatedAt,
+                      )
+                    : 'Waiting for update'}
+                </span>
+
+                {liveRateSource && (
+                  <span>
+                    Source: {liveRateSource}
+                  </span>
+                )}
+              </div>
+
+              {fxError && (
+                <div className="mt-4 flex items-start gap-2 border border-red-100 bg-red-50 p-3 text-xs leading-5 text-red-700">
                   <AlertCircle
-                    size={15}
+                    size={14}
                     className="mt-0.5 shrink-0"
                   />
 
-                  <div>
-                    <p className="font-medium">
-                      Could not load the live rate.
-                    </p>
-
-                    <p className="mt-0.5">
-                      {fxError}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-500">
-                  {liveRateUpdatedAt && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock3 size={13} />
-                      Updated{' '}
-                      {formatDateTime(
-                        liveRateUpdatedAt,
-                      )}
-                    </span>
-                  )}
-
-                  {liveRateSource && (
-                    <span>
-                      Source: {liveRateSource}
-                    </span>
-                  )}
+                  <span>{fxError}</span>
                 </div>
               )}
             </div>
 
             <div className="p-5 sm:p-6">
-              <div className="mb-4 flex items-center gap-2 text-sm font-medium text-gray-800">
-                <Info
-                  size={16}
-                  className="text-gray-400"
-                />
-                What this means
-              </div>
-
-              <p className="text-sm leading-6 text-gray-500">
-                If your supplier charges{' '}
-                <span className="font-medium text-gray-800">
-                  10,000 XOF
-                </span>
-                , Monietar uses the current reference
-                rate to estimate what that purchase costs
-                you in Naira today.
+              <p className="text-xs text-gray-400">
+                10,000 XOF equivalent
               </p>
 
-              {activeRate && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-4">
-                  <span className="text-sm text-gray-500">
-                    10,000 XOF
-                  </span>
-
-                  <span className="text-sm font-semibold text-gray-950">
-                    ≈{' '}
-                    {formatCurrency(
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-emerald-700">
+                {activeRate
+                  ? formatCurrency(
                       10000 *
                         activeRate,
                       'NGN',
-                    )}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+                    )
+                  : '—'}
+              </p>
 
-          <div className="border-t border-gray-100 bg-gray-50 px-5 py-3 text-[11px] leading-5 text-gray-500 sm:px-6">
-            This is a live reference/mid-market rate
-            for planning and pricing. Your actual bank,
-            BDC, supplier, transfer or settlement rate
-            may be different.
+              <p className="mt-3 text-xs leading-5 text-gray-400">
+                This is a live reference estimate. It
+                does not change the exchange rate already
+                recorded on your transactions.
+              </p>
+            </div>
           </div>
         </section>
 
-        {/* FX rate movement */}
+        {/* FX movement */}
         <section className="mb-6 border border-gray-200 bg-white">
-          <div className="flex flex-col gap-4 border-b border-gray-200 px-5 py-5 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-emerald-50 text-emerald-700">
+          <div className="flex flex-col gap-4 border-b border-gray-200 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gray-100 text-gray-700">
                   <TrendingUp size={17} />
                 </div>
 
                 <div>
                   <h2 className="text-base font-semibold text-gray-950">
-                    XOF → NGN rate movement
+                    FX movement
                   </h2>
 
-                  <p className="mt-0.5 text-xs leading-5 text-gray-500">
-                    See how the Naira cost of 1 XOF has
-                    moved over time.
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    See how the XOF/NGN reference rate has
+                    moved.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex w-full self-start border border-gray-200 bg-white sm:w-auto sm:self-auto">
+            <div className="flex w-full border border-gray-200 bg-gray-50 sm:w-auto">
               {(
-                ['7D', '30D', '90D'] as Period[]
+                [
+                  '7D',
+                  '30D',
+                  '90D',
+                ] as Period[]
               ).map((item) => (
                 <button
                   key={item}
                   type="button"
-                  onClick={() => {
-                    setPeriod(item);
-                  }}
+                  onClick={() =>
+                    setPeriod(item)
+                  }
                   className={`flex-1 px-4 py-2 text-xs font-medium transition sm:flex-none ${
                     period === item
                       ? 'bg-gray-900 text-white'
-                      : 'text-gray-500 hover:bg-gray-50'
+                      : 'text-gray-500 hover:bg-white'
                   }`}
                 >
                   {item}
@@ -1430,307 +1431,271 @@ export default function DualCurrencyPage() {
             </div>
           </div>
 
-          {rateHistoryLoading ? (
-            <div className="flex min-h-[320px] items-center justify-center px-5 sm:min-h-[360px]">
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <Loader2
-                  size={17}
-                  className="animate-spin"
-                />
-                Loading rate history...
+          <div className="p-5 sm:p-6">
+            {rateHistoryLoading ? (
+              <div className="flex min-h-[360px] items-center justify-center">
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <Loader2
+                    size={16}
+                    className="animate-spin"
+                  />
+                  Loading rate history...
+                </div>
               </div>
-            </div>
-          ) : rateHistoryError ? (
-            <div className="p-5 sm:p-6">
-              <div className="flex items-start gap-3 border border-red-100 bg-red-50 p-4 text-xs leading-5 text-red-700">
-                <AlertCircle
-                  size={15}
-                  className="mt-0.5 shrink-0"
-                />
-
+            ) : rateHistoryError ||
+              rateHistory.length === 0 ? (
+              <div className="flex min-h-[360px] items-center justify-center px-6 text-center">
                 <div>
-                  <p className="font-medium">
-                    Could not load rate history.
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center bg-gray-100 text-gray-400">
+                    <TrendingUp size={17} />
+                  </div>
+
+                  <p className="mt-3 text-sm font-medium text-gray-700">
+                    Rate history unavailable
                   </p>
 
-                  <p className="mt-0.5">
-                    {rateHistoryError}
+                  <p className="mt-1 max-w-sm text-xs leading-5 text-gray-400">
+                    {rateHistoryError ||
+                      'There is not enough historical rate data to display this period.'}
                   </p>
                 </div>
               </div>
-            </div>
-          ) : rateHistory.length === 0 ||
-            !chart ||
-            !chartMetrics ? (
-            <div className="flex min-h-[320px] items-center justify-center px-6 text-center sm:min-h-[360px]">
-              <div>
-                <div className="mx-auto flex h-10 w-10 items-center justify-center bg-gray-100 text-gray-400">
-                  <History size={17} />
-                </div>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="border border-gray-100 bg-gray-50 p-4">
+                    <p className="text-[11px] text-gray-400">
+                      Starting rate
+                    </p>
 
-                <p className="mt-3 text-sm font-medium text-gray-700">
-                  No rate history available
-                </p>
+                    <p className="mt-2 text-base font-semibold text-gray-950">
+                      ₦
+                      {formatNumber(
+                        chartMetrics.firstRate ??
+                          0,
+                        4,
+                      )}
+                    </p>
+                  </div>
 
-                <p className="mt-1 text-xs text-gray-400">
-                  Historical XOF/NGN data could not be
-                  loaded for this period.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 sm:p-6">
-              <div className="mb-6 grid gap-3 sm:grid-cols-3">
-                <div className="border border-gray-100 bg-gray-50 p-4">
-                  <p className="text-[11px] text-gray-400">
-                    Starting rate
-                  </p>
+                  <div className="border border-gray-100 bg-gray-50 p-4">
+                    <p className="text-[11px] text-gray-400">
+                      Latest rate
+                    </p>
 
-                  <p className="mt-2 text-lg font-semibold text-gray-950">
-                    ₦
-                    {formatNumber(
-                      chartMetrics.first,
-                      4,
-                    )}
-                  </p>
-                </div>
+                    <p className="mt-2 text-base font-semibold text-gray-950">
+                      ₦
+                      {formatNumber(
+                        chartMetrics.latestRate ??
+                          0,
+                        4,
+                      )}
+                    </p>
+                  </div>
 
-                <div className="border border-gray-100 bg-gray-50 p-4">
-                  <p className="text-[11px] text-gray-400">
-                    Latest rate
-                  </p>
+                  <div className="border border-gray-100 bg-gray-50 p-4">
+                    <p className="text-[11px] text-gray-400">
+                      Movement
+                    </p>
 
-                  <p className="mt-2 text-lg font-semibold text-gray-950">
-                    ₦
-                    {formatNumber(
-                      chartMetrics.latest,
-                      4,
-                    )}
-                  </p>
-                </div>
-
-                <div className="border border-gray-100 bg-gray-50 p-4">
-                  <p className="text-[11px] text-gray-400">
-                    Movement
-                  </p>
-
-                  <p
-                    className={`mt-2 text-lg font-semibold ${
-                      chartMetrics.change >
-                      0
-                        ? 'text-red-600'
-                        : chartMetrics.change <
+                    <p
+                      className={`mt-2 text-base font-semibold ${
+                        (chartMetrics.change ??
+                          0) > 0
+                          ? 'text-red-600'
+                          : (chartMetrics.change ??
+                                0) <
+                              0
+                            ? 'text-emerald-700'
+                            : 'text-gray-700'
+                      }`}
+                    >
+                      {chartMetrics.change !==
+                      null
+                        ? `${
+                            chartMetrics.change >
                             0
-                          ? 'text-emerald-700'
-                          : 'text-gray-700'
-                    }`}
-                  >
-                    {chartMetrics.change >
-                    0
-                      ? '+'
-                      : ''}
-                    {formatNumber(
-                      chartMetrics.changePercent,
-                      2,
-                    )}
-                    %
-                  </p>
+                              ? '+'
+                              : ''
+                          }${formatNumber(
+                            chartMetrics.change,
+                            4,
+                          )}`
+                        : '—'}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Responsive chart */}
-              <div className="relative w-full overflow-visible">
-                <div className="relative w-full overflow-visible">
-                  <svg
-                    viewBox={`0 0 ${chart.width} ${chart.height}`}
-                    preserveAspectRatio="xMidYMid meet"
-                    className="block h-auto max-h-[390px] min-h-[240px] w-full overflow-visible"
-                    role="img"
-                    aria-label={`XOF to NGN exchange rate movement over ${period}`}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="xofRateArea"
-                        x1="0"
-                        x2="0"
-                        y1="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#047857"
-                          stopOpacity="0.20"
-                        />
-
-                        <stop
-                          offset="100%"
-                          stopColor="#047857"
-                          stopOpacity="0.02"
-                        />
-                      </linearGradient>
-                    </defs>
-
-                    {chart.yTicks.map(
-                      (tick) => (
-                        <g
-                          key={`y-${tick.y}`}
-                        >
-                          <line
-                            x1={
-                              chart.paddingLeft
-                            }
-                            x2={
-                              chart.width -
-                              chart.paddingRight
-                            }
-                            y1={tick.y}
-                            y2={tick.y}
-                            stroke="#f0f0f0"
-                            strokeWidth="1"
-                          />
-
-                          <text
-                            x={
-                              chart.paddingLeft -
-                              10
-                            }
-                            y={
-                              tick.y +
-                              4
-                            }
-                            textAnchor="end"
-                            fontSize="11"
-                            fill="#9ca3af"
-                          >
-                            ₦
-                            {tick.value.toFixed(
-                              3,
-                            )}
-                          </text>
-                        </g>
-                      ),
-                    )}
-
-                    <path
-                      d={chart.areaPath}
-                      fill="url(#xofRateArea)"
-                    />
-
-                    <path
-                      d={chart.linePath}
-                      fill="none"
-                      stroke="#047857"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-
-                    {chart.points.map(
-                      (point) => {
-                        const isSelected =
-                          selectedChartPoint?.date ===
-                          point.date;
-
-                        return (
+                <div className="mt-6 overflow-hidden">
+                  <div className="relative">
+                    <svg
+                      viewBox={`0 0 ${chartGeometry.width} ${chartGeometry.height}`}
+                      className="h-auto w-full"
+                      role="img"
+                      aria-label="XOF to NGN exchange rate movement"
+                    >
+                      {chartGeometry.yTicks.map(
+                        (tick) => (
                           <g
-                            key={`${point.date}-${point.rate}`}
+                            key={`${tick.y}-${tick.value}`}
                           >
-                            {/* Invisible larger hit area */}
-                            <circle
-                              cx={point.x}
-                              cy={point.y}
-                              r="14"
-                              fill="transparent"
-                              className="cursor-pointer"
-                              onMouseEnter={() =>
-                                setSelectedChartPoint(
-                                  point,
-                                )
+                            <line
+                              x1="54"
+                              x2="946"
+                              y1={tick.y}
+                              y2={tick.y}
+                              stroke="#f1f1f1"
+                              strokeWidth="1"
+                            />
+
+                            <text
+                              x="0"
+                              y={
+                                tick.y + 4
                               }
-                              onFocus={() =>
-                                setSelectedChartPoint(
-                                  point,
-                                )
-                              }
-                              onClick={() =>
-                                setSelectedChartPoint(
-                                  point,
-                                )
-                              }
-                              tabIndex={0}
-                              role="button"
-                              aria-label={`1 XOF equals ${formatNumber(
-                                point.rate,
+                              fill="#9ca3af"
+                              fontSize="11"
+                            >
+                              {formatNumber(
+                                tick.value,
                                 4,
-                              )} NGN on ${formatDate(
-                                point.date,
-                              )}`}
-                            />
-
-                            {/* Selected point */}
-                            <circle
-                              cx={point.x}
-                              cy={point.y}
-                              r={
-                                isSelected
-                                  ? 5
-                                  : 2
-                              }
-                              fill={
-                                isSelected
-                                  ? '#ffffff'
-                                  : '#047857'
-                              }
-                              stroke="#047857"
-                              strokeWidth={
-                                isSelected
-                                  ? 3
-                                  : 0
-                              }
-                              pointerEvents="none"
-                            />
+                              )}
+                            </text>
                           </g>
-                        );
-                      },
-                    )}
+                        ),
+                      )}
 
-                    {chart.xLabels.map(
-                      (label) => (
-                        <text
-                          key={`x-${label.date}`}
-                          x={label.x}
-                          y={
-                            chart.height -
-                            13
-                          }
-                          textAnchor="middle"
-                          fontSize="11"
-                          fill="#9ca3af"
-                        >
-                          {label.label}
-                        </text>
-                      ),
-                    )}
-                  </svg>
+                      <polygon
+                        points={
+                          chartGeometry.area
+                        }
+                        fill="rgba(16, 185, 129, 0.08)"
+                      />
 
-                  {/* Dynamic point tooltip */}
-                  {selectedChartPoint &&
-                    chartTooltipPosition && (
-                      <div
-                        className="pointer-events-none absolute z-10 whitespace-nowrap border border-gray-200 bg-white px-3 py-2.5 shadow-lg"
-                        style={{
-                          left:
-                            chartTooltipPosition.left,
-                          top:
-                            chartTooltipPosition.top,
-                          transform:
-                            chartTooltipPosition.transform,
-                        }}
-                      >
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                      <polyline
+                        points={
+                          chartGeometry.points
+                        }
+                        fill="none"
+                        stroke="#059669"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+
+                      {rateHistory.map(
+                        (
+                          item,
+                          index,
+                        ) => {
+                          const innerWidth =
+                            1000 -
+                            54 * 2;
+
+                          const innerHeight =
+                            360 -
+                            24 -
+                            42;
+
+                          const range =
+                            chartGeometry.max -
+                            chartGeometry.min;
+
+                          const x =
+                            54 +
+                            (index /
+                              Math.max(
+                                1,
+                                rateHistory.length -
+                                  1,
+                              )) *
+                              innerWidth;
+
+                          const y =
+                            24 +
+                            (1 -
+                              (item.rate -
+                                chartGeometry.min) /
+                                (range ||
+                                  1)) *
+                              innerHeight;
+
+                          const isSelected =
+                            selectedChartPoint?.date ===
+                            item.date;
+
+                          return (
+                            <g
+                              key={`${item.date}-${index}`}
+                            >
+                              <circle
+                                cx={x}
+                                cy={y}
+                                r={
+                                  isSelected
+                                    ? 6
+                                    : 3
+                                }
+                                fill={
+                                  isSelected
+                                    ? '#059669'
+                                    : '#ffffff'
+                                }
+                                stroke="#059669"
+                                strokeWidth={
+                                  isSelected
+                                    ? 2
+                                    : 1.5
+                                }
+                                className="cursor-pointer"
+                                onClick={() =>
+                                  setSelectedChartPoint(
+                                    item,
+                                  )
+                                }
+                              />
+                            </g>
+                          );
+                        },
+                      )}
+                    </svg>
+
+                    <div className="mt-1 flex justify-between px-[5.4%] text-[10px] text-gray-400">
+                      <span>
+                        {formatShortDate(
+                          rateHistory[0]
+                            .date,
+                        )}
+                      </span>
+
+                      <span>
+                        {formatShortDate(
+                          rateHistory[
+                            rateHistory.length -
+                              1
+                          ].date,
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {selectedChartPoint && (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-gray-100 bg-gray-50 px-4 py-3">
+                      <div>
+                        <p className="text-[11px] text-gray-400">
+                          Selected date
+                        </p>
+
+                        <p className="mt-1 text-sm font-medium text-gray-800">
                           {formatDate(
                             selectedChartPoint.date,
                           )}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[11px] text-gray-400">
+                          Rate
                         </p>
 
                         <p className="mt-1 text-sm font-semibold text-gray-950">
@@ -1740,74 +1705,60 @@ export default function DualCurrencyPage() {
                             4,
                           )}
                         </p>
-
-                        {chartMetrics && (
-                          <p className="mt-0.5 text-[10px] text-gray-400">
-                            {selectedChartPoint.rate >
-                            chartMetrics.first
-                              ? 'Higher than period start'
-                              : selectedChartPoint.rate <
-                                  chartMetrics.first
-                                ? 'Lower than period start'
-                                : 'Same as period start'}
-                          </p>
-                        )}
                       </div>
-                    )}
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4 text-[11px] leading-5 text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  Daily XOF/NGN reference-rate movement
-                </span>
+                <div className="mt-5 border-t border-gray-100 pt-4">
+                  <div className="flex items-start gap-2">
+                    <Calculator
+                      size={14}
+                      className="mt-0.5 shrink-0 text-gray-400"
+                    />
 
-                <span>
-                  Source: Frankfurter
-                </span>
-              </div>
-
-              <div className="mt-4 border border-gray-100 bg-gray-50 p-4">
-                <p className="text-xs leading-5 text-gray-500">
-                  <span className="font-medium text-gray-800">
-                    Pricing meaning:
-                  </span>{' '}
-                  when the XOF/NGN rate rises, each XOF
-                  costs more Naira. If your supplier price
-                  stays the same in XOF, your Naira cost
-                  increases and your selling price may need
-                  to increase to protect your margin.
-                </p>
-              </div>
-            </div>
-          )}
+                    <p className="text-xs leading-5 text-gray-500">
+                      When the XOF rate rises, the same
+                      supplier price costs more in Naira.
+                      That can reduce your margin unless
+                      your selling price moves with it.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </section>
 
-        {/* Main profitability calculator */}
+        {/* Profitability calculator */}
         <section className="mb-6 border border-gray-200 bg-white">
           <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-emerald-50 text-emerald-700">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gray-100 text-gray-700">
                 <Calculator size={17} />
               </div>
 
               <div>
                 <h2 className="text-base font-semibold text-gray-950">
-                  Will I still make money?
+                  Profitability calculator
                 </h2>
 
                 <p className="mt-0.5 text-xs text-gray-500">
-                  Enter the supplier price in XOF and
-                  your Naira selling price.
+                  Check how your XOF sourcing cost translates
+                  into your Naira selling price.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-3">
+          <div className="grid lg:grid-cols-[1fr_1fr_1fr]">
             {/* Inputs */}
             <div className="border-b border-gray-200 p-5 sm:p-6 lg:border-b-0 lg:border-r">
-              <div className="space-y-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                Your numbers
+              </p>
+
+              <div className="mt-5 space-y-4">
                 <div>
                   <label className="mb-2 block text-xs font-medium text-gray-600">
                     Supplier price
@@ -2417,7 +2368,11 @@ export default function DualCurrencyPage() {
 
             <div className="flex w-full border border-gray-200 bg-white sm:w-auto">
               {(
-                ['7D', '30D', '90D'] as Period[]
+                [
+                  '7D',
+                  '30D',
+                  '90D',
+                ] as Period[]
               ).map((item) => (
                 <button
                   key={item}
@@ -2660,7 +2615,7 @@ export default function DualCurrencyPage() {
                 (item) => (
                   <div
                     key={item.id}
-                    className="flex flex-col gap-2 px-5 py-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"
                   >
                     <div>
                       <p className="text-sm font-medium text-gray-800">
@@ -2690,7 +2645,7 @@ export default function DualCurrencyPage() {
 
         {/* Recent XOF transactions */}
         <section className="mb-6 border border-gray-200 bg-white">
-          <div className="flex flex-col gap-3 border-b border-gray-200 px-5 py-5 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-gray-200 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
               <h2 className="text-base font-semibold text-gray-950">
                 Recent XOF transactions

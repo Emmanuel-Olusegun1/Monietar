@@ -104,17 +104,6 @@ export const sidebarNavigation: NavigationGroup[] = [
 
     items: [
       {
-        name: 'Products',
-        href: '/dashboard/products',
-        icon: Package,
-        plans: [
-          'retail-starter',
-          'growing-merchant',
-          'borderless-pro',
-        ],
-      },
-
-      {
         name: 'Sales',
         href: '/dashboard/sales',
         icon: ShoppingBag,
