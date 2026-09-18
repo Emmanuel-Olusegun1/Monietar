@@ -1,660 +1,1225 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import {
+  AlertCircle,
+  ArrowDownRight,
   ArrowUpRight,
-  Bot,
-  ChevronRight,
-  CircleAlert,
-  Clock3,
-  Lightbulb,
-  MessageSquare,
+  BarChart3,
+  CalendarDays,
+  ChevronDown,
+  CircleDollarSign,
+  Loader2,
   Package,
-  Send,
   TrendingDown,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
-type InsightType = 'positive' | 'warning' | 'neutral';
+import { createClient } from '@/lib/supabase/client';
 
-interface Insight {
-  title: string;
-  description: string;
-  type: InsightType;
-  metric?: string;
-  action?: string;
+type Plan =
+  | 'retail-starter'
+  | 'growing-merchant'
+  | 'borderless-pro';
+
+type Period =
+  | 'Today'
+  | 'This week'
+  | 'This month'
+  | 'Last month';
+
+interface PeriodData {
+  revenue: number;
+  expenses: number;
+  netCashFlow: number;
+  grossProfit: number;
+  revenueChange: number;
+  expenseChange: number;
+  cashFlowChange: number;
+  profitChange: number;
+  sales: number;
+  unitsSold: number;
+  averageSale: number;
+  cashIn: number;
+  cashOut: number;
 }
 
-const suggestedQuestions = [
-  'How is my cash flow looking?',
-  'What is putting pressure on my cash?',
-  'Which products should I restock?',
-  'Are my expenses growing too fast?',
+const periodData: Record<
+  Period,
+  PeriodData
+> = {
+  Today: {
+    revenue: 185000,
+    expenses: 68000,
+    netCashFlow: 117000,
+    grossProfit: 92000,
+    revenueChange: 12.4,
+    expenseChange: 5.8,
+    cashFlowChange: 18.2,
+    profitChange: 14.6,
+    sales: 8,
+    unitsSold: 15,
+    averageSale: 23125,
+    cashIn: 185000,
+    cashOut: 68000,
+  },
+
+  'This week': {
+    revenue: 964000,
+    expenses: 352000,
+    netCashFlow: 612000,
+    grossProfit: 481000,
+    revenueChange: 9.7,
+    expenseChange: 3.2,
+    cashFlowChange: 14.8,
+    profitChange: 11.9,
+    sales: 47,
+    unitsSold: 86,
+    averageSale: 20511,
+    cashIn: 964000,
+    cashOut: 352000,
+  },
+
+  'This month': {
+    revenue: 3847000,
+    expenses: 1428000,
+    netCashFlow: 2419000,
+    grossProfit: 1923000,
+    revenueChange: 16.3,
+    expenseChange: 7.4,
+    cashFlowChange: 21.6,
+    profitChange: 18.1,
+    sales: 183,
+    unitsSold: 347,
+    averageSale: 21022,
+    cashIn: 3847000,
+    cashOut: 1428000,
+  },
+
+  'Last month': {
+    revenue: 3308000,
+    expenses: 1330000,
+    netCashFlow: 1978000,
+    grossProfit: 1629000,
+    revenueChange: 8.1,
+    expenseChange: 4.9,
+    cashFlowChange: 12.3,
+    profitChange: 10.4,
+    sales: 161,
+    unitsSold: 301,
+    averageSale: 20547,
+    cashIn: 3308000,
+    cashOut: 1330000,
+  },
+};
+
+const revenueTrend = [
+  {
+    label: 'Jan',
+    revenue: 2180000,
+    expenses: 940000,
+  },
+  {
+    label: 'Feb',
+    revenue: 2460000,
+    expenses: 1020000,
+  },
+  {
+    label: 'Mar',
+    revenue: 2710000,
+    expenses: 1110000,
+  },
+  {
+    label: 'Apr',
+    revenue: 2940000,
+    expenses: 1180000,
+  },
+  {
+    label: 'May',
+    revenue: 3308000,
+    expenses: 1330000,
+  },
+  {
+    label: 'Jun',
+    revenue: 3847000,
+    expenses: 1428000,
+  },
 ];
 
-const insights: Insight[] = [
+const categoryPerformance = [
   {
-    title: 'Cash flow is healthy',
-    description:
-      'Money coming into the business is currently higher than money going out. Your cash position remains positive for the selected period.',
-    type: 'positive',
-    metric: '+₦2.42m',
-    action: 'View cash flow',
+    name: 'Electronics',
+    revenue: 2184000,
+    units: 162,
+    percentage: 57,
   },
   {
-    title: 'Inventory is absorbing cash',
-    description:
-      'Inventory purchases are your largest expense category this month. Replenishment is supporting sales, but large purchases can tighten available cash.',
-    type: 'warning',
-    metric: '48% of expenses',
-    action: 'Review inventory',
+    name: 'Accessories',
+    revenue: 1097000,
+    units: 131,
+    percentage: 29,
   },
   {
-    title: 'Revenue is growing faster than expenses',
-    description:
-      'Revenue increased by 16.3% while expenses increased by 7.4%. That gap is currently working in your favour.',
-    type: 'positive',
-    metric: '+16.3%',
-    action: 'View analytics',
-  },
-  {
-    title: 'Three products need attention',
-    description:
-      'USB-C Fast Charger, Phone Stand, and Mechanical Keyboard are currently below their preferred stock levels.',
-    type: 'warning',
-    metric: '3 items',
-    action: 'Review stock',
+    name: 'Computing',
+    revenue: 566000,
+    units: 54,
+    percentage: 14,
   },
 ];
 
-const quickNumbers = [
+const expenseBreakdown = [
   {
-    label: 'Revenue',
-    value: '₦3.85m',
-    change: '+16.3%',
-    positive: true,
-    icon: TrendingUp,
+    name: 'Inventory purchases',
+    amount: 692000,
+    percentage: 48,
   },
   {
-    label: 'Expenses',
-    value: '₦1.43m',
-    change: '+7.4%',
-    positive: false,
-    icon: TrendingDown,
+    name: 'Operations',
+    amount: 321000,
+    percentage: 22,
   },
   {
-    label: 'Net cash flow',
-    value: '₦2.42m',
-    change: '+21.6%',
-    positive: true,
-    icon: Wallet,
+    name: 'Logistics',
+    amount: 214000,
+    percentage: 15,
   },
   {
-    label: 'Stock value',
-    value: '₦2.06m',
-    change: '9 products',
-    positive: true,
-    icon: Package,
+    name: 'Other expenses',
+    amount: 201000,
+    percentage: 15,
   },
 ];
 
-function getInsightClasses(type: InsightType) {
-  if (type === 'positive') {
-    return {
-      border: 'border-emerald-200',
-      icon: 'bg-emerald-900 text-white',
-      badge: 'bg-emerald-50 text-emerald-900',
-    };
+const topProducts = [
+  {
+    name: 'Anker Power Bank 20,000mAh',
+    units: 42,
+    revenue: 1197000,
+    growth: 18.4,
+  },
+  {
+    name: 'Wireless Bluetooth Earbuds',
+    units: 27,
+    revenue: 499500,
+    growth: 11.7,
+  },
+  {
+    name: 'USB-C Fast Charger',
+    units: 31,
+    revenue: 387500,
+    growth: 8.2,
+  },
+  {
+    name: 'Mechanical Keyboard',
+    units: 9,
+    revenue: 378000,
+    growth: 5.4,
+  },
+];
+
+function normalizePlan(
+  value: unknown,
+): Plan {
+  if (
+    value === 'growing-merchant' ||
+    value === 'borderless-pro'
+  ) {
+    return value;
   }
 
-  if (type === 'warning') {
-    return {
-      border: 'border-amber-200',
-      icon: 'bg-amber-600 text-white',
-      badge: 'bg-amber-50 text-amber-800',
-    };
-  }
-
-  return {
-    border: 'border-gray-200',
-    icon: 'bg-gray-900 text-white',
-    badge: 'bg-gray-100 text-gray-800',
-  };
+  return 'retail-starter';
 }
 
-export default function AICFOPage() {
-  const [question, setQuestion] = useState('');
-  const [messages, setMessages] = useState<
-    { role: 'user' | 'assistant'; content: string }[]
-  >([]);
+function formatCurrency(
+  amount: number,
+) {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
-  const [period, setPeriod] = useState('This month');
+function formatPercentage(
+  value: number,
+) {
+  return `${
+    value >= 0 ? '+' : ''
+  }${value.toFixed(1)}%`;
+}
 
-  const currentInsight = useMemo(() => {
-    if (period === 'Today') {
-      return {
-        cash: '₦117k',
-        revenue: '₦185k',
-        expenses: '₦68k',
-        summary:
-          'Today looks healthy. Revenue is ahead of expenses, leaving positive cash movement.',
-      };
-    }
+export default function AnalyticsPage() {
+  const supabase = useMemo(
+    () => createClient(),
+    [],
+  );
 
-    if (period === 'This week') {
-      return {
-        cash: '₦612k',
-        revenue: '₦964k',
-        expenses: '₦352k',
-        summary:
-          'This week is trending positively. Revenue is comfortably ahead of expenses.',
-      };
-    }
+  const [currentPlan, setCurrentPlan] =
+    useState<Plan>(
+      'retail-starter',
+    );
 
-    if (period === 'Last month') {
-      return {
-        cash: '₦1.98m',
-        revenue: '₦3.31m',
-        expenses: '₦1.33m',
-        summary:
-          'Last month closed with positive cash movement, with revenue continuing to outpace expenses.',
-      };
-    }
+  const [planLoading, setPlanLoading] =
+    useState(true);
 
-    return {
-      cash: '₦2.42m',
-      revenue: '₦3.85m',
-      expenses: '₦1.43m',
-      summary:
-        'This month is financially healthy. Revenue is growing faster than expenses, but inventory purchases are taking the largest share of your spending.',
-    };
-  }, [period]);
+  const [period, setPeriod] =
+    useState<Period>(
+      'This month',
+    );
 
-  const handleQuestion = (value?: string) => {
-    const text = (value ?? question).trim();
+  const loadPlan = useCallback(
+    async () => {
+      setPlanLoading(true);
 
-    if (!text) return;
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-    setMessages((current) => [
-      ...current,
-      {
-        role: 'user',
-        content: text,
-      },
-      {
-        role: 'assistant',
-        content:
-          'Based on the current Monietar data, your cash position is positive, but inventory purchases are the biggest pressure on available cash. I would keep an eye on replenishment timing and avoid tying up too much cash in slow-moving stock.',
-      },
-    ]);
+        if (!user) {
+          setCurrentPlan(
+            'retail-starter',
+          );
+          return;
+        }
 
-    setQuestion('');
-  };
+        const metadataPlan =
+          user.user_metadata
+            ?.subscription_plan ??
+          user.user_metadata?.plan;
 
-  return (
-    <main className="min-h-screen bg-[#f1f1f1] text-gray-900">
-      <div className="mx-auto max-w-[1600px] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-        {/* Header */}
-        <section className="mb-8 border-b border-gray-200 pb-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-900">
-                Insight / AI CFO
-              </p>
+        setCurrentPlan(
+          normalizePlan(
+            metadataPlan,
+          ),
+        );
+      } catch {
+        setCurrentPlan(
+          'retail-starter',
+        );
+      } finally {
+        setPlanLoading(false);
+      }
+    },
+    [supabase],
+  );
 
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                Understand what your numbers are telling you.
-              </h1>
+  useEffect(() => {
+    void loadPlan();
+  }, [loadPlan]);
 
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
-                Your AI CFO looks across your financial activity, sales,
-                expenses, inventory, and cash flow to help you understand what
-                is happening in your business and what deserves attention.
-              </p>
-            </div>
+  const hasAnalyticsAccess =
+    currentPlan ===
+      'growing-merchant' ||
+    currentPlan ===
+      'borderless-pro';
 
-            <div className="flex items-center gap-2">
-              {['Today', 'This week', 'This month', 'Last month'].map(
-                (item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setPeriod(item)}
-                    className={`border px-3 py-2 text-xs font-medium transition ${
-                      period === item
-                        ? 'border-emerald-900 bg-emerald-900 text-white'
-                        : 'border-gray-300 bg-transparent text-gray-700 hover:bg-white'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-        </section>
+  const data =
+    periodData[period];
 
-        {/* CFO overview */}
-        <section className="mb-8 grid gap-5 lg:grid-cols-[1.45fr_1fr]">
-          <div className="border border-emerald-900 bg-emerald-900 p-6 text-white sm:p-8">
-            <div className="mb-8 flex items-start justify-between gap-5">
-              <div>
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-                  <span className="flex h-8 w-8 items-center justify-center border border-white/20">
-                    <Bot size={16} />
-                  </span>
-                  Monietar AI CFO
-                </div>
+  const profitMargin =
+    data.revenue > 0
+      ? (data.grossProfit /
+          data.revenue) *
+        100
+      : 0;
 
-                <h2 className="max-w-xl text-2xl font-semibold tracking-tight sm:text-3xl">
-                  Here&apos;s what I think you should know.
-                </h2>
-              </div>
+  const expenseRatio =
+    data.revenue > 0
+      ? (data.expenses /
+          data.revenue) *
+        100
+      : 0;
 
-              <Lightbulb
-                className="hidden shrink-0 sm:block"
-                size={22}
-              />
-            </div>
+  const revenueToExpenseRatio =
+    data.expenses > 0
+      ? data.revenue /
+        data.expenses
+      : 0;
 
-            <p className="max-w-2xl text-sm leading-7 text-white/80">
-              {currentInsight.summary}
-            </p>
+  const highestRevenue =
+    useMemo(
+      () =>
+        Math.max(
+          ...revenueTrend.map(
+            (item) =>
+              item.revenue,
+          ),
+        ),
+      [],
+    );
 
-            <div className="mt-8 grid gap-4 border-t border-white/15 pt-6 sm:grid-cols-3">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-white/50">
-                  Revenue
-                </p>
-                <p className="mt-1 text-xl font-semibold">
-                  {currentInsight.revenue}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-wider text-white/50">
-                  Expenses
-                </p>
-                <p className="mt-1 text-xl font-semibold">
-                  {currentInsight.expenses}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-wider text-white/50">
-                  Net cash flow
-                </p>
-                <p className="mt-1 text-xl font-semibold">
-                  {currentInsight.cash}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="border border-gray-200 bg-white p-6 sm:p-8">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                  CFO status
-                </p>
-
-                <h3 className="mt-2 text-xl font-semibold">
-                  Business health
-                </h3>
-              </div>
-
-              <div className="flex h-10 w-10 items-center justify-center bg-emerald-900 text-white">
-                <TrendingUp size={18} />
-              </div>
-            </div>
-
-            <div className="mb-6 flex items-end justify-between border-b border-gray-200 pb-6">
-              <div>
-                <p className="text-3xl font-semibold text-emerald-900">
-                  Healthy
-                </p>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Based on current financial activity
-                </p>
-              </div>
-
-              <p className="text-sm font-medium text-emerald-900">
-                Positive
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Cash flow</span>
-                <span className="font-medium text-emerald-900">
-                  Positive
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Revenue trend</span>
-                <span className="font-medium text-emerald-900">
-                  Growing
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Expense pressure</span>
-                <span className="font-medium text-amber-700">
-                  Moderate
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Inventory pressure</span>
-                <span className="font-medium text-amber-700">
-                  Watch
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Numbers */}
-        <section className="mb-8 grid grid-cols-2 border-y border-l border-gray-200 bg-white lg:grid-cols-4">
-          {quickNumbers.map((item, index) => {
-            const Icon = item.icon;
-
-            return (
-              <div
-                key={item.label}
-                className={`p-5 sm:p-6 ${
-                  index < quickNumbers.length - 1
-                    ? 'border-r border-gray-200'
-                    : ''
-                } ${
-                  index < 2
-                    ? 'border-b border-gray-200 lg:border-b-0'
-                    : ''
-                }`}
-              >
-                <div className="mb-5 flex items-center justify-between">
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-                    {item.label}
-                  </p>
-
-                  <Icon size={16} className="text-gray-400" />
-                </div>
-
-                <p className="text-2xl font-semibold tracking-tight">
-                  {item.value}
-                </p>
-
-                <div className="mt-2 flex items-center gap-1 text-xs">
-                  <ArrowUpRight
-                    size={13}
-                    className={
-                      item.positive
-                        ? 'text-emerald-700'
-                        : 'text-amber-700'
-                    }
-                  />
-
-                  <span
-                    className={
-                      item.positive
-                        ? 'text-emerald-700'
-                        : 'text-amber-700'
-                    }
-                  >
-                    {item.change}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </section>
-
-        {/* Insights */}
-        <section className="grid gap-8 lg:grid-cols-[1.6fr_0.8fr]">
-          <div>
-            <div className="mb-5 flex items-end justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                  What needs attention
-                </p>
-
-                <h2 className="mt-2 text-2xl font-semibold">
-                  Business signals
-                </h2>
-              </div>
-
-              <p className="hidden text-xs text-gray-500 sm:block">
-                Updated from current activity
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {insights.map((insight) => {
-                const classes = getInsightClasses(insight.type);
-
-                return (
-                  <div
-                    key={insight.title}
-                    className={`border bg-white p-5 ${classes.border}`}
-                  >
-                    <div className="flex gap-4">
-                      <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center ${classes.icon}`}
-                      >
-                        {insight.type === 'warning' ? (
-                          <CircleAlert size={17} />
-                        ) : (
-                          <Lightbulb size={17} />
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <h3 className="font-semibold">
-                              {insight.title}
-                            </h3>
-
-                            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">
-                              {insight.description}
-                            </p>
-                          </div>
-
-                          {insight.metric && (
-                            <span
-                              className={`w-fit shrink-0 px-2 py-1 text-xs font-semibold ${classes.badge}`}
-                            >
-                              {insight.metric}
-                            </span>
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          className="mt-4 flex items-center gap-1 text-xs font-semibold text-emerald-900 hover:underline"
-                        >
-                          {insight.action}
-                          <ChevronRight size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Ask AI */}
-          <aside>
-            <div className="border border-gray-200 bg-white">
-              <div className="border-b border-gray-200 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center bg-emerald-900 text-white">
-                    <MessageSquare size={16} />
-                  </div>
-
-                  <div>
-                    <p className="font-semibold">Ask your CFO</p>
-                    <p className="text-xs text-gray-500">
-                      Ask about your business
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5">
-                <div className="mb-5 space-y-3">
-                  {messages.length === 0 ? (
-                    <div className="border border-gray-200 bg-[#f1f1f1] p-4">
-                      <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-emerald-900">
-                        <Bot size={14} />
-                        AI CFO
-                      </div>
-
-                      <p className="text-sm leading-6 text-gray-600">
-                        Ask me about your cash flow, expenses, sales,
-                        inventory, or financial activity.
-                      </p>
-                    </div>
-                  ) : (
-                    messages.map((message, index) => (
-                      <div
-                        key={`${message.role}-${index}`}
-                        className={`border p-4 ${
-                          message.role === 'user'
-                            ? 'ml-5 border-emerald-900 bg-emerald-900 text-white'
-                            : 'mr-5 border-gray-200 bg-[#f1f1f1]'
-                        }`}
-                      >
-                        <p className="text-sm leading-6">
-                          {message.content}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div className="mb-5">
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Try asking
-                  </p>
-
-                  <div className="space-y-2">
-                    {suggestedQuestions.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => handleQuestion(item)}
-                        className="flex w-full items-center justify-between border border-gray-200 px-3 py-3 text-left text-xs text-gray-700 transition hover:border-emerald-900 hover:bg-[#f1f1f1]"
-                      >
-                        <span>{item}</span>
-
-                        <ChevronRight
-                          size={14}
-                          className="shrink-0 text-gray-400"
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    handleQuestion();
-                  }}
-                  className="flex border border-gray-300 bg-white"
-                >
-                  <input
-                    value={question}
-                    onChange={(event) => setQuestion(event.target.value)}
-                    placeholder="Ask your CFO..."
-                    className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none placeholder:text-gray-400"
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={!question.trim()}
-                    className="flex w-11 shrink-0 items-center justify-center border-l border-gray-300 text-emerald-900 transition hover:bg-[#f1f1f1] disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Ask AI CFO"
-                  >
-                    <Send size={15} />
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Recent activity */}
-            <div className="mt-4 border border-gray-200 bg-white p-5">
-              <div className="mb-4 flex items-center gap-2">
-                <Clock3 size={15} className="text-gray-500" />
-
-                <h3 className="text-sm font-semibold">
-                  Recent CFO observations
-                </h3>
-              </div>
-
-              <div className="space-y-4">
-                <div className="border-l-2 border-emerald-900 pl-3">
-                  <p className="text-xs font-medium">
-                    Revenue is outpacing expenses
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    12 minutes ago
-                  </p>
-                </div>
-
-                <div className="border-l-2 border-amber-500 pl-3">
-                  <p className="text-xs font-medium">
-                    Inventory purchases increased
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    38 minutes ago
-                  </p>
-                </div>
-
-                <div className="border-l-2 border-gray-300 pl-3">
-                  <p className="text-xs font-medium">
-                    Three products reached low stock
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    1 hour ago
-                  </p>
-                </div>
-              </div>
-            </div>
-          </aside>
-        </section>
-
-        {/* Temporary data notice */}
-        <section className="mt-8 border border-dashed border-gray-300 bg-white/60 p-4">
-          <div className="flex gap-3">
-            <CircleAlert
-              size={16}
-              className="mt-0.5 shrink-0 text-gray-500"
+  if (planLoading) {
+    return (
+      <main className="min-h-screen bg-[#f7f8f6] text-gray-900">
+        <div className="mx-auto flex min-h-[70vh] max-w-[1500px] items-center justify-center px-5 sm:px-8 lg:px-12">
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <Loader2
+              size={17}
+              className="animate-spin"
             />
 
-            <div>
-              <p className="text-xs font-semibold text-gray-700">
-                Temporary CFO intelligence
-              </p>
-
-              <p className="mt-1 text-xs leading-5 text-gray-500">
-                The figures and AI observations on this page are temporary
-                dashboard data. The production AI CFO should calculate
-                insights from Monietar&apos;s live transactions, sales, cash
-                vault, inventory, reports, and dual-currency data.
-              </p>
-            </div>
+            Loading your plan...
           </div>
-        </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (!hasAnalyticsAccess) {
+    return (
+      <main className="min-h-screen bg-[#f7f8f6] text-gray-900">
+        <div className="mx-auto max-w-[1500px] px-5 pb-16 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-14">
+          <section className="border border-gray-200 bg-white">
+            <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gray-100 text-gray-600">
+                  <BarChart3
+                    size={17}
+                  />
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                    Analytics
+                  </p>
+
+                  <h1 className="mt-1 text-lg font-semibold text-gray-950">
+                    Understand your business performance
+                  </h1>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-h-[420px] items-center justify-center px-6 py-16">
+              <div className="max-w-md text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center bg-gray-100 text-gray-500">
+                  <BarChart3
+                    size={21}
+                  />
+                </div>
+
+                <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                  Growing Merchant feature
+                </p>
+
+                <h2 className="mt-2 text-xl font-semibold tracking-tight text-gray-950">
+                  Turn your business data into insight
+                </h2>
+
+                <p className="mt-3 text-sm leading-6 text-gray-500">
+                  Analytics brings your sales,
+                  revenue, expenses, cash flow,
+                  profitability, and product
+                  performance together so you can
+                  understand what is happening across
+                  your business.
+                </p>
+
+                <div className="mt-6 border border-gray-200 bg-gray-50 p-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle
+                      size={16}
+                      className="mt-0.5 shrink-0 text-gray-400"
+                    />
+
+                    <div>
+                      <p className="text-xs font-semibold text-gray-800">
+                        Analytics is not included in Retail Starter
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-gray-500">
+                        Upgrade to Growing Merchant
+                        or Borderless Pro to access
+                        business analytics.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="mt-6 inline-flex h-10 items-center justify-center bg-gray-900 px-5 text-xs font-semibold text-white transition hover:bg-gray-800"
+                >
+                  View Growing Merchant
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f1f1f1] px-5 py-6 sm:px-8 lg:px-10 lg:py-8">
+      <div className="mx-auto max-w-[1600px]">
+        {/* Header */}
+        <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+              Insight
+            </p>
+
+            <h1 className="text-3xl font-semibold tracking-tight text-gray-950 sm:text-4xl">
+              Analytics
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+              Understand how your money,
+              sales, expenses, and inventory
+              are moving together.
+            </p>
+          </div>
+
+          <div className="relative">
+            <CalendarDays
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
+            <select
+              value={period}
+              onChange={(event) =>
+                setPeriod(
+                  event.target
+                    .value as Period,
+                )
+              }
+              className="appearance-none border border-gray-200 bg-white py-2.5 pl-9 pr-10 text-sm text-gray-700 outline-none focus:border-emerald-900"
+            >
+              <option>
+                Today
+              </option>
+              <option>
+                This week
+              </option>
+              <option>
+                This month
+              </option>
+              <option>
+                Last month
+              </option>
+            </select>
+
+            <ChevronDown
+              size={15}
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+          </div>
+        </div>
+
+        {/* Core metrics */}
+        <div className="mb-8 grid grid-cols-1 border border-gray-200 bg-white sm:grid-cols-2 lg:grid-cols-4">
+          <AnalyticsMetric
+            label="Revenue"
+            value={formatCurrency(
+              data.revenue,
+            )}
+            change={
+              data.revenueChange
+            }
+            icon={
+              <CircleDollarSign
+                size={18}
+              />
+            }
+            description={period.toLowerCase()}
+          />
+
+          <AnalyticsMetric
+            label="Gross profit"
+            value={formatCurrency(
+              data.grossProfit,
+            )}
+            change={
+              data.profitChange
+            }
+            icon={
+              <TrendingUp
+                size={18}
+              />
+            }
+            description={`${profitMargin.toFixed(
+              1,
+            )}% margin`}
+          />
+
+          <AnalyticsMetric
+            label="Net cash flow"
+            value={formatCurrency(
+              data.netCashFlow,
+            )}
+            change={
+              data.cashFlowChange
+            }
+            icon={
+              <Wallet
+                size={18}
+              />
+            }
+            description="Cash in less cash out"
+          />
+
+          <AnalyticsMetric
+            label="Expenses"
+            value={formatCurrency(
+              data.expenses,
+            )}
+            change={
+              data.expenseChange
+            }
+            icon={
+              <TrendingDown
+                size={18}
+              />
+            }
+            description={`${expenseRatio.toFixed(
+              1,
+            )}% of revenue`}
+            expense
+          />
+        </div>
+
+        {/* Main content */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-6">
+            {/* Revenue vs expenses */}
+            <section className="border border-gray-200 bg-white p-5 sm:p-6">
+              <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    Revenue vs expenses
+                  </p>
+
+                  <p className="mt-1 text-xs text-gray-500">
+                    Six-month financial movement
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 bg-emerald-900" />
+                    Revenue
+                  </span>
+
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 bg-gray-300" />
+                    Expenses
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex h-[280px] items-end gap-2 border-b border-gray-200 pb-0 sm:gap-5">
+                {revenueTrend.map(
+                  (item) => {
+                    const revenueHeight =
+                      (item.revenue /
+                        highestRevenue) *
+                      100;
+
+                    const expenseHeight =
+                      (item.expenses /
+                        highestRevenue) *
+                      100;
+
+                    return (
+                      <div
+                        key={
+                          item.label
+                        }
+                        className="flex h-full flex-1 items-end justify-center gap-1"
+                      >
+                        <div className="flex h-full max-w-[34px] flex-1 flex-col justify-end">
+                          <div
+                            className="w-full bg-emerald-900"
+                            style={{
+                              height: `${revenueHeight}%`,
+                            }}
+                            title={`${item.label} revenue: ${formatCurrency(
+                              item.revenue,
+                            )}`}
+                          />
+                        </div>
+
+                        <div className="flex h-full max-w-[34px] flex-1 flex-col justify-end">
+                          <div
+                            className="w-full bg-gray-300"
+                            style={{
+                              height: `${expenseHeight}%`,
+                            }}
+                            title={`${item.label} expenses: ${formatCurrency(
+                              item.expenses,
+                            )}`}
+                          />
+                        </div>
+
+                        <span className="absolute translate-y-[145px] text-[11px] text-gray-500">
+                          {
+                            item.label
+                          }
+                        </span>
+                      </div>
+                    );
+                  },
+                )}
+              </div>
+            </section>
+
+            {/* Business performance */}
+            <section className="grid grid-cols-1 border border-gray-200 bg-white md:grid-cols-3">
+              <PerformanceCard
+                label="Sales"
+                value={data.sales.toLocaleString()}
+                description={`${data.unitsSold} units sold`}
+                icon={
+                  <ShoppingBagIcon />
+                }
+              />
+
+              <PerformanceCard
+                label="Average sale"
+                value={formatCurrency(
+                  data.averageSale,
+                )}
+                description="Average revenue per sale"
+                icon={
+                  <CircleDollarSign
+                    size={18}
+                  />
+                }
+              />
+
+              <PerformanceCard
+                label="Revenue / expense"
+                value={`${revenueToExpenseRatio.toFixed(
+                  2,
+                )}×`}
+                description="Revenue generated per ₦1 spent"
+                icon={
+                  <BarChart3
+                    size={18}
+                  />
+                }
+              />
+            </section>
+
+            {/* Category performance */}
+            <section className="border border-gray-200 bg-white">
+              <div className="border-b border-gray-200 p-5">
+                <p className="text-sm font-semibold text-gray-900">
+                  Category performance
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Revenue contribution by
+                  product category
+                </p>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {categoryPerformance.map(
+                  (category) => (
+                    <div
+                      key={
+                        category.name
+                      }
+                      className="p-5"
+                    >
+                      <div className="mb-3 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {
+                              category.name
+                            }
+                          </p>
+
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {
+                              category.units
+                            }{' '}
+                            units sold
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {formatCurrency(
+                              category.revenue,
+                            )}
+                          </p>
+
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {
+                              category.percentage
+                            }
+                            % of revenue
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="h-1.5 bg-gray-100">
+                        <div
+                          className="h-full bg-emerald-900"
+                          style={{
+                            width: `${category.percentage}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            </section>
+
+            {/* Expense breakdown */}
+            <section className="border border-gray-200 bg-white">
+              <div className="border-b border-gray-200 p-5">
+                <p className="text-sm font-semibold text-gray-900">
+                  Expense breakdown
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Where business spending is
+                  going
+                </p>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {expenseBreakdown.map(
+                  (expense) => (
+                    <div
+                      key={
+                        expense.name
+                      }
+                      className="flex items-center gap-4 p-5"
+                    >
+                      <div className="flex-1">
+                        <div className="mb-2 flex items-center justify-between gap-4">
+                          <span className="text-sm text-gray-700">
+                            {
+                              expense.name
+                            }
+                          </span>
+
+                          <span className="text-sm font-medium text-gray-900">
+                            {formatCurrency(
+                              expense.amount,
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="h-1.5 bg-gray-100">
+                          <div
+                            className="h-full bg-gray-700"
+                            style={{
+                              width: `${expense.percentage}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <span className="w-10 text-right text-xs text-gray-500">
+                        {
+                          expense.percentage
+                        }
+                        %
+                      </span>
+                    </div>
+                  ),
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* Right column */}
+          <aside className="space-y-6">
+            {/* Key signals */}
+            <section className="border border-gray-200 bg-white">
+              <div className="border-b border-gray-200 p-5">
+                <p className="text-sm font-semibold text-gray-900">
+                  Key signals
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  What stands out in your numbers
+                </p>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                <Signal
+                  title="Revenue is growing"
+                  description={`Revenue is up ${data.revenueChange.toFixed(
+                    1,
+                  )}% compared with the previous period.`}
+                  positive
+                />
+
+                <Signal
+                  title="Cash flow is positive"
+                  description={`${formatCurrency(
+                    data.netCashFlow,
+                  )} remains after recorded cash outflows.`}
+                  positive
+                />
+
+                <Signal
+                  title="Expenses are rising"
+                  description={`Expenses increased ${data.expenseChange.toFixed(
+                    1,
+                  )}% compared with the previous period.`}
+                  positive={false}
+                />
+              </div>
+            </section>
+
+            {/* Top products */}
+            <section className="border border-gray-200 bg-white p-5">
+              <div className="mb-5">
+                <p className="text-sm font-semibold text-gray-900">
+                  Top products
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Revenue contribution
+                </p>
+              </div>
+
+              <div className="space-y-5">
+                {topProducts.map(
+                  (
+                    product,
+                    index,
+                  ) => (
+                    <div
+                      key={
+                        product.name
+                      }
+                      className="flex items-start gap-3"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center border border-gray-200 text-xs font-semibold text-gray-500">
+                        {index + 1}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {
+                            product.name
+                          }
+                        </p>
+
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-xs text-gray-500">
+                            {
+                              product.units
+                            }{' '}
+                            units
+                          </span>
+
+                          <span className="text-gray-300">
+                            ·
+                          </span>
+
+                          <span className="text-xs font-medium text-emerald-700">
+                            +
+                            {
+                              product.growth
+                            }
+                            %
+                          </span>
+                        </div>
+                      </div>
+
+                      <span className="shrink-0 text-xs font-medium text-gray-700">
+                        {formatCurrency(
+                          product.revenue,
+                        )}
+                      </span>
+                    </div>
+                  ),
+                )}
+              </div>
+            </section>
+
+            {/* Cash flow */}
+            <section className="border border-gray-200 bg-white p-5">
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    Cash movement
+                  </p>
+
+                  <p className="mt-1 text-xs text-gray-500">
+                    {period}
+                  </p>
+                </div>
+
+                <Wallet
+                  size={18}
+                  className="text-gray-400"
+                />
+              </div>
+
+              <div className="space-y-5">
+                <CashMovement
+                  label="Money in"
+                  amount={data.cashIn}
+                  positive
+                />
+
+                <CashMovement
+                  label="Money out"
+                  amount={data.cashOut}
+                  positive={false}
+                />
+
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      Net movement
+                    </span>
+
+                    <span className="text-sm font-semibold text-emerald-900">
+                      {formatCurrency(
+                        data.netCashFlow,
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Monietar insight */}
+            <section className="border border-emerald-900 bg-emerald-900 p-5 text-white">
+              <div className="mb-4 flex items-center gap-2">
+                <TrendingUp
+                  size={17}
+                />
+
+                <span className="text-xs font-semibold uppercase tracking-[0.14em]">
+                  Monietar Insight
+                </span>
+              </div>
+
+              <p className="text-sm leading-6 text-emerald-50">
+                Your revenue is currently
+                growing faster than your
+                expenses. That is keeping
+                your cash flow positive, but
+                inventory purchases remain the
+                largest expense category.
+                Watch replenishment closely so
+                growing sales do not
+                unnecessarily tighten
+                available cash.
+              </p>
+            </section>
+          </aside>
+        </div>
+
+        {/* Temporary data notice */}
+        <div className="mt-6 border border-gray-200 bg-white px-5 py-4">
+          <p className="text-xs leading-5 text-gray-500">
+            <span className="font-medium text-gray-700">
+              Temporary dashboard data.
+            </span>{' '}
+            Analytics shown here are
+            placeholders and are not connected
+            to your live Monietar financial,
+            sales, or inventory data yet.
+          </p>
+        </div>
       </div>
-    </main>
+    </div>
+  );
+}
+
+function AnalyticsMetric({
+  label,
+  value,
+  change,
+  icon,
+  description,
+  expense = false,
+}: {
+  label: string;
+  value: string;
+  change: number;
+  icon: React.ReactNode;
+  description: string;
+  expense?: boolean;
+}) {
+  return (
+    <div className="border-b border-gray-200 p-5 sm:border-r lg:border-b-0">
+      <div className="mb-4 flex items-center justify-between">
+        <span className="text-sm text-gray-500">
+          {label}
+        </span>
+
+        <span className="text-gray-400">
+          {icon}
+        </span>
+      </div>
+
+      <div className="flex items-end gap-2">
+        <span className="text-2xl font-semibold tracking-tight text-gray-950">
+          {value}
+        </span>
+
+        <span
+          className={`mb-1 inline-flex items-center gap-0.5 text-xs font-medium ${
+            expense
+              ? 'text-amber-700'
+              : 'text-emerald-700'
+          }`}
+        >
+          <ArrowUpRight
+            size={13}
+          />
+
+          {formatPercentage(
+            change,
+          )}
+        </span>
+      </div>
+
+      <p className="mt-1 text-xs text-gray-500">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function PerformanceCard({
+  label,
+  value,
+  description,
+  icon,
+}: {
+  label: string;
+  value: string;
+  description: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-gray-200 p-5 last:border-b-0 md:border-r md:border-b-0 md:last:border-r-0">
+      <div className="mb-4 flex items-center justify-between">
+        <span className="text-sm text-gray-500">
+          {label}
+        </span>
+
+        <span className="text-gray-400">
+          {icon}
+        </span>
+      </div>
+
+      <p className="text-xl font-semibold tracking-tight text-gray-950">
+        {value}
+      </p>
+
+      <p className="mt-1 text-xs text-gray-500">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function Signal({
+  title,
+  description,
+  positive,
+}: {
+  title: string;
+  description: string;
+  positive: boolean;
+}) {
+  return (
+    <div className="p-5">
+      <div className="flex items-start gap-3">
+        <span
+          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center ${
+            positive
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'bg-amber-50 text-amber-700'
+          }`}
+        >
+          {positive ? (
+            <ArrowUpRight
+              size={15}
+            />
+          ) : (
+            <TrendingDown
+              size={15}
+            />
+          )}
+        </span>
+
+        <div>
+          <p className="text-sm font-medium text-gray-900">
+            {title}
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-gray-500">
+            {description}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CashMovement({
+  label,
+  amount,
+  positive,
+}: {
+  label: string;
+  amount: number;
+  positive: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span
+          className={
+            positive
+              ? 'text-emerald-700'
+              : 'text-gray-500'
+          }
+        >
+          {positive ? (
+            <ArrowUpRight
+              size={15}
+            />
+          ) : (
+            <ArrowDownRight
+              size={15}
+            />
+          )}
+        </span>
+
+        <span className="text-sm text-gray-600">
+          {label}
+        </span>
+      </div>
+
+      <span className="text-sm font-medium text-gray-900">
+        {formatCurrency(
+          amount,
+        )}
+      </span>
+    </div>
+  );
+}
+
+function ShoppingBagIcon() {
+  return (
+    <Package size={18} />
   );
 }
