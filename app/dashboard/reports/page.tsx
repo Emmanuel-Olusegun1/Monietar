@@ -27,6 +27,13 @@ type ReportPeriod =
   | 'This year'
   | 'All time';
 
+type Currency = 'NGN' | 'XOF';
+
+const SUPPORTED_CURRENCIES: Currency[] = [
+  'NGN',
+  'XOF',
+];
+
 const periods: ReportPeriod[] = [
   'This month',
   'Today',
@@ -54,6 +61,7 @@ type Transaction = {
   reference: string | null;
   notes: string | null;
   is_deleted: boolean | null;
+  source: string | null;
 };
 
 type PeriodRange = {
@@ -64,22 +72,44 @@ type PeriodRange = {
 const toNumber = (
   value: number | string | null | undefined
 ): number => {
-  if (value === null || value === undefined) return 0;
+  if (value === null || value === undefined) {
+    return 0;
+  }
 
   const parsed = Number(value);
 
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const normalizeCurrency = (
+  value: string | null | undefined
+): Currency | null => {
+  const normalized = value?.trim().toUpperCase();
+
+  if (normalized === 'NGN') {
+    return 'NGN';
+  }
+
+  if (normalized === 'XOF') {
+    return 'XOF';
+  }
+
+  return null;
+};
+
 const startOfDay = (date: Date) => {
   const result = new Date(date);
+
   result.setHours(0, 0, 0, 0);
+
   return result;
 };
 
 const endOfDay = (date: Date) => {
   const result = new Date(date);
+
   result.setHours(23, 59, 59, 999);
+
   return result;
 };
 
@@ -96,6 +126,7 @@ const startOfWeek = (date: Date) => {
 
 const startOfMonth = (date: Date) => {
   const result = startOfDay(date);
+
   result.setDate(1);
 
   return result;
@@ -103,6 +134,7 @@ const startOfMonth = (date: Date) => {
 
 const startOfYear = (date: Date) => {
   const result = startOfDay(date);
+
   result.setMonth(0, 1);
 
   return result;
@@ -135,9 +167,11 @@ const getPeriodRange = (
 
     case 'Last month': {
       const start = startOfMonth(current);
+
       start.setMonth(start.getMonth() - 1);
 
       const end = new Date(start);
+
       end.setMonth(end.getMonth() + 1);
       end.setMilliseconds(-1);
 
@@ -170,6 +204,7 @@ const getPreviousPeriodRange = (
   switch (period) {
     case 'Today': {
       const end = startOfDay(current);
+
       end.setMilliseconds(-1);
 
       return {
@@ -182,9 +217,11 @@ const getPreviousPeriodRange = (
       const currentStart = startOfWeek(current);
 
       const end = new Date(currentStart);
+
       end.setMilliseconds(-1);
 
       const start = new Date(currentStart);
+
       start.setDate(start.getDate() - 7);
 
       return {
@@ -197,9 +234,11 @@ const getPreviousPeriodRange = (
       const currentStart = startOfMonth(current);
 
       const end = new Date(currentStart);
+
       end.setMilliseconds(-1);
 
       const start = new Date(currentStart);
+
       start.setMonth(start.getMonth() - 1);
 
       return {
@@ -210,14 +249,17 @@ const getPreviousPeriodRange = (
 
     case 'Last month': {
       const lastMonthStart = startOfMonth(current);
+
       lastMonthStart.setMonth(
         lastMonthStart.getMonth() - 1
       );
 
       const end = new Date(lastMonthStart);
+
       end.setMilliseconds(-1);
 
       const start = new Date(lastMonthStart);
+
       start.setMonth(start.getMonth() - 1);
 
       return {
@@ -230,9 +272,11 @@ const getPreviousPeriodRange = (
       const currentStart = startOfYear(current);
 
       const end = new Date(currentStart);
+
       end.setMilliseconds(-1);
 
       const start = new Date(currentStart);
+
       start.setFullYear(start.getFullYear() - 1);
 
       return {
@@ -252,13 +296,9 @@ const getPreviousPeriodRange = (
 const getTransactionAmount = (
   transaction: Transaction
 ) => {
-  const baseAmount = toNumber(transaction.amount_base);
+  const amount = toNumber(transaction.amount);
 
-  if (baseAmount !== 0) {
-    return baseAmount;
-  }
-
-  return toNumber(transaction.amount);
+  return amount;
 };
 
 const isIncome = (transaction: Transaction) =>
@@ -269,8 +309,7 @@ const isExpense = (transaction: Transaction) =>
 
 /**
  * Cash Vault movements are separate from normal business
- * income and expenses. They should not appear as business
- * revenue/expenses in Reports.
+ * income and expenses. They should not appear in Reports.
  */
 const isCashVaultTransaction = (
   transaction: Transaction
@@ -292,16 +331,26 @@ const transactionDate = (
   transaction: Transaction
 ) => {
   const parsed = new Date(
-    transaction.created_at || transaction.date
+    transaction.date ||
+      transaction.created_at ||
+      ''
   );
 
   if (!Number.isNaN(parsed.getTime())) {
     return parsed;
   }
 
-  return new Date(
-    `${transaction.date}T00:00:00`
-  );
+  if (transaction.created_at) {
+    const createdAt = new Date(
+      transaction.created_at
+    );
+
+    if (!Number.isNaN(createdAt.getTime())) {
+      return createdAt;
+    }
+  }
+
+  return new Date();
 };
 
 const isWithinRange = (
@@ -317,32 +366,49 @@ const isWithinRange = (
   return date <= range.end;
 };
 
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency: 'NGN',
-    maximumFractionDigits: 0,
-  }).format(amount);
+const formatCurrency = (
+  amount: number,
+  currency: Currency
+) => {
+  if (currency === 'XOF') {
+    return `CFA ${Math.round(
+      amount
+    ).toLocaleString('en-US')}`;
+  }
+
+  return `₦${amount.toLocaleString(
+    'en-NG',
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  )}`;
+};
 
 const formatCompactCurrency = (
-  amount: number
+  amount: number,
+  currency: Currency
 ) => {
   const absolute = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
+  const symbol =
+    currency === 'XOF' ? 'CFA ' : '₦';
 
   if (absolute >= 1_000_000) {
-    return `${sign}₦${(
+    return `${sign}${symbol}${(
       absolute / 1_000_000
     ).toFixed(1)}m`;
   }
 
   if (absolute >= 1_000) {
-    return `${sign}₦${Math.round(
+    return `${sign}${symbol}${Math.round(
       absolute / 1_000
     )}k`;
   }
 
-  return `${sign}₦${Math.round(absolute)}`;
+  return `${sign}${symbol}${Math.round(
+    absolute
+  )}`;
 };
 
 const formatPercentage = (
@@ -492,6 +558,11 @@ export default function ReportsPage() {
   );
 
   const [
+    selectedCurrency,
+    setSelectedCurrency,
+  ] = useState<Currency>('NGN');
+
+  const [
     periodOpen,
     setPeriodOpen,
   ] = useState(false);
@@ -558,11 +629,16 @@ export default function ReportsPage() {
             amount_base,
             reference,
             notes,
-            is_deleted
+            is_deleted,
+            source
           `)
           .eq('user_id', user.id)
           .eq('status', 'completed')
           .eq('is_deleted', false)
+          .in(
+            'currency',
+            SUPPORTED_CURRENCIES
+          )
           .order('date', {
             ascending: false,
           })
@@ -588,8 +664,14 @@ export default function ReportsPage() {
 
         if (mounted) {
           setTransactions(
-            (data || []) as Transaction[]
+            ((data || []) as Transaction[]).filter(
+              (transaction) =>
+                normalizeCurrency(
+                  transaction.currency
+                ) !== null
+            )
           );
+
           setLoading(false);
         }
       };
@@ -616,21 +698,40 @@ export default function ReportsPage() {
   );
 
   /**
-   * Only normal business transactions are
-   * included in business reports.
+   * Reports use the actual transaction currency.
+   *
+   * We deliberately do not use amount_base here because
+   * NGN and XOF reports must remain separate. A report
+   * should never add NGN and XOF values together.
    */
-  const businessTransactions = useMemo(
-    () =>
-      transactions.filter(
-        isBusinessTransaction
-      ),
-    [transactions]
-  );
+  const businessTransactions =
+    useMemo(
+      () =>
+        transactions.filter(
+          isBusinessTransaction
+        ),
+      [transactions]
+    );
+
+  const currencyTransactions =
+    useMemo(
+      () =>
+        businessTransactions.filter(
+          (transaction) =>
+            normalizeCurrency(
+              transaction.currency
+            ) === selectedCurrency
+        ),
+      [
+        businessTransactions,
+        selectedCurrency,
+      ]
+    );
 
   const currentTransactions =
     useMemo(
       () =>
-        businessTransactions.filter(
+        currencyTransactions.filter(
           (transaction) =>
             isWithinRange(
               transaction,
@@ -638,7 +739,7 @@ export default function ReportsPage() {
             )
         ),
       [
-        businessTransactions,
+        currencyTransactions,
         currentRange,
       ]
     );
@@ -646,7 +747,7 @@ export default function ReportsPage() {
   const previousTransactions =
     useMemo(
       () =>
-        businessTransactions.filter(
+        currencyTransactions.filter(
           (transaction) =>
             isWithinRange(
               transaction,
@@ -654,7 +755,7 @@ export default function ReportsPage() {
             )
         ),
       [
-        businessTransactions,
+        currencyTransactions,
         previousRange,
       ]
     );
@@ -865,7 +966,7 @@ export default function ReportsPage() {
           )
         );
 
-      businessTransactions.forEach(
+      currencyTransactions.forEach(
         (transaction) => {
           const date =
             transactionDate(
@@ -903,7 +1004,7 @@ export default function ReportsPage() {
       );
 
       return months;
-    }, [businessTransactions]);
+    }, [currencyTransactions]);
 
   const maxTrendValue = Math.max(
     ...monthlyTrend.flatMap(
@@ -952,6 +1053,10 @@ export default function ReportsPage() {
     businessTransactions.length >
     0;
 
+  const hasSelectedCurrencyActivity =
+    currencyTransactions.length >
+    0;
+
   return (
     <div className="min-h-screen bg-[#f1f1f1]">
       <div className="mx-auto max-w-[1600px] px-5 py-6 sm:px-8 lg:px-10 lg:py-8">
@@ -975,6 +1080,32 @@ export default function ReportsPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
+            {/* Currency */}
+            <div className="flex h-11 border border-gray-300 bg-white">
+              {SUPPORTED_CURRENCIES.map(
+                (currency) => (
+                  <button
+                    key={currency}
+                    type="button"
+                    onClick={() =>
+                      setSelectedCurrency(
+                        currency
+                      )
+                    }
+                    className={`px-4 text-xs font-semibold transition-colors ${
+                      selectedCurrency ===
+                      currency
+                        ? 'bg-emerald-900 text-white'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {currency}
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* Period */}
             <div className="relative">
               <button
                 type="button"
@@ -1011,6 +1142,7 @@ export default function ReportsPage() {
                           setSelectedPeriod(
                             period
                           );
+
                           setPeriodOpen(
                             false
                           );
@@ -1033,12 +1165,34 @@ export default function ReportsPage() {
             <button
               type="button"
               disabled
-              className="flex h-11 items-center justify-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white opacity-50 cursor-not-allowed"
+              className="flex h-11 cursor-not-allowed items-center justify-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white opacity-50"
             >
               <Download size={16} />
               Upgrade to export
             </button>
           </div>
+        </div>
+
+        {/* Currency context */}
+        <div className="mb-6 flex flex-col gap-2 border border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Wallet
+              size={14}
+              className="text-emerald-900"
+            />
+
+            <span>
+              Showing reports for{' '}
+              <span className="font-medium text-gray-900">
+                {selectedCurrency}
+              </span>{' '}
+              transactions only.
+            </span>
+          </div>
+
+          <p className="text-[11px] text-gray-400">
+            NGN and XOF are reported separately.
+          </p>
         </div>
 
         {error && (
@@ -1047,7 +1201,7 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Empty State */}
+        {/* No business activity at all */}
         {!loading &&
           !error &&
           !hasBusinessActivity && (
@@ -1074,14 +1228,45 @@ export default function ReportsPage() {
                 </p>
 
                 <p className="mt-5 text-xs text-gray-400">
-                  Start by adding a transaction.
+                  Start by adding a transaction or
+                  importing a bank statement.
+                </p>
+              </div>
+            </section>
+          )}
+
+        {/* Selected currency has no activity */}
+        {!loading &&
+          !error &&
+          hasBusinessActivity &&
+          !hasSelectedCurrencyActivity && (
+            <section className="border border-gray-200 bg-white">
+              <div className="flex min-h-[430px] flex-col items-center justify-center px-6 py-16 text-center">
+                <div className="mb-5 flex h-14 w-14 items-center justify-center border border-gray-200 bg-[#f8f8f8]">
+                  <BarChart3
+                    size={24}
+                    strokeWidth={1.6}
+                    className="text-emerald-900"
+                  />
+                </div>
+
+                <h2 className="text-xl font-semibold text-gray-950">
+                  No {selectedCurrency} activity yet
+                </h2>
+
+                <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
+                  You have business activity recorded
+                  in another supported currency. Switch
+                  currencies above or add a{' '}
+                  {selectedCurrency} transaction to
+                  start seeing these reports.
                 </p>
               </div>
             </section>
           )}
 
         {(loading ||
-          hasBusinessActivity) && (
+          hasSelectedCurrencyActivity) && (
           <>
             {/* Financial Summary */}
             <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -1091,7 +1276,8 @@ export default function ReportsPage() {
                   loading
                     ? '—'
                     : formatCurrency(
-                        currentRevenue
+                        currentRevenue,
+                        selectedCurrency
                       )
                 }
                 detail={
@@ -1127,7 +1313,8 @@ export default function ReportsPage() {
                   loading
                     ? '—'
                     : formatCurrency(
-                        currentExpenses
+                        currentExpenses,
+                        selectedCurrency
                       )
                 }
                 detail={
@@ -1159,7 +1346,8 @@ export default function ReportsPage() {
                   loading
                     ? '—'
                     : formatCurrency(
-                        profit
+                        profit,
+                        selectedCurrency
                       )
                 }
                 detail="Money in minus money out"
@@ -1186,7 +1374,8 @@ export default function ReportsPage() {
                   loading
                     ? '—'
                     : formatCurrency(
-                        profit
+                        profit,
+                        selectedCurrency
                       )
                 }
                 detail="What was left after recorded spending"
@@ -1215,8 +1404,9 @@ export default function ReportsPage() {
                     </h2>
 
                     <p className="mt-1 text-xs text-gray-500">
-                      A simple view of your business
-                      money for{' '}
+                      A simple view of your{' '}
+                      {selectedCurrency}{' '}
+                      business money for{' '}
                       {selectedPeriod.toLowerCase()}.
                     </p>
                   </div>
@@ -1250,7 +1440,8 @@ export default function ReportsPage() {
                         {loading
                           ? '—'
                           : formatCurrency(
-                              currentRevenue
+                              currentRevenue,
+                              selectedCurrency
                             )}
                       </p>
                     </div>
@@ -1272,10 +1463,12 @@ export default function ReportsPage() {
                           : currentExpenses >
                             0
                           ? `-${formatCurrency(
-                              currentExpenses
+                              currentExpenses,
+                              selectedCurrency
                             )}`
                           : formatCurrency(
-                              0
+                              0,
+                              selectedCurrency
                             )}
                       </p>
                     </div>
@@ -1301,7 +1494,8 @@ export default function ReportsPage() {
                         {loading
                           ? '—'
                           : formatCurrency(
-                              profit
+                              profit,
+                              selectedCurrency
                             )}
                       </p>
                     </div>
@@ -1317,8 +1511,9 @@ export default function ReportsPage() {
                   </h2>
 
                   <p className="mt-1 text-xs text-gray-500">
-                    Your biggest spending categories for the
-                    selected period.
+                    Your biggest {selectedCurrency}{' '}
+                    spending categories for the selected
+                    period.
                   </p>
                 </div>
 
@@ -1357,7 +1552,8 @@ export default function ReportsPage() {
 
                               <span className="text-sm font-medium text-gray-900">
                                 {formatCurrency(
-                                  item.amount
+                                  item.amount,
+                                  selectedCurrency
                                 )}
                               </span>
                             </div>
@@ -1401,8 +1597,8 @@ export default function ReportsPage() {
                       </h2>
 
                       <p className="mt-1 text-xs text-gray-500">
-                        See how your business money has changed
-                        over the last six months.
+                        {selectedCurrency} activity over the
+                        last six months.
                       </p>
                     </div>
 
@@ -1451,7 +1647,8 @@ export default function ReportsPage() {
                                     )}%`,
                                   }}
                                   title={`Money in: ${formatCurrency(
-                                    item.revenue
+                                    item.revenue,
+                                    selectedCurrency
                                   )}`}
                                 />
 
@@ -1469,7 +1666,8 @@ export default function ReportsPage() {
                                     )}%`,
                                   }}
                                   title={`Money out: ${formatCurrency(
-                                    item.expenses
+                                    item.expenses,
+                                    selectedCurrency
                                   )}`}
                                 />
                               </div>
@@ -1493,7 +1691,8 @@ export default function ReportsPage() {
 
                             <p className="mt-1 text-sm font-semibold text-gray-950">
                               {formatCompactCurrency(
-                                highestRevenue
+                                highestRevenue,
+                                selectedCurrency
                               )}
                             </p>
                           </div>
@@ -1505,7 +1704,8 @@ export default function ReportsPage() {
 
                             <p className="mt-1 text-sm font-semibold text-gray-950">
                               {formatCompactCurrency(
-                                highestExpenses
+                                highestExpenses,
+                                selectedCurrency
                               )}
                             </p>
                           </div>
@@ -1539,8 +1739,8 @@ export default function ReportsPage() {
                   </h2>
 
                   <p className="mt-1 text-xs text-gray-500">
-                    Money in and money out for the selected
-                    period.
+                    {selectedCurrency} money in and money
+                    out for the selected period.
                   </p>
                 </div>
 
@@ -1570,7 +1770,8 @@ export default function ReportsPage() {
                         {loading
                           ? '—'
                           : `+${formatCurrency(
-                              currentRevenue
+                              currentRevenue,
+                              selectedCurrency
                             )}`}
                       </p>
                     </div>
@@ -1599,7 +1800,8 @@ export default function ReportsPage() {
                         {loading
                           ? '—'
                           : `-${formatCurrency(
-                              currentExpenses
+                              currentExpenses,
+                              selectedCurrency
                             )}`}
                       </p>
                     </div>
@@ -1619,7 +1821,8 @@ export default function ReportsPage() {
                         {loading
                           ? '—'
                           : formatCurrency(
-                              profit
+                              profit,
+                              selectedCurrency
                             )}
                       </p>
 
@@ -1642,8 +1845,9 @@ export default function ReportsPage() {
                     </h2>
 
                     <p className="mt-1 text-xs text-gray-500">
-                      Export the transactions behind the
-                      numbers you are viewing.
+                      Export the {selectedCurrency}{' '}
+                      transactions behind the numbers you
+                      are viewing.
                     </p>
                   </div>
 
@@ -1657,13 +1861,13 @@ export default function ReportsPage() {
                 <ReportAction
                   icon={FileText}
                   title="Transaction report"
-                  description="Download your recorded transactions as a CSV file"
+                  description={`Download your recorded ${selectedCurrency} transactions as a CSV file`}
                 />
 
                 <ReportAction
                   icon={Receipt}
                   title="Business activity"
-                  description="Download the income and spending behind this report"
+                  description={`Download the ${selectedCurrency} income and spending behind this report`}
                 />
               </div>
             </section>

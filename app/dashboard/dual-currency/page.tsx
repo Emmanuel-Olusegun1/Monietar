@@ -32,6 +32,8 @@ type Plan =
   | 'growing-merchant'
   | 'borderless-pro';
 
+type Currency = 'NGN' | 'XOF';
+
 type Transaction = {
   id: string;
   user_id: string;
@@ -83,6 +85,8 @@ type RateHistoryResponse = {
   updatedAt: string;
 };
 
+const SUPPORTED_CURRENCIES: Currency[] = ['NGN', 'XOF'];
+
 const PERIOD_DAYS: Record<Period, number> = {
   '7D': 7,
   '30D': 30,
@@ -90,14 +94,48 @@ const PERIOD_DAYS: Record<Period, number> = {
 };
 
 function normalizePlan(value: unknown): Plan {
-  if (
-    value === 'growing-merchant' ||
-    value === 'borderless-pro'
-  ) {
-    return value;
+  if (typeof value !== 'string') {
+    return 'retail-starter';
   }
 
-  return 'retail-starter';
+  const normalized = value
+    .toLowerCase()
+    .trim()
+    .replace(/_/g, '-')
+    .replace(/\s+/g, '-');
+
+  switch (normalized) {
+    case 'growing-merchant':
+    case 'growingmerchant':
+      return 'growing-merchant';
+
+    case 'borderless-pro':
+    case 'borderlesspro':
+      return 'borderless-pro';
+
+    case 'retail-starter':
+    case 'retailstarter':
+    default:
+      return 'retail-starter';
+  }
+}
+
+function normalizeCurrency(
+  value: unknown,
+): Currency | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const currency = value
+    .trim()
+    .toUpperCase();
+
+  return SUPPORTED_CURRENCIES.includes(
+    currency as Currency,
+  )
+    ? (currency as Currency)
+    : null;
 }
 
 function formatNumber(
@@ -115,46 +153,62 @@ function formatNumber(
 
 function formatCurrency(
   value: number,
-  currency: 'NGN' | 'XOF',
+  currency: Currency,
 ) {
   if (!Number.isFinite(value)) {
-    return currency === 'NGN' ? '₦0' : '0 XOF';
+    return currency === 'NGN'
+      ? '₦0'
+      : '0 XOF';
   }
 
   if (currency === 'NGN') {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
       currency: 'NGN',
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
   }
 
-  return `${new Intl.NumberFormat('en-NG', {
-    maximumFractionDigits: 2,
-  }).format(value)} XOF`;
+  return `${Math.round(value).toLocaleString(
+    'en-US',
+  )} XOF`;
 }
 
 function formatCompactCurrency(
   value: number,
-  currency: 'NGN' | 'XOF',
+  currency: Currency,
 ) {
   if (!Number.isFinite(value)) {
-    return currency === 'NGN' ? '₦0' : '0 XOF';
+    return currency === 'NGN'
+      ? '₦0'
+      : '0 XOF';
   }
 
-  if (currency === 'NGN') {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      notation: 'compact',
-      maximumFractionDigits: 1,
-    }).format(value);
+  const absolute = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+
+  if (absolute >= 1_000_000) {
+    return `${sign}${
+      currency === 'NGN' ? '₦' : ''
+    }${(absolute / 1_000_000).toFixed(1)}m${
+      currency === 'XOF' ? ' XOF' : ''
+    }`;
   }
 
-  return `${new Intl.NumberFormat('en-NG', {
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(value)} XOF`;
+  if (absolute >= 1_000) {
+    return `${sign}${
+      currency === 'NGN' ? '₦' : ''
+    }${Math.round(absolute / 1_000)}k${
+      currency === 'XOF' ? ' XOF' : ''
+    }`;
+  }
+
+  return `${sign}${
+    currency === 'NGN' ? '₦' : ''
+  }${Math.round(absolute)}${
+    currency === 'XOF' ? ' XOF' : ''
+  }`;
 }
 
 function formatDate(value: string) {
@@ -215,9 +269,13 @@ function formatDateTime(value: string) {
 function getTransactionAmount(
   transaction: Transaction,
 ) {
-  const amount = Number(transaction.amount);
+  const amount = Number(
+    transaction.amount,
+  );
 
-  return Number.isFinite(amount) ? amount : 0;
+  return Number.isFinite(amount)
+    ? amount
+    : 0;
 }
 
 function getTransactionBaseAmount(
@@ -227,21 +285,30 @@ function getTransactionBaseAmount(
     transaction.amount_base,
   );
 
-  if (Number.isFinite(amountBase)) {
+  if (
+    Number.isFinite(amountBase) &&
+    amountBase !== 0
+  ) {
     return amountBase;
   }
 
-  const amount = getTransactionAmount(transaction);
-  const rate = Number(transaction.exchange_rate);
+  const amount =
+    getTransactionAmount(transaction);
 
-  if (
-    transaction.currency?.toUpperCase() === 'NGN'
-  ) {
+  const rate = Number(
+    transaction.exchange_rate,
+  );
+
+  const currency = normalizeCurrency(
+    transaction.currency,
+  );
+
+  if (currency === 'NGN') {
     return amount;
   }
 
   if (
-    transaction.currency?.toUpperCase() === 'XOF' &&
+    currency === 'XOF' &&
     Number.isFinite(rate) &&
     rate > 0
   ) {
@@ -255,7 +322,9 @@ function getRecordedXofRate(
   transaction: Transaction,
 ) {
   if (
-    transaction.currency?.toUpperCase() !== 'XOF'
+    normalizeCurrency(
+      transaction.currency,
+    ) !== 'XOF'
   ) {
     return null;
   }
@@ -276,7 +345,9 @@ function getRecordedXofRate(
   );
 
   const baseAmount = Math.abs(
-    getTransactionBaseAmount(transaction),
+    getTransactionBaseAmount(
+      transaction,
+    ),
   );
 
   if (
@@ -292,6 +363,57 @@ function getRecordedXofRate(
   }
 
   return null;
+}
+
+function getTransactionDate(
+  transaction: Transaction,
+) {
+  /*
+   * Always prefer the transaction's business date.
+   *
+   * This matters especially for imported bank statements:
+   * created_at may be the date the statement was uploaded,
+   * while date is the actual transaction date.
+   */
+  if (transaction.date) {
+    const parsed = new Date(
+      `${transaction.date}T00:00:00`,
+    );
+
+    if (
+      !Number.isNaN(parsed.getTime())
+    ) {
+      return parsed;
+    }
+  }
+
+  const createdAt = new Date(
+    transaction.created_at,
+  );
+
+  return Number.isNaN(
+    createdAt.getTime(),
+  )
+    ? null
+    : createdAt;
+}
+
+function getPeriodStart(period: Period) {
+  const date = new Date();
+
+  date.setHours(
+    0,
+    0,
+    0,
+    0,
+  );
+
+  date.setDate(
+    date.getDate() -
+      (PERIOD_DAYS[period] - 1),
+  );
+
+  return date;
 }
 
 export default function DualCurrencyPage() {
@@ -390,10 +512,13 @@ export default function DualCurrencyPage() {
       try {
         const {
           data: { user },
-        } = await supabase.auth.getUser();
+        } =
+          await supabase.auth.getUser();
 
         if (!user) {
-          setCurrentPlan('retail-starter');
+          setCurrentPlan(
+            'retail-starter',
+          );
           return;
         }
 
@@ -405,8 +530,15 @@ export default function DualCurrencyPage() {
         setCurrentPlan(
           normalizePlan(metadataPlan),
         );
-      } catch {
-        setCurrentPlan('retail-starter');
+      } catch (error) {
+        console.error(
+          'Failed to load plan:',
+          error,
+        );
+
+        setCurrentPlan(
+          'retail-starter',
+        );
       } finally {
         setPlanLoading(false);
       }
@@ -427,7 +559,8 @@ export default function DualCurrencyPage() {
       try {
         const {
           data: { user },
-        } = await supabase.auth.getUser();
+        } =
+          await supabase.auth.getUser();
 
         if (!user) {
           setTransactions([]);
@@ -460,9 +593,18 @@ export default function DualCurrencyPage() {
               is_deleted
             `,
           )
-          .eq('user_id', user.id)
-          .eq('status', 'completed')
-          .eq('is_deleted', false)
+          .eq(
+            'user_id',
+            user.id,
+          )
+          .eq(
+            'status',
+            'completed',
+          )
+          .eq(
+            'is_deleted',
+            false,
+          )
           .order('date', {
             ascending: false,
           })
@@ -474,10 +616,35 @@ export default function DualCurrencyPage() {
           throw error;
         }
 
+        const normalizedTransactions =
+          ((data ?? []) as Transaction[])
+            .map(
+              (transaction) => ({
+                ...transaction,
+                currency:
+                  normalizeCurrency(
+                    transaction.currency,
+                  ),
+              }),
+            )
+            .filter(
+              (
+                transaction,
+              ) =>
+                normalizeCurrency(
+                  transaction.currency,
+                ) !== null,
+            );
+
         setTransactions(
-          (data ?? []) as Transaction[],
+          normalizedTransactions,
         );
-      } catch {
+      } catch (error) {
+        console.error(
+          'Failed to load dual-currency transactions:',
+          error,
+        );
+
         setTransactions([]);
       } finally {
         setLoading(false);
@@ -498,12 +665,13 @@ export default function DualCurrencyPage() {
       setFxError(null);
 
       try {
-        const response = await fetch(
-          '/api/exchange-rate',
-          {
-            cache: 'no-store',
-          },
-        );
+        const response =
+          await fetch(
+            '/api/exchange-rate',
+            {
+              cache: 'no-store',
+            },
+          );
 
         if (!response.ok) {
           throw new Error(
@@ -514,7 +682,9 @@ export default function DualCurrencyPage() {
         const data =
           (await response.json()) as LiveRateResponse;
 
-        const rate = Number(data.rate);
+        const rate = Number(
+          data.rate,
+        );
 
         if (
           !Number.isFinite(rate) ||
@@ -527,7 +697,8 @@ export default function DualCurrencyPage() {
 
         setLiveRate(rate);
         setLiveRateUpdatedAt(
-          data.updatedAt ?? null,
+          data.updatedAt ??
+            null,
         );
         setLiveRateSource(
           data.source ?? null,
@@ -538,6 +709,7 @@ export default function DualCurrencyPage() {
             ? error.message
             : 'Unable to load the live exchange rate.',
         );
+
         setLiveRate(null);
       } finally {
         setFxLoading(false);
@@ -547,7 +719,9 @@ export default function DualCurrencyPage() {
   const loadRateHistory =
     useCallback(async () => {
       if (!hasDualCurrencyAccess) {
-        setRateHistoryLoading(false);
+        setRateHistoryLoading(
+          false,
+        );
         return;
       }
 
@@ -572,36 +746,51 @@ export default function DualCurrencyPage() {
         const data =
           (await response.json()) as RateHistoryResponse;
 
-        const history = Array.isArray(
-          data.history,
-        )
-          ? data.history
-              .map((item) => ({
-                date: item.date,
-                rate: Number(item.rate),
-              }))
-              .filter(
-                (item) =>
-                  Boolean(item.date) &&
-                  Number.isFinite(item.rate) &&
-                  item.rate > 0,
-              )
-          : [];
+        const history =
+          Array.isArray(
+            data.history,
+          )
+            ? data.history
+                .map((item) => ({
+                  date: item.date,
+                  rate: Number(
+                    item.rate,
+                  ),
+                }))
+                .filter(
+                  (item) =>
+                    Boolean(
+                      item.date,
+                    ) &&
+                    Number.isFinite(
+                      item.rate,
+                    ) &&
+                    item.rate > 0,
+                )
+            : [];
 
-        setRateHistory(history);
+        setRateHistory(
+          history,
+        );
 
-        if (history.length > 0) {
+        if (
+          history.length > 0
+        ) {
           setSelectedChartPoint(
             history[
               history.length - 1
             ],
           );
         } else {
-          setSelectedChartPoint(null);
+          setSelectedChartPoint(
+            null,
+          );
         }
       } catch (error) {
         setRateHistory([]);
-        setSelectedChartPoint(null);
+        setSelectedChartPoint(
+          null,
+        );
 
         setRateHistoryError(
           error instanceof Error
@@ -609,7 +798,9 @@ export default function DualCurrencyPage() {
             : 'Unable to load exchange-rate history.',
         );
       } finally {
-        setRateHistoryLoading(false);
+        setRateHistoryLoading(
+          false,
+        );
       }
     }, [
       hasDualCurrencyAccess,
@@ -629,7 +820,9 @@ export default function DualCurrencyPage() {
       setTransactions([]);
       setLoading(false);
       setFxLoading(false);
-      setRateHistoryLoading(false);
+      setRateHistoryLoading(
+        false,
+      );
       return;
     }
 
@@ -665,13 +858,15 @@ export default function DualCurrencyPage() {
 
       setRefreshing(true);
 
-      await Promise.all([
-        loadTransactions(),
-        loadLiveRate(),
-        loadRateHistory(),
-      ]);
-
-      setRefreshing(false);
+      try {
+        await Promise.all([
+          loadTransactions(),
+          loadLiveRate(),
+          loadRateHistory(),
+        ]);
+      } finally {
+        setRefreshing(false);
+      }
     }, [
       hasDualCurrencyAccess,
       loadTransactions,
@@ -679,35 +874,23 @@ export default function DualCurrencyPage() {
       loadRateHistory,
     ]);
 
-  const periodStart = useMemo(() => {
-    const date = new Date();
-
-    date.setDate(
-      date.getDate() -
-        PERIOD_DAYS[period],
-    );
-
-    date.setHours(
-      0,
-      0,
-      0,
-      0,
-    );
-
-    return date;
-  }, [period]);
+  const periodStart = useMemo(
+    () => getPeriodStart(period),
+    [period],
+  );
 
   const periodTransactions =
     useMemo(() => {
       return transactions.filter(
         (transaction) => {
           const transactionDate =
-            new Date(transaction.date);
+            getTransactionDate(
+              transaction,
+            );
 
           return (
-            !Number.isNaN(
-              transactionDate.getTime(),
-            ) &&
+            transactionDate !==
+              null &&
             transactionDate >=
               periodStart
           );
@@ -722,8 +905,9 @@ export default function DualCurrencyPage() {
     useMemo(() => {
       return periodTransactions.filter(
         (transaction) =>
-          transaction.currency?.toUpperCase() ===
-          'XOF',
+          normalizeCurrency(
+            transaction.currency,
+          ) === 'XOF',
       );
     }, [periodTransactions]);
 
@@ -731,8 +915,9 @@ export default function DualCurrencyPage() {
     useMemo(() => {
       return periodTransactions.filter(
         (transaction) =>
-          transaction.currency?.toUpperCase() ===
-          'NGN',
+          normalizeCurrency(
+            transaction.currency,
+          ) === 'NGN',
       );
     }, [periodTransactions]);
 
@@ -747,7 +932,7 @@ export default function DualCurrencyPage() {
           );
 
         if (
-          rate &&
+          rate !== null &&
           rate > 0
         ) {
           return rate;
@@ -780,7 +965,11 @@ export default function DualCurrencyPage() {
       99,
       Math.max(
         0,
-        targetMargin,
+        Number.isFinite(
+          targetMargin,
+        )
+          ? targetMargin
+          : 0,
       ),
     );
 
@@ -788,13 +977,22 @@ export default function DualCurrencyPage() {
     activeRate
       ? purchaseCostNgn /
         (1 -
-          safeTargetMargin /
-            100)
+          safeTargetMargin / 100)
       : 0;
 
   const scenarioPurchaseCost =
-    purchaseXof *
-    scenarioRate;
+    Math.max(
+      0,
+      purchaseXof,
+    ) *
+    Math.max(
+      0,
+      Number.isFinite(
+        scenarioRate,
+      )
+        ? scenarioRate
+        : 0,
+    );
 
   const scenarioProfit =
     sellingPriceNgn -
@@ -818,14 +1016,19 @@ export default function DualCurrencyPage() {
 
   const convertedNgn =
     activeRate
-      ? conversionAmount *
-        activeRate
+      ? Math.max(
+          0,
+          conversionAmount,
+        ) * activeRate
       : 0;
 
   const convertedXof =
-    activeRate
-      ? conversionAmount /
-        activeRate
+    activeRate &&
+    activeRate > 0
+      ? Math.max(
+          0,
+          conversionAmount,
+        ) / activeRate
       : 0;
 
   const totalXofSpend =
@@ -867,8 +1070,9 @@ export default function DualCurrencyPage() {
       return transactions
         .filter(
           (transaction) =>
-            transaction.currency?.toUpperCase() ===
-            'XOF',
+            normalizeCurrency(
+              transaction.currency,
+            ) === 'XOF',
         )
         .map((transaction) => ({
           id: transaction.id,
@@ -942,8 +1146,7 @@ export default function DualCurrencyPage() {
 
       const changePercent =
         firstRate > 0
-          ? (change /
-              firstRate) *
+          ? (change / firstRate) *
             100
           : 0;
 
@@ -989,15 +1192,21 @@ export default function DualCurrencyPage() {
           (item) => item.rate,
         );
 
-      let min = Math.min(...rates);
-      let max = Math.max(...rates);
+      let min = Math.min(
+        ...rates,
+      );
+
+      let max = Math.max(
+        ...rates,
+      );
 
       if (min === max) {
         min -= 0.01;
         max += 0.01;
       }
 
-      const range = max - min;
+      const range =
+        max - min;
 
       const innerWidth =
         width -
@@ -1010,72 +1219,85 @@ export default function DualCurrencyPage() {
 
       const points =
         rateHistory
-          .map((item, index) => {
-            const x =
-              paddingX +
-              (index /
-                Math.max(
-                  1,
-                  rateHistory.length -
+          .map(
+            (
+              item,
+              index,
+            ) => {
+              const x =
+                paddingX +
+                (index /
+                  Math.max(
                     1,
-                )) *
-                innerWidth;
+                    rateHistory.length -
+                      1,
+                  )) *
+                  innerWidth;
 
-            const y =
-              paddingTop +
-              (1 -
-                (item.rate -
-                  min) /
-                  range) *
-                innerHeight;
+              const y =
+                paddingTop +
+                (1 -
+                  (item.rate -
+                    min) /
+                    range) *
+                  innerHeight;
 
-            return `${x},${y}`;
-          })
+              return `${x},${y}`;
+            },
+          )
           .join(' ');
 
+      const pointList =
+        points.split(' ');
+
       const firstPoint =
-        points.split(' ')[0];
+        pointList[0];
 
       const lastPoint =
-        points.split(' ')[
-          points.split(' ').length - 1
+        pointList[
+          pointList.length - 1
         ];
 
-      const [
-        lastX,
-        ,
-      ] = lastPoint
-        .split(',')
-        .map(Number);
+      const [lastX] =
+        lastPoint
+          .split(',')
+          .map(Number);
 
-      const area =
-        `${firstPoint} ${points} ${lastX},${height - paddingBottom} ${paddingX},${height - paddingBottom}`;
+      const area = `${firstPoint} ${points} ${lastX},${
+        height - paddingBottom
+      } ${paddingX},${
+        height - paddingBottom
+      }`;
 
       const tickCount = 5;
 
-      const yTicks = Array.from(
-        {
-          length: tickCount,
-        },
-        (_, index) => {
-          const value =
-            max -
-            (range /
-              (tickCount - 1)) *
-              index;
+      const yTicks =
+        Array.from(
+          {
+            length:
+              tickCount,
+          },
+          (_, index) => {
+            const value =
+              max -
+              (range /
+                (tickCount -
+                  1)) *
+                index;
 
-          const y =
-            paddingTop +
-            (index /
-              (tickCount - 1)) *
-              innerHeight;
+            const y =
+              paddingTop +
+              (index /
+                (tickCount -
+                  1)) *
+                innerHeight;
 
-          return {
-            value,
-            y,
-          };
-        },
-      );
+            return {
+              value,
+              y,
+            };
+          },
+        );
 
       return {
         width,
@@ -1278,6 +1500,7 @@ export default function DualCurrencyPage() {
                   : ''
               }
             />
+
             {refreshing
               ? 'Refreshing...'
               : 'Refresh'}
@@ -1333,6 +1556,7 @@ export default function DualCurrencyPage() {
               <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-400">
                 <span className="inline-flex items-center gap-1.5">
                   <Clock3 size={13} />
+
                   {liveRateUpdatedAt
                     ? formatDateTime(
                         liveRateUpdatedAt,
@@ -1751,7 +1975,7 @@ export default function DualCurrencyPage() {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-[1fr_1fr_1fr]">
+          <div className="grid lg:grid-cols-3">
             {/* Inputs */}
             <div className="border-b border-gray-200 p-5 sm:p-6 lg:border-b-0 lg:border-r">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
@@ -1777,9 +2001,12 @@ export default function DualCurrencyPage() {
                       }
                       onChange={(event) =>
                         setPurchaseXof(
-                          Number(
-                            event.target
-                              .value,
+                          Math.max(
+                            0,
+                            Number(
+                              event.target
+                                .value,
+                            ) || 0,
                           ),
                         )
                       }
@@ -1806,9 +2033,12 @@ export default function DualCurrencyPage() {
                       }
                       onChange={(event) =>
                         setSellingPriceNgn(
-                          Number(
-                            event.target
-                              .value,
+                          Math.max(
+                            0,
+                            Number(
+                              event.target
+                                .value,
+                            ) || 0,
                           ),
                         )
                       }
@@ -1832,9 +2062,15 @@ export default function DualCurrencyPage() {
                       }
                       onChange={(event) =>
                         setTargetMargin(
-                          Number(
-                            event.target
-                              .value,
+                          Math.min(
+                            99,
+                            Math.max(
+                              0,
+                              Number(
+                                event.target
+                                  .value,
+                              ) || 0,
+                            ),
                           ),
                         )
                       }
@@ -1967,7 +2203,7 @@ export default function DualCurrencyPage() {
                   <p className="text-xs leading-5 text-emerald-800">
                     To make{' '}
                     <strong>
-                      {targetMargin}%
+                      {safeTargetMargin}%
                     </strong>{' '}
                     margin at the current rate, your
                     selling price should be at least{' '}
@@ -2040,8 +2276,12 @@ export default function DualCurrencyPage() {
                   value={scenarioRate}
                   onChange={(event) =>
                     setScenarioRate(
-                      Number(
-                        event.target.value,
+                      Math.max(
+                        0,
+                        Number(
+                          event.target
+                            .value,
+                        ) || 0,
                       ),
                     )
                   }
@@ -2133,7 +2373,8 @@ export default function DualCurrencyPage() {
                     size={15}
                     className="mt-0.5 text-red-500"
                   />
-                ) : rateChangePercent < 0 ? (
+                ) : rateChangePercent <
+                  0 ? (
                   <ArrowDown
                     size={15}
                     className="mt-0.5 text-emerald-600"
@@ -2203,9 +2444,12 @@ export default function DualCurrencyPage() {
                   }
                   onChange={(event) =>
                     setConversionAmount(
-                      Number(
-                        event.target
-                          .value,
+                      Math.max(
+                        0,
+                        Number(
+                          event.target
+                            .value,
+                        ) || 0,
                       ),
                     )
                   }

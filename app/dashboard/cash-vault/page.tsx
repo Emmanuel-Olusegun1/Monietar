@@ -22,6 +22,8 @@ import { createClient } from '@/lib/supabase/client';
 
 type TransactionType = 'income' | 'expense';
 
+type Currency = 'NGN' | 'XOF';
+
 type Transaction = {
   id: string;
   user_id: string;
@@ -40,6 +42,7 @@ type Transaction = {
   reference: string | null;
   notes: string | null;
   is_deleted: boolean | null;
+  source: string | null;
 };
 
 type CashVault = {
@@ -71,12 +74,32 @@ const periods: PeriodKey[] = [
 
 const BUSINESS_TIME_ZONE = 'Africa/Lagos';
 
-const formatCurrency = (amount: number, currency = 'NGN') =>
-  new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
+const SUPPORTED_CURRENCIES: Currency[] = ['NGN', 'XOF'];
+
+const STARTER_CASH_VAULT_LIMIT = 1;
+
+function isSupportedCurrency(value: string | null | undefined): value is Currency {
+  return (
+    typeof value === 'string' &&
+    SUPPORTED_CURRENCIES.includes(value.toUpperCase() as Currency)
+  );
+}
+
+function formatCurrency(
+  amount: number,
+  currency: string = 'NGN'
+) {
+  const normalized = currency.toUpperCase();
+
+  if (normalized === 'XOF') {
+    return `CFA ${Math.round(amount).toLocaleString('en-US')}`;
+  }
+
+  return `₦${amount.toLocaleString('en-NG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 function toNumber(value: number | string | null | undefined) {
   if (value === null || value === undefined) return 0;
@@ -94,9 +117,15 @@ function getLagosDateParts(date = new Date()) {
   }).formatToParts(date);
 
   return {
-    year: Number(parts.find((part) => part.type === 'year')?.value),
-    month: Number(parts.find((part) => part.type === 'month')?.value),
-    day: Number(parts.find((part) => part.type === 'day')?.value),
+    year: Number(
+      parts.find((part) => part.type === 'year')?.value
+    ),
+    month: Number(
+      parts.find((part) => part.type === 'month')?.value
+    ),
+    day: Number(
+      parts.find((part) => part.type === 'day')?.value
+    ),
   };
 }
 
@@ -111,6 +140,7 @@ function getLagosDateString(date = new Date()) {
 
 function parseDateOnly(value: string) {
   const [year, month, day] = value.split('-').map(Number);
+
   return new Date(year, month - 1, day);
 }
 
@@ -151,7 +181,10 @@ function getPeriodRange(period: PeriodKey): {
 
   switch (period) {
     case 'Today':
-      return { start: today, end: today };
+      return {
+        start: today,
+        end: today,
+      };
 
     case 'This week':
       return {
@@ -166,8 +199,17 @@ function getPeriodRange(period: PeriodKey): {
       };
 
     case 'Last month': {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0);
+      const start = new Date(
+        now.getFullYear(),
+        now.getMonth() - 1,
+        1
+      );
+
+      const end = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        0
+      );
 
       return {
         start: formatDateOnly(start),
@@ -182,7 +224,10 @@ function getPeriodRange(period: PeriodKey): {
       };
 
     case 'All time':
-      return { start: null, end: null };
+      return {
+        start: null,
+        end: null,
+      };
   }
 }
 
@@ -192,7 +237,9 @@ function transactionDate(transaction: Transaction) {
 
 function isCompletedTransaction(transaction: Transaction) {
   return (
-    transaction.status === 'completed' && transaction.is_deleted !== true
+    transaction.status === 'completed' &&
+    transaction.is_deleted !== true &&
+    isSupportedCurrency(transaction.currency)
   );
 }
 
@@ -201,7 +248,10 @@ function getIncome(transactions: Transaction[]) {
     .filter((transaction) => transaction.type === 'income')
     .reduce(
       (total, transaction) =>
-        total + toNumber(transaction.amount_base ?? transaction.amount),
+        total +
+        toNumber(
+          transaction.amount_base ?? transaction.amount
+        ),
       0
     );
 }
@@ -211,7 +261,10 @@ function getExpenses(transactions: Transaction[]) {
     .filter((transaction) => transaction.type === 'expense')
     .reduce(
       (total, transaction) =>
-        total + toNumber(transaction.amount_base ?? transaction.amount),
+        total +
+        toNumber(
+          transaction.amount_base ?? transaction.amount
+        ),
       0
     );
 }
@@ -225,7 +278,9 @@ function formatTransactionDate(transaction: Transaction) {
 }
 
 function formatTransactionTime(transaction: Transaction) {
-  if (!transaction.created_at) return 'Recorded manually';
+  if (!transaction.created_at) {
+    return 'Recorded manually';
+  }
 
   return new Intl.DateTimeFormat('en-NG', {
     hour: 'numeric',
@@ -251,13 +306,19 @@ function VaultMetric({
     <div className="border border-gray-200 bg-white p-5">
       <div className="mb-5 flex items-start justify-between">
         <div className="flex h-10 w-10 items-center justify-center border border-gray-200 bg-[#f8f8f8]">
-          <Icon size={18} strokeWidth={1.7} className="text-emerald-900" />
+          <Icon
+            size={18}
+            strokeWidth={1.7}
+            className="text-emerald-900"
+          />
         </div>
 
         {positive !== undefined && (
           <span
             className={`flex items-center gap-1 text-xs font-medium ${
-              positive ? 'text-emerald-800' : 'text-red-700'
+              positive
+                ? 'text-emerald-800'
+                : 'text-red-700'
             }`}
           >
             {positive ? (
@@ -277,12 +338,18 @@ function VaultMetric({
         {value}
       </p>
 
-      <p className="mt-2 text-xs text-gray-500">{detail}</p>
+      <p className="mt-2 text-xs text-gray-500">
+        {detail}
+      </p>
     </div>
   );
 }
 
-function MovementRow({ transaction }: { transaction: Transaction }) {
+function MovementRow({
+  transaction,
+}: {
+  transaction: Transaction;
+}) {
   const isIncome = transaction.type === 'income';
   const amount = toNumber(transaction.amount);
 
@@ -297,21 +364,30 @@ function MovementRow({ transaction }: { transaction: Transaction }) {
           }`}
         >
           {isIncome ? (
-            <ArrowDownRight size={16} className="text-emerald-800" />
+            <ArrowDownRight
+              size={16}
+              className="text-emerald-800"
+            />
           ) : (
-            <ArrowUpRight size={16} className="text-red-700" />
+            <ArrowUpRight
+              size={16}
+              className="text-red-700"
+            />
           )}
         </div>
 
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-gray-900">
-            {transaction.description || transaction.category}
+            {transaction.description ||
+              transaction.category}
           </p>
 
           <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
             <span>{transaction.category}</span>
             <span>•</span>
-            <span>{formatTransactionDate(transaction)}</span>
+            <span>
+              {formatTransactionDate(transaction)}
+            </span>
           </div>
         </div>
       </div>
@@ -319,11 +395,16 @@ function MovementRow({ transaction }: { transaction: Transaction }) {
       <div className="shrink-0 text-right">
         <p
           className={`text-sm font-semibold ${
-            isIncome ? 'text-emerald-800' : 'text-red-700'
+            isIncome
+              ? 'text-emerald-800'
+              : 'text-red-700'
           }`}
         >
           {isIncome ? '+' : '-'}
-          {formatCurrency(amount, transaction.currency || 'NGN')}
+          {formatCurrency(
+            amount,
+            transaction.currency || 'NGN'
+          )}
         </p>
 
         <p className="mt-1 text-[11px] text-gray-400">
@@ -335,22 +416,49 @@ function MovementRow({ transaction }: { transaction: Transaction }) {
 }
 
 export default function CashVaultPage() {
-  const supabase = createClient();
+  const supabase = useMemo(
+    () => createClient(),
+    []
+  );
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [vaults, setVaults] = useState<CashVault[]>([]);
+  const [transactions, setTransactions] =
+    useState<Transaction[]>([]);
+
+  const [vaults, setVaults] =
+    useState<CashVault[]>([]);
+
   const [selectedPeriod, setSelectedPeriod] =
     useState<PeriodKey>('This month');
-  const [periodOpen, setPeriodOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const [cashModalOpen, setCashModalOpen] = useState(false);
-  const [cashType, setCashType] = useState<TransactionType>('income');
-  const [cashAmount, setCashAmount] = useState('');
-  const [cashDescription, setCashDescription] = useState('');
-  const [cashDate, setCashDate] = useState(getLagosDateString());
+  const [periodOpen, setPeriodOpen] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [cashModalOpen, setCashModalOpen] =
+    useState(false);
+
+  const [cashType, setCashType] =
+    useState<TransactionType>('income');
+
+  const [cashAmount, setCashAmount] =
+    useState('');
+
+  const [cashDescription, setCashDescription] =
+    useState('');
+
+  const [cashDate, setCashDate] =
+    useState(getLagosDateString());
+
+  const [vaultCurrency, setVaultCurrency] =
+    useState<Currency>('NGN');
 
   useEffect(() => {
     let mounted = true;
@@ -371,13 +479,17 @@ export default function CashVaultPage() {
               ? 'We could not verify your account.'
               : 'You need to be signed in to view your Cash Vault.'
           );
+
           setLoading(false);
         }
 
         return;
       }
 
-      const [transactionResult, vaultResult] = await Promise.all([
+      const [
+        transactionResult,
+        vaultResult,
+      ] = await Promise.all([
         supabase
           .from('transactions')
           .select(`
@@ -397,14 +509,21 @@ export default function CashVaultPage() {
             amount_base,
             reference,
             notes,
-            is_deleted
+            is_deleted,
+            source
           `)
           .eq('user_id', user.id)
           .eq('status', 'completed')
           .eq('is_deleted', false)
           .eq('category', 'Cash Vault')
-          .order('date', { ascending: false })
-          .order('created_at', { ascending: false }),
+          .eq('source', 'manual')
+          .in('currency', SUPPORTED_CURRENCIES)
+          .order('date', {
+            ascending: false,
+          })
+          .order('created_at', {
+            ascending: false,
+          }),
 
         supabase
           .from('cash_vaults')
@@ -412,17 +531,27 @@ export default function CashVaultPage() {
             'id, user_id, name, currency, balance, created_at, updated_at'
           )
           .eq('user_id', user.id)
-          .order('created_at', { ascending: true }),
+          .in('currency', SUPPORTED_CURRENCIES)
+          .order('created_at', {
+            ascending: true,
+          }),
       ]);
 
-      if (transactionResult.error || vaultResult.error) {
+      if (
+        transactionResult.error ||
+        vaultResult.error
+      ) {
         console.error(
           'Cash Vault load error:',
-          transactionResult.error ?? vaultResult.error
+          transactionResult.error ??
+            vaultResult.error
         );
 
         if (mounted) {
-          setError('We could not load your Cash Vault activity.');
+          setError(
+            'We could not load your Cash Vault activity.'
+          );
+
           setLoading(false);
         }
 
@@ -430,8 +559,16 @@ export default function CashVaultPage() {
       }
 
       if (mounted) {
-        setTransactions((transactionResult.data ?? []) as Transaction[]);
-        setVaults((vaultResult.data ?? []) as CashVault[]);
+        setTransactions(
+          (transactionResult.data ??
+            []) as Transaction[]
+        );
+
+        setVaults(
+          (vaultResult.data ??
+            []) as CashVault[]
+        );
+
         setLoading(false);
       }
     }
@@ -445,18 +582,52 @@ export default function CashVaultPage() {
 
   const activeVault = vaults[0] ?? null;
 
+  const activeCurrency: Currency =
+    isSupportedCurrency(activeVault?.currency)
+      ? activeVault.currency
+      : 'NGN';
+
   const periodTransactions = useMemo(() => {
-    const { start, end } = getPeriodRange(selectedPeriod);
+    const { start, end } =
+      getPeriodRange(selectedPeriod);
 
-    return transactions.filter((transaction) => {
-      if (!isCompletedTransaction(transaction)) return false;
+    return transactions.filter(
+      (transaction) => {
+        if (
+          !isCompletedTransaction(transaction)
+        ) {
+          return false;
+        }
 
-      if (start && transaction.date < start) return false;
-      if (end && transaction.date > end) return false;
+        if (
+          transaction.currency?.toUpperCase() !==
+          activeCurrency
+        ) {
+          return false;
+        }
 
-      return true;
-    });
-  }, [transactions, selectedPeriod]);
+        if (
+          start &&
+          transaction.date < start
+        ) {
+          return false;
+        }
+
+        if (
+          end &&
+          transaction.date > end
+        ) {
+          return false;
+        }
+
+        return true;
+      }
+    );
+  }, [
+    transactions,
+    selectedPeriod,
+    activeCurrency,
+  ]);
 
   const totalMoneyIn = useMemo(
     () => getIncome(periodTransactions),
@@ -468,40 +639,92 @@ export default function CashVaultPage() {
     [periodTransactions]
   );
 
-  const netMovement = totalMoneyIn - totalMoneyOut;
+  const netMovement =
+    totalMoneyIn - totalMoneyOut;
 
   const recentTransactions = useMemo(
-    () => transactions.slice(0, 8),
-    [transactions]
+    () =>
+      transactions
+        .filter(
+          (transaction) =>
+            transaction.currency?.toUpperCase() ===
+            activeCurrency
+        )
+        .slice(0, 8),
+    [transactions, activeCurrency]
   );
 
-  const lastActivity = recentTransactions[0] ?? null;
+  const lastActivity =
+    recentTransactions[0] ?? null;
 
-  function openCashModal(type: TransactionType) {
+  function openCashModal(
+    type: TransactionType
+  ) {
     setCashType(type);
     setCashAmount('');
     setCashDescription('');
     setCashDate(getLagosDateString());
+    setError(null);
     setCashModalOpen(true);
   }
 
   async function recordCash() {
     const amount = Number(cashAmount);
+    const description =
+      cashDescription.trim();
 
     if (!activeVault) {
-      setError('Create a Cash Vault before recording a cash movement.');
+      setError(
+        'Create a Cash Vault before recording a cash movement.'
+      );
       return;
     }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setError('Enter a valid amount.');
+    if (
+      !isSupportedCurrency(
+        activeVault.currency
+      )
+    ) {
+      setError(
+        'This Cash Vault uses an unsupported currency. Only NGN and XOF are currently supported.'
+      );
       return;
     }
 
-    const currentBalance = toNumber(activeVault.balance);
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      setError(
+        'Enter a valid amount.'
+      );
+      return;
+    }
 
-    if (cashType === 'expense' && amount > currentBalance) {
-      setError('You cannot spend more cash than you currently have.');
+    if (!description) {
+      setError(
+        'Description is required.'
+      );
+      return;
+    }
+
+    if (!cashDate) {
+      setError(
+        'Select a date for this cash movement.'
+      );
+      return;
+    }
+
+    const currentBalance =
+      toNumber(activeVault.balance);
+
+    if (
+      cashType === 'expense' &&
+      amount > currentBalance
+    ) {
+      setError(
+        'You cannot spend more cash than you currently have.'
+      );
       return;
     }
 
@@ -518,13 +741,13 @@ export default function CashVaultPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setError('You need to be signed in to record this.');
+      setError(
+        'You need to be signed in to record this.'
+      );
+
       setSaving(false);
       return;
     }
-
-    const category =
-      cashType === 'income' ? 'Cash received' : 'Cash spent';
 
     const { data: insertedTransaction, error: transactionError } =
       await supabase
@@ -534,16 +757,20 @@ export default function CashVaultPage() {
           type: cashType,
           amount,
           amount_base: amount,
-          currency: activeVault.currency || 'NGN',
+          currency: activeCurrency,
           exchange_rate: 1,
           category: 'Cash Vault',
-          description:
-            cashDescription.trim() ||
-            (cashType === 'income' ? 'Cash received' : 'Cash spent'),
+          description,
           date: cashDate,
           status: 'completed',
-          notes: category,
+          notes:
+            cashType === 'income'
+              ? 'Cash received'
+              : 'Cash spent',
           is_deleted: false,
+
+          // Cash Vault entries are manual.
+          // They do not consume the automatic bank-sync allowance.
           source: 'manual',
         })
         .select(`
@@ -563,20 +790,36 @@ export default function CashVaultPage() {
           amount_base,
           reference,
           notes,
-          is_deleted
+          is_deleted,
+          source
         `)
         .single();
 
-    if (transactionError || !insertedTransaction) {
-      console.error('Cash Vault transaction insert error:', transactionError);
-      setError('We could not save this cash movement.');
+    if (
+      transactionError ||
+      !insertedTransaction
+    ) {
+      console.error(
+        'Cash Vault transaction insert error:',
+        transactionError
+      );
+
+      setError(
+        'We could not save this cash movement.'
+      );
+
       setSaving(false);
       return;
     }
 
-    const { data: updatedVault, error: vaultError } = await supabase
+    const {
+      data: updatedVault,
+      error: vaultError,
+    } = await supabase
       .from('cash_vaults')
-      .update({ balance: nextBalance })
+      .update({
+        balance: nextBalance,
+      })
       .eq('id', activeVault.id)
       .eq('user_id', user.id)
       .select(
@@ -584,40 +827,78 @@ export default function CashVaultPage() {
       )
       .single();
 
-    if (vaultError || !updatedVault) {
-      console.error('Cash Vault balance update error:', vaultError);
+    if (
+      vaultError ||
+      !updatedVault
+    ) {
+      console.error(
+        'Cash Vault balance update error:',
+        vaultError
+      );
 
       await supabase
         .from('transactions')
-        .update({ is_deleted: true })
-        .eq('id', insertedTransaction.id)
-        .eq('user_id', user.id);
+        .update({
+          is_deleted: true,
+        })
+        .eq(
+          'id',
+          insertedTransaction.id
+        )
+        .eq(
+          'user_id',
+          user.id
+        );
 
-      setError('We could not update your cash balance.');
+      setError(
+        'We could not update your cash balance.'
+      );
+
       setSaving(false);
       return;
     }
 
-    setTransactions((current) => [
-      insertedTransaction as Transaction,
-      ...current,
-    ]);
+    setTransactions(
+      (current) => [
+        insertedTransaction as Transaction,
+        ...current,
+      ]
+    );
 
-    setVaults((current) =>
-      current.map((vault) =>
-        vault.id === activeVault.id
-          ? (updatedVault as CashVault)
-          : vault
-      )
+    setVaults(
+      (current) =>
+        current.map((vault) =>
+          vault.id === activeVault.id
+            ? (updatedVault as CashVault)
+            : vault
+        )
     );
 
     setCashModalOpen(false);
+    setCashAmount('');
+    setCashDescription('');
     setSaving(false);
   }
 
   async function createVault() {
-    if (vaults.length >= 1) {
-      setError('You already have a Cash Vault.');
+    if (
+      vaults.length >=
+      STARTER_CASH_VAULT_LIMIT
+    ) {
+      setError(
+        'You already have a Cash Vault.'
+      );
+      return;
+    }
+
+    if (
+      !SUPPORTED_CURRENCIES.includes(
+        vaultCurrency
+      )
+    ) {
+      setError(
+        'Only NGN and XOF Cash Vaults are currently supported.'
+      );
       return;
     }
 
@@ -629,17 +910,23 @@ export default function CashVaultPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setError('You need to be signed in to create a Cash Vault.');
+      setError(
+        'You need to be signed in to create a Cash Vault.'
+      );
+
       setSaving(false);
       return;
     }
 
-    const { data, error: vaultError } = await supabase
+    const {
+      data,
+      error: vaultError,
+    } = await supabase
       .from('cash_vaults')
       .insert({
         user_id: user.id,
         name: 'Main Cash Vault',
-        currency: 'NGN',
+        currency: vaultCurrency,
         balance: 0,
       })
       .select(
@@ -647,19 +934,33 @@ export default function CashVaultPage() {
       )
       .single();
 
-    if (vaultError || !data) {
-      console.error('Cash Vault creation error:', vaultError);
-      setError('We could not create your Cash Vault.');
+    if (
+      vaultError ||
+      !data
+    ) {
+      console.error(
+        'Cash Vault creation error:',
+        vaultError
+      );
+
+      setError(
+        'We could not create your Cash Vault.'
+      );
+
       setSaving(false);
       return;
     }
 
-    setVaults([data as CashVault]);
+    setVaults([
+      data as CashVault,
+    ]);
+
     setSaving(false);
   }
 
   function viewAll() {
-    window.location.href = '/dashboard/transactions';
+    window.location.href =
+      '/dashboard/transactions';
   }
 
   return (
@@ -688,7 +989,11 @@ export default function CashVaultPage() {
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setPeriodOpen((open) => !open)}
+                  onClick={() =>
+                    setPeriodOpen(
+                      (open) => !open
+                    )
+                  }
                   className="flex h-11 w-full items-center justify-between gap-8 border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 sm:w-auto"
                 >
                   <span className="flex items-center gap-2">
@@ -699,38 +1004,52 @@ export default function CashVaultPage() {
                   <ChevronDown
                     size={16}
                     className={`transition-transform ${
-                      periodOpen ? 'rotate-180' : ''
+                      periodOpen
+                        ? 'rotate-180'
+                        : ''
                     }`}
                   />
                 </button>
 
                 {periodOpen && (
                   <div className="absolute right-0 top-12 z-30 w-full min-w-[160px] border border-gray-200 bg-white py-1 shadow-lg sm:w-[180px]">
-                    {periods.map((period) => (
-                      <button
-                        key={period}
-                        type="button"
-                        onClick={() => {
-                          setSelectedPeriod(period);
-                          setPeriodOpen(false);
-                        }}
-                        className={`block w-full px-4 py-2.5 text-left text-sm transition-colors ${
-                          selectedPeriod === period
-                            ? 'bg-emerald-900 text-white'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {period}
-                      </button>
-                    ))}
+                    {periods.map(
+                      (period) => (
+                        <button
+                          key={period}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPeriod(
+                              period
+                            );
+                            setPeriodOpen(
+                              false
+                            );
+                          }}
+                          className={`block w-full px-4 py-2.5 text-left text-sm transition-colors ${
+                            selectedPeriod ===
+                            period
+                              ? 'bg-emerald-900 text-white'
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {period}
+                        </button>
+                      )
+                    )}
                   </div>
                 )}
               </div>
 
               <button
                 type="button"
-                onClick={() => openCashModal('income')}
-                disabled={loading || !activeVault}
+                onClick={() =>
+                  openCashModal('income')
+                }
+                disabled={
+                  loading ||
+                  !activeVault
+                }
                 className="flex h-11 items-center justify-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 <Plus size={17} />
@@ -739,8 +1058,13 @@ export default function CashVaultPage() {
 
               <button
                 type="button"
-                onClick={() => openCashModal('expense')}
-                disabled={loading || !activeVault}
+                onClick={() =>
+                  openCashModal('expense')
+                }
+                disabled={
+                  loading ||
+                  !activeVault
+                }
                 className="flex h-11 items-center justify-center gap-2 border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
               >
                 <ArrowUpRight size={17} />
@@ -757,7 +1081,9 @@ export default function CashVaultPage() {
 
             <button
               type="button"
-              onClick={() => setError(null)}
+              onClick={() =>
+                setError(null)
+              }
               className="shrink-0"
               aria-label="Dismiss error"
             >
@@ -803,8 +1129,10 @@ export default function CashVaultPage() {
                     {loading
                       ? '—'
                       : formatCurrency(
-                          toNumber(activeVault.balance),
-                          activeVault.currency || 'NGN'
+                          toNumber(
+                            activeVault.balance
+                          ),
+                          activeCurrency
                         )}
                   </p>
 
@@ -825,7 +1153,7 @@ export default function CashVaultPage() {
                         ? '—'
                         : formatCurrency(
                             netMovement,
-                            activeVault.currency || 'NGN'
+                            activeCurrency
                           )}
                     </p>
 
@@ -842,16 +1170,21 @@ export default function CashVaultPage() {
                     {lastActivity ? (
                       <>
                         <p className="mt-2 text-lg font-semibold">
-                          {formatTransactionDate(lastActivity)}
+                          {formatTransactionDate(
+                            lastActivity
+                          )}
                         </p>
 
                         <p className="mt-1 text-xs text-emerald-300">
-                          {lastActivity.description || lastActivity.category}
+                          {lastActivity.description ||
+                            lastActivity.category}
                         </p>
                       </>
                     ) : (
                       <>
-                        <p className="mt-2 text-lg font-semibold">—</p>
+                        <p className="mt-2 text-lg font-semibold">
+                          —
+                        </p>
 
                         <p className="mt-1 text-xs text-emerald-300">
                           No cash activity yet
@@ -871,8 +1204,10 @@ export default function CashVaultPage() {
                   loading
                     ? '—'
                     : formatCurrency(
-                        toNumber(activeVault.balance),
-                        activeVault.currency || 'NGN'
+                        toNumber(
+                          activeVault.balance
+                        ),
+                        activeCurrency
                       )
                 }
                 detail={`${activeVault.name} · cash on hand`}
@@ -881,7 +1216,14 @@ export default function CashVaultPage() {
 
               <VaultMetric
                 label="Cash received"
-                value={loading ? '—' : formatCurrency(totalMoneyIn)}
+                value={
+                  loading
+                    ? '—'
+                    : formatCurrency(
+                        totalMoneyIn,
+                        activeCurrency
+                      )
+                }
                 detail={`Money received · ${selectedPeriod.toLowerCase()}`}
                 icon={TrendingUp}
                 positive
@@ -889,7 +1231,14 @@ export default function CashVaultPage() {
 
               <VaultMetric
                 label="Cash spent"
-                value={loading ? '—' : formatCurrency(totalMoneyOut)}
+                value={
+                  loading
+                    ? '—'
+                    : formatCurrency(
+                        totalMoneyOut,
+                        activeCurrency
+                      )
+                }
                 detail={`Money spent · ${selectedPeriod.toLowerCase()}`}
                 icon={TrendingDown}
                 positive={false}
@@ -897,7 +1246,13 @@ export default function CashVaultPage() {
 
               <VaultMetric
                 label="Cash movements"
-                value={loading ? '—' : String(periodTransactions.length)}
+                value={
+                  loading
+                    ? '—'
+                    : String(
+                        periodTransactions.length
+                      )
+                }
                 detail={`Recorded · ${selectedPeriod.toLowerCase()}`}
                 icon={Receipt}
               />
@@ -934,10 +1289,14 @@ export default function CashVaultPage() {
                         Loading cash activity...
                       </p>
                     </div>
-                  ) : recentTransactions.length === 0 ? (
+                  ) : recentTransactions.length ===
+                    0 ? (
                     <div className="py-16 text-center">
                       <div className="mx-auto flex h-10 w-10 items-center justify-center bg-gray-50 text-gray-400">
-                        <Receipt size={17} strokeWidth={1.7} />
+                        <Receipt
+                          size={17}
+                          strokeWidth={1.7}
+                        />
                       </div>
 
                       <p className="mt-3 text-sm font-medium text-gray-900">
@@ -950,12 +1309,18 @@ export default function CashVaultPage() {
                       </p>
                     </div>
                   ) : (
-                    recentTransactions.map((transaction) => (
-                      <MovementRow
-                        key={transaction.id}
-                        transaction={transaction}
-                      />
-                    ))
+                    recentTransactions.map(
+                      (transaction) => (
+                        <MovementRow
+                          key={
+                            transaction.id
+                          }
+                          transaction={
+                            transaction
+                          }
+                        />
+                      )
+                    )
                   )}
                 </div>
               </section>
@@ -1006,20 +1371,27 @@ export default function CashVaultPage() {
 
                   <div className="mt-5 space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Starting balance</span>
+                      <span className="text-gray-500">
+                        Starting balance
+                      </span>
 
                       <span className="font-medium text-gray-900">
-                        {formatCurrency(0, activeVault.currency || 'NGN')}
+                        {formatCurrency(
+                          0,
+                          activeCurrency
+                        )}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Money in / out</span>
+                      <span className="text-gray-500">
+                        Money in / out
+                      </span>
 
                       <span className="font-medium text-emerald-800">
                         {formatCurrency(
                           netMovement,
-                          activeVault.currency || 'NGN'
+                          activeCurrency
                         )}
                       </span>
                     </div>
@@ -1032,8 +1404,10 @@ export default function CashVaultPage() {
 
                         <span className="text-sm font-semibold text-gray-950">
                           {formatCurrency(
-                            toNumber(activeVault.balance),
-                            activeVault.currency || 'NGN'
+                            toNumber(
+                              activeVault.balance
+                            ),
+                            activeCurrency
                           )}
                         </span>
                       </div>
@@ -1057,12 +1431,14 @@ export default function CashVaultPage() {
                     {netMovement > 0
                       ? `You've received more cash than you've spent by ${formatCurrency(
                           netMovement,
-                          activeVault.currency || 'NGN'
+                          activeCurrency
                         )} during this period.`
                       : netMovement < 0
                         ? `You've spent more cash than you've received by ${formatCurrency(
-                            Math.abs(netMovement),
-                            activeVault.currency || 'NGN'
+                            Math.abs(
+                              netMovement
+                            ),
+                            activeCurrency
                           )} during this period.`
                         : 'The cash you received and spent is currently balanced for this period.'}
                   </p>
@@ -1083,12 +1459,22 @@ export default function CashVaultPage() {
                   <div className="divide-y divide-gray-100">
                     <button
                       type="button"
-                      onClick={() => openCashModal('income')}
-                      disabled={!activeVault || saving}
+                      onClick={() =>
+                        openCashModal(
+                          'income'
+                        )
+                      }
+                      disabled={
+                        !activeVault ||
+                        saving
+                      }
                       className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <span className="flex items-center gap-3">
-                        <Plus size={16} className="text-emerald-900" />
+                        <Plus
+                          size={16}
+                          className="text-emerald-900"
+                        />
 
                         <span className="text-sm text-gray-700">
                           Cash received
@@ -1103,8 +1489,15 @@ export default function CashVaultPage() {
 
                     <button
                       type="button"
-                      onClick={() => openCashModal('expense')}
-                      disabled={!activeVault || saving}
+                      onClick={() =>
+                        openCashModal(
+                          'expense'
+                        )
+                      }
+                      disabled={
+                        !activeVault ||
+                        saving
+                      }
                       className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <span className="flex items-center gap-3">
@@ -1130,7 +1523,10 @@ export default function CashVaultPage() {
                       className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-gray-50"
                     >
                       <span className="flex items-center gap-3">
-                        <Clock3 size={16} className="text-emerald-900" />
+                        <Clock3
+                          size={16}
+                          className="text-emerald-900"
+                        />
 
                         <span className="text-sm text-gray-700">
                           View cash history
@@ -1165,7 +1561,10 @@ export default function CashVaultPage() {
           <section className="border border-gray-200 bg-white">
             <div className="flex min-h-[520px] flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
               <div className="flex h-16 w-16 items-center justify-center border border-emerald-100 bg-emerald-50 text-emerald-900">
-                <Banknote size={28} strokeWidth={1.6} />
+                <Banknote
+                  size={28}
+                  strokeWidth={1.6}
+                />
               </div>
 
               <p className="mt-6 text-xs font-medium uppercase tracking-[0.14em] text-emerald-900">
@@ -1181,13 +1580,58 @@ export default function CashVaultPage() {
                 the cash you have on hand, separate from your bank accounts.
               </p>
 
+              {/* Currency Selection */}
+              <div className="mt-6 w-full max-w-sm text-left">
+                <label className="mb-1.5 block text-xs font-medium text-gray-600">
+                  Cash Vault currency
+                </label>
+
+                <div className="flex h-11 overflow-hidden border border-gray-300 bg-white">
+                  {SUPPORTED_CURRENCIES.map(
+                    (currency) => (
+                      <button
+                        key={currency}
+                        type="button"
+                        onClick={() =>
+                          setVaultCurrency(
+                            currency
+                          )
+                        }
+                        className={`flex-1 text-sm font-medium transition-colors ${
+                          vaultCurrency ===
+                          currency
+                            ? 'bg-emerald-900 text-white'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {currency ===
+                        'XOF'
+                          ? 'XOF · CFA'
+                          : 'NGN · Naira'}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <p className="mt-2 text-[11px] text-gray-400">
+                  Your Cash Vault can only hold one currency. Create a
+                  separate vault later if your plan supports additional vaults.
+                </p>
+              </div>
+
               <button
                 type="button"
                 onClick={createVault}
                 disabled={saving}
                 className="mt-7 inline-flex h-11 items-center justify-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving && <Loader2 size={16} className="animate-spin" />}
+                {saving && (
+                  <Loader2
+                    size={16}
+                    className="animate-spin"
+                  />
+                )}
+
                 Create Cash Vault
               </button>
             </div>
@@ -1202,19 +1646,25 @@ export default function CashVaultPage() {
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-gray-950">
-                  {cashType === 'income'
+                  {cashType ===
+                  'income'
                     ? 'Cash received'
                     : 'Cash spent'}
                 </h2>
 
                 <p className="mt-1 text-xs text-gray-500">
-                  {activeVault?.name || 'Cash Vault'}
+                  {activeVault?.name ||
+                    'Cash Vault'}
+                  {' · '}
+                  {activeCurrency}
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={() => setCashModalOpen(false)}
+                onClick={() =>
+                  setCashModalOpen(false)
+                }
                 disabled={saving}
                 className="text-gray-400 hover:text-gray-700"
                 aria-label="Close"
@@ -1231,7 +1681,7 @@ export default function CashVaultPage() {
 
                 <div className="flex h-11 items-center border border-gray-300 bg-white px-3">
                   <span className="mr-2 text-sm text-gray-400">
-                    {activeVault?.currency || 'NGN'}
+                    {activeCurrency}
                   </span>
 
                   <input
@@ -1239,7 +1689,11 @@ export default function CashVaultPage() {
                     min="0"
                     step="0.01"
                     value={cashAmount}
-                    onChange={(event) => setCashAmount(event.target.value)}
+                    onChange={(event) =>
+                      setCashAmount(
+                        event.target.value
+                      )
+                    }
                     placeholder="0"
                     className="w-full bg-transparent text-sm text-gray-900 outline-none"
                     autoFocus
@@ -1253,27 +1707,41 @@ export default function CashVaultPage() {
                 </label>
 
                 <div className="flex h-11 items-center border border-gray-200 bg-gray-50 px-3 text-sm text-gray-600">
-                  {cashType === 'income' ? 'Cash received' : 'Cash spent'}
+                  {cashType ===
+                  'income'
+                    ? 'Cash received'
+                    : 'Cash spent'}
                 </div>
               </div>
 
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-gray-600">
                   Description
+                  <span className="ml-1 text-red-500">
+                    *
+                  </span>
                 </label>
 
                 <input
+                  required
                   value={cashDescription}
                   onChange={(event) =>
-                    setCashDescription(event.target.value)
+                    setCashDescription(
+                      event.target.value
+                    )
                   }
                   className="h-11 w-full border border-gray-300 px-3 text-sm text-gray-900 outline-none focus:border-emerald-900"
                   placeholder={
-                    cashType === 'income'
+                    cashType ===
+                    'income'
                       ? 'What did you receive the cash for?'
                       : 'What did you spend the cash on?'
                   }
                 />
+
+                <p className="mt-1.5 text-[11px] text-gray-400">
+                  A short description helps you understand this movement later.
+                </p>
               </div>
 
               <div>
@@ -1284,29 +1752,46 @@ export default function CashVaultPage() {
                 <input
                   type="date"
                   value={cashDate}
-                  onChange={(event) => setCashDate(event.target.value)}
+                  onChange={(event) =>
+                    setCashDate(
+                      event.target.value
+                    )
+                  }
                   className="h-11 w-full border border-gray-300 px-3 text-sm text-gray-900 outline-none focus:border-emerald-900"
                 />
               </div>
 
-              {cashType === 'expense' && activeVault && (
-                <p className="text-xs text-gray-500">
-                  You have{' '}
-                  <span className="font-medium text-gray-900">
-                    {formatCurrency(
-                      toNumber(activeVault.balance),
-                      activeVault.currency || 'NGN'
-                    )}
-                  </span>{' '}
-                  available.
+              {cashType ===
+                'expense' &&
+                activeVault && (
+                  <p className="text-xs text-gray-500">
+                    You have{' '}
+                    <span className="font-medium text-gray-900">
+                      {formatCurrency(
+                        toNumber(
+                          activeVault.balance
+                        ),
+                        activeCurrency
+                      )}
+                    </span>{' '}
+                    available.
+                  </p>
+                )}
+
+              <div className="border border-emerald-100 bg-emerald-50 px-3 py-2.5">
+                <p className="text-[11px] leading-5 text-emerald-800">
+                  This cash movement is recorded manually and does not use your
+                  automatic bank transaction allowance.
                 </p>
-              )}
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 border-t border-gray-200 px-5 py-4">
               <button
                 type="button"
-                onClick={() => setCashModalOpen(false)}
+                onClick={() =>
+                  setCashModalOpen(false)
+                }
                 disabled={saving}
                 className="h-10 border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
@@ -1319,7 +1804,13 @@ export default function CashVaultPage() {
                 disabled={saving}
                 className="flex h-10 items-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving && <Loader2 size={15} className="animate-spin" />}
+                {saving && (
+                  <Loader2
+                    size={15}
+                    className="animate-spin"
+                  />
+                )}
+
                 Save
               </button>
             </div>

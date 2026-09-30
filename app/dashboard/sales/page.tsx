@@ -31,6 +31,13 @@ type SaleStatus =
   | 'Cancelled'
   | string;
 
+type Currency = 'NGN' | 'XOF';
+
+const SUPPORTED_CURRENCIES: Currency[] = [
+  'NGN',
+  'XOF',
+];
+
 interface Sale {
   id: string;
   user_id: string;
@@ -39,7 +46,7 @@ interface Sale {
   quantity: number;
   unit_price: number;
   total_amount: number;
-  currency: string;
+  currency: Currency;
   status: SaleStatus;
   sale_date: string;
   customer_name: string | null;
@@ -58,7 +65,7 @@ interface Product {
   unit: string | null;
   cost_price: number | string | null;
   selling_price: number | string | null;
-  currency: string | null;
+  currency: Currency | null;
   current_stock: number | null;
   reserved_stock: number | null;
   available_stock: number | null;
@@ -71,7 +78,7 @@ interface ProductPerformance {
   name: string;
   units: number;
   revenue: number;
-  currency: string;
+  currency: Currency;
 }
 
 type Period =
@@ -82,19 +89,18 @@ type Period =
 
 const formatCurrency = (
   amount: number,
-  currency = 'NGN'
+  currency: Currency = 'NGN'
 ) => {
-  try {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `${currency} ${Math.round(
-      amount
-    ).toLocaleString()}`;
+  if (currency === 'XOF') {
+    return `CFA ${Math.round(amount).toLocaleString(
+      'en-US'
+    )}`;
   }
+
+  return `₦${amount.toLocaleString('en-NG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 };
 
 const formatNumber = (value: number) =>
@@ -117,11 +123,35 @@ const toNumber = (
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+function normalizeCurrency(
+  value: unknown
+): Currency | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const currency = value
+    .trim()
+    .toUpperCase();
+
+  if (
+    SUPPORTED_CURRENCIES.includes(
+      currency as Currency
+    )
+  ) {
+    return currency as Currency;
+  }
+
+  return null;
+}
+
 function getDateKey(date: Date) {
   const year = date.getFullYear();
+
   const month = String(
     date.getMonth() + 1
   ).padStart(2, '0');
+
   const day = String(
     date.getDate()
   ).padStart(2, '0');
@@ -130,7 +160,23 @@ function getDateKey(date: Date) {
 }
 
 function parseDate(value: string) {
-  const date = new Date(value);
+  if (!value) {
+    return null;
+  }
+
+  /*
+   * sale_date is normally YYYY-MM-DD.
+   * Adding a local midnight avoids the UTC
+   * interpretation that can shift the displayed day.
+   */
+  const dateOnly =
+    /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+  const date = new Date(
+    dateOnly
+      ? `${value}T00:00:00`
+      : value
+  );
 
   return Number.isNaN(date.getTime())
     ? null
@@ -181,6 +227,7 @@ function getPeriodRange(period: Period) {
   start.setMonth(
     start.getMonth() - 1
   );
+
   start.setDate(1);
 
   end.setDate(0);
@@ -209,6 +256,7 @@ function formatSaleTime(sale: Sale) {
   }
 
   const today = new Date();
+
   const saleDay = getDateKey(date);
   const todayKey = getDateKey(today);
 
@@ -337,7 +385,10 @@ function ProductIcon() {
 }
 
 export default function SalesPage() {
-  const supabase = createClient();
+  const supabase = useMemo(
+    () => createClient(),
+    []
+  );
 
   const [sales, setSales] = useState<Sale[]>(
     []
@@ -357,6 +408,9 @@ export default function SalesPage() {
 
   const [period, setPeriod] =
     useState<Period>('Today');
+
+  const [selectedCurrency, setSelectedCurrency] =
+    useState<Currency>('NGN');
 
   const [search, setSearch] =
     useState('');
@@ -390,7 +444,7 @@ export default function SalesPage() {
   ] = useState('');
 
   const [saleCurrency, setSaleCurrency] =
-    useState('NGN');
+    useState<Currency>('NGN');
 
   const [customerName, setCustomerName] =
     useState('');
@@ -518,61 +572,161 @@ export default function SalesPage() {
         return;
       }
 
-      const normalizedSales: Sale[] = (
-        salesResult.data ?? []
-      ).map((sale: any) => {
-        const productRelation =
-          Array.isArray(
-            sale.products
-          )
-            ? sale.products[0]
-            : sale.products;
+      /*
+       * Build a Sale[] directly.
+       *
+       * This avoids map() returning Sale | null,
+       * which was the source of the TypeScript
+       * errors in the previous version.
+       */
+      const normalizedSales =
+        (salesResult.data ?? []).reduce<
+          Sale[]
+        >((result, sale: any) => {
+          const productRelation =
+            Array.isArray(
+              sale.products
+            )
+              ? sale.products[0]
+              : sale.products;
 
-        return {
-          id: sale.id,
-          user_id: sale.user_id,
-          product_id:
-            sale.product_id ?? null,
-          transaction_id:
-            sale.transaction_id ?? null,
-          product_name:
-            productRelation?.name ??
-            'Unlinked product',
-          quantity: toNumber(
-            sale.quantity
-          ),
-          unit_price: toNumber(
-            sale.unit_price
-          ),
-          total_amount: toNumber(
-            sale.total_amount
-          ),
-          currency:
-            sale.currency ?? 'NGN',
-          status:
-            sale.status ?? 'completed',
-          sale_date:
-            sale.sale_date,
-          customer_name:
-            sale.customer_name ?? null,
-          customer_reference:
-            sale.customer_reference ??
-            null,
-          notes:
-            sale.notes ?? null,
-          created_at:
-            sale.created_at,
-          updated_at:
-            sale.updated_at,
-        };
-      });
+          const normalizedCurrency =
+            normalizeCurrency(
+              sale.currency
+            );
+
+          /*
+           * Ignore legacy/unsupported currencies.
+           * The current Monietar MVP only supports
+           * NGN and XOF.
+           */
+          if (!normalizedCurrency) {
+            return result;
+          }
+
+          result.push({
+            id: String(
+              sale.id
+            ),
+            user_id: String(
+              sale.user_id
+            ),
+            product_id:
+              sale.product_id ?? null,
+            transaction_id:
+              sale.transaction_id ?? null,
+            product_name:
+              productRelation?.name ??
+              'Unlinked product',
+            quantity: toNumber(
+              sale.quantity
+            ),
+            unit_price: toNumber(
+              sale.unit_price
+            ),
+            total_amount: toNumber(
+              sale.total_amount
+            ),
+            currency:
+              normalizedCurrency,
+            status:
+              sale.status ??
+              'Completed',
+            sale_date:
+              String(
+                sale.sale_date ??
+                  ''
+              ),
+            customer_name:
+              sale.customer_name ??
+              null,
+            customer_reference:
+              sale.customer_reference ??
+              null,
+            notes:
+              sale.notes ?? null,
+            created_at:
+              String(
+                sale.created_at ??
+                  ''
+              ),
+            updated_at:
+              String(
+                sale.updated_at ??
+                  ''
+              ),
+          });
+
+          return result;
+        }, []);
+
+      /*
+       * Products are also restricted to the
+       * supported MVP currencies.
+       */
+      const normalizedProducts =
+        (productsResult.data ?? [])
+          .reduce<Product[]>(
+            (
+              result,
+              product
+            ) => {
+              const currency =
+                normalizeCurrency(
+                  product.currency
+                );
+
+              if (!currency) {
+                return result;
+              }
+
+              result.push({
+                id: String(
+                  product.id
+                ),
+                user_id: String(
+                  product.user_id
+                ),
+                name: String(
+                  product.name
+                ),
+                sku:
+                  product.sku ??
+                  null,
+                unit:
+                  product.unit ??
+                  null,
+                cost_price:
+                  product.cost_price ??
+                  null,
+                selling_price:
+                  product.selling_price ??
+                  null,
+                currency,
+                current_stock:
+                  product.current_stock ??
+                  null,
+                reserved_stock:
+                  product.reserved_stock ??
+                  null,
+                available_stock:
+                  product.available_stock ??
+                  null,
+                is_service:
+                  product.is_service ??
+                  null,
+                is_active:
+                  product.is_active ??
+                  null,
+              });
+
+              return result;
+            },
+            []
+          );
 
       setSales(normalizedSales);
-
-      setProducts(
-        (productsResult.data ??
-          []) as Product[]
-      );
+      setProducts(normalizedProducts);
 
       setLoading(false);
     },
@@ -629,7 +783,9 @@ export default function SalesPage() {
     setSelectedProductId('');
     setSaleQuantity('1');
     setSaleUnitPrice('');
-    setSaleCurrency('NGN');
+    setSaleCurrency(
+      selectedCurrency
+    );
     setCustomerName('');
     setCustomerReference('');
     setSaleDate(
@@ -670,6 +826,26 @@ export default function SalesPage() {
       );
 
     if (!product) {
+      setSaleCurrency(
+        selectedCurrency
+      );
+      setSaleUnitPrice('');
+      setSaleFormError(null);
+      return;
+    }
+
+    const productCurrency =
+      normalizeCurrency(
+        product.currency
+      );
+
+    if (!productCurrency) {
+      setSaleFormError(
+        'This product does not have a supported NGN or XOF currency.'
+      );
+
+      setSaleUnitPrice('');
+
       return;
     }
 
@@ -681,12 +857,24 @@ export default function SalesPage() {
       )
     );
 
+    /*
+     * A sale must use the same currency
+     * as the product price.
+     */
     setSaleCurrency(
-      (
-        product.currency ||
-        'NGN'
-      ).toUpperCase()
+      productCurrency
     );
+
+    if (
+      productCurrency !==
+      selectedCurrency
+    ) {
+      setSaleFormError(
+        `This product is priced in ${productCurrency}. The sale currency has been switched to ${productCurrency}.`
+      );
+    } else {
+      setSaleFormError(null);
+    }
   }
 
   async function handleSubmitSale(
@@ -700,6 +888,30 @@ export default function SalesPage() {
     if (!selectedProduct) {
       setSaleFormError(
         'Select a product from your inventory.'
+      );
+
+      return;
+    }
+
+    const productCurrency =
+      normalizeCurrency(
+        selectedProduct.currency
+      );
+
+    if (!productCurrency) {
+      setSaleFormError(
+        'This product must use NGN or XOF before it can be sold.'
+      );
+
+      return;
+    }
+
+    if (
+      saleCurrency !==
+      productCurrency
+    ) {
+      setSaleFormError(
+        `This product is priced in ${productCurrency}. The sale currency must match the product currency.`
       );
 
       return;
@@ -759,9 +971,21 @@ export default function SalesPage() {
       return;
     }
 
-    if (!saleCurrency) {
+    if (
+      !SUPPORTED_CURRENCIES.includes(
+        saleCurrency
+      )
+    ) {
       setSaleFormError(
-        'Sale currency is required.'
+        'Only NGN and XOF are currently supported.'
+      );
+
+      return;
+    }
+
+    if (!saleDate) {
+      setSaleFormError(
+        'Sale date is required.'
       );
 
       return;
@@ -796,7 +1020,7 @@ export default function SalesPage() {
           p_quantity: quantity,
           p_unit_price: unitPrice,
           p_currency:
-            saleCurrency.toUpperCase(),
+            saleCurrency,
           p_sale_date:
             saleDate,
           p_customer_name:
@@ -843,25 +1067,60 @@ export default function SalesPage() {
     }
   }
 
+  /*
+   * Keep supported currencies separate.
+   */
+  const supportedSales = useMemo(
+    () =>
+      sales.filter((sale) =>
+        SUPPORTED_CURRENCIES.includes(
+          sale.currency
+        )
+      ),
+    [sales]
+  );
+
+  /*
+   * All calculations on this page now operate
+   * on exactly one currency at a time.
+   */
+  const currencySales = useMemo(
+    () =>
+      supportedSales.filter(
+        (sale) =>
+          sale.currency ===
+          selectedCurrency
+      ),
+    [
+      supportedSales,
+      selectedCurrency,
+    ]
+  );
+
   const periodSales = useMemo(() => {
     const { start, end } =
       getPeriodRange(period);
 
-    return sales.filter((sale) => {
-      const date = parseDate(
-        sale.sale_date
-      );
+    return currencySales.filter(
+      (sale) => {
+        const date = parseDate(
+          sale.sale_date
+        );
 
-      if (!date) {
-        return false;
+        if (!date) {
+          return false;
+        }
+
+        return (
+          date >= start &&
+          date <= end
+        );
       }
-
-      return (
-        date >= start &&
-        date <= end
-      );
-    });
-  }, [sales, period]);
+    );
+  }, [
+    currencySales,
+    period,
+  ]);
 
   const completedSales = useMemo(
     () =>
@@ -871,78 +1130,45 @@ export default function SalesPage() {
     [periodSales]
   );
 
-  const revenueByCurrency = useMemo(() => {
-    const totals: Record<
-      string,
-      number
-    > = {};
+  const revenue = useMemo(
+    () =>
+      completedSales.reduce(
+        (sum, sale) =>
+          sum + sale.total_amount,
+        0
+      ),
+    [completedSales]
+  );
 
-    completedSales.forEach((sale) => {
-      const currency =
-        sale.currency || 'NGN';
-
-      totals[currency] =
-        (totals[currency] ?? 0) +
-        sale.total_amount;
-    });
-
-    return totals;
-  }, [completedSales]);
-
-  const revenueDisplay = useMemo(() => {
-    const entries = Object.entries(
-      revenueByCurrency
-    );
-
-    if (entries.length === 0) {
-      return formatCurrency(0);
-    }
-
-    if (entries.length === 1) {
-      const [
-        currency,
-        amount,
-      ] = entries[0];
-
-      return formatCurrency(
-        amount,
-        currency
-      );
-    }
-
-    return 'Multiple currencies';
-  }, [revenueByCurrency]);
+  const revenueDisplay = useMemo(
+    () =>
+      formatCurrency(
+        revenue,
+        selectedCurrency
+      ),
+    [
+      revenue,
+      selectedCurrency,
+    ]
+  );
 
   const averageSaleDisplay =
     useMemo(() => {
-      const entries = Object.entries(
-        revenueByCurrency
-      );
-
-      if (entries.length === 0) {
-        return formatCurrency(0);
-      }
-
-      if (entries.length === 1) {
-        const [
-          currency,
-          amount,
-        ] = entries[0];
-
-        return formatCurrency(
-          amount /
-            Math.max(
-              completedSales.length,
-              1
-            ),
-          currency
+      const average =
+        revenue /
+        Math.max(
+          completedSales.length,
+          1
         );
-      }
 
-      return 'Multiple currencies';
+      return formatCurrency(
+        average,
+        selectedCurrency
+      );
     }, [
-      revenueByCurrency,
+      revenue,
       completedSales.length,
+      selectedCurrency,
     ]);
 
   const totalUnits = useMemo(
@@ -1025,8 +1251,7 @@ export default function SalesPage() {
               revenue:
                 sale.total_amount,
               currency:
-                sale.currency ||
-                'NGN',
+                selectedCurrency,
             });
           }
         }
@@ -1040,7 +1265,10 @@ export default function SalesPage() {
             b.units - a.units
         )
         .slice(0, 5);
-    }, [completedSales]);
+    }, [
+      completedSales,
+      selectedCurrency,
+    ]);
 
   const dailySales = useMemo(() => {
     const now = new Date();
@@ -1083,29 +1311,21 @@ export default function SalesPage() {
             }
           ).format(date),
           amount: 0,
-          currency: 'NGN',
+          currency:
+            selectedCurrency,
         };
       }
     );
 
     completedSales.forEach(
       (sale) => {
-        const key =
-          sale.sale_date;
-
         const day = days.find(
           (item) =>
-            item.key === key
+            item.key ===
+            sale.sale_date
         );
 
         if (!day) {
-          return;
-        }
-
-        if (
-          sale.currency !==
-          day.currency
-        ) {
           return;
         }
 
@@ -1115,7 +1335,10 @@ export default function SalesPage() {
     );
 
     return days;
-  }, [completedSales]);
+  }, [
+    completedSales,
+    selectedCurrency,
+  ]);
 
   const highestDay = Math.max(
     ...dailySales.map(
@@ -1178,6 +1401,14 @@ export default function SalesPage() {
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
               Record sales and see what is moving across your business.
             </p>
+
+            <p className="mt-2 text-xs text-gray-500">
+              Reporting in{' '}
+              <span className="font-semibold text-gray-700">
+                {selectedCurrency}
+              </span>
+              . NGN and XOF sales are kept separate.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -1202,6 +1433,38 @@ export default function SalesPage() {
 
               Refresh
             </button>
+
+            <div
+              className="flex h-11 border border-gray-200 bg-white"
+              role="group"
+              aria-label="Sales currency"
+            >
+              {SUPPORTED_CURRENCIES.map(
+                (currency) => (
+                  <button
+                    key={currency}
+                    type="button"
+                    onClick={() =>
+                      setSelectedCurrency(
+                        currency
+                      )
+                    }
+                    aria-pressed={
+                      selectedCurrency ===
+                      currency
+                    }
+                    className={`min-w-[58px] px-3 text-xs font-semibold transition ${
+                      selectedCurrency ===
+                      currency
+                        ? 'bg-emerald-900 text-white'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {currency}
+                  </button>
+                )
+              )}
+            </div>
 
             <div className="relative">
               <CalendarDays
@@ -1294,7 +1557,7 @@ export default function SalesPage() {
                 size={18}
               />
             }
-            description={`${period.toLowerCase()} completed sales`}
+            description={`${period.toLowerCase()} completed ${selectedCurrency} sales`}
           />
 
           <Metric
@@ -1309,7 +1572,7 @@ export default function SalesPage() {
             icon={
               <ShoppingBag size={18} />
             }
-            description="Completed sales"
+            description={`Completed ${selectedCurrency} sales`}
           />
 
           <Metric
@@ -1353,7 +1616,9 @@ export default function SalesPage() {
                   </p>
 
                   <p className="mt-1 text-xs text-gray-500">
-                    Daily completed sales for the current week
+                    Daily completed{' '}
+                    {selectedCurrency}{' '}
+                    sales for the current week
                   </p>
                 </div>
 
@@ -1363,11 +1628,10 @@ export default function SalesPage() {
                   </p>
 
                   <p className="mt-1 text-sm font-semibold text-gray-900">
-                    {highestDay > 0
-                      ? formatCurrency(
-                          highestDay
-                        )
-                      : '₦0'}
+                    {formatCurrency(
+                      highestDay,
+                      selectedCurrency
+                    )}
                   </p>
                 </div>
               </div>
@@ -1407,7 +1671,8 @@ export default function SalesPage() {
                             {item.amount >
                             0
                               ? formatCurrency(
-                                  item.amount
+                                  item.amount,
+                                  selectedCurrency
                                 )
                               : '—'}
                           </div>
@@ -1442,7 +1707,9 @@ export default function SalesPage() {
                     </p>
 
                     <p className="mt-1 text-xs text-gray-500">
-                      Sales recorded for {period.toLowerCase()}
+                      {selectedCurrency}{' '}
+                      sales recorded for{' '}
+                      {period.toLowerCase()}
                     </p>
                   </div>
 
@@ -1563,14 +1830,14 @@ export default function SalesPage() {
                             <p className="mt-4 text-sm font-medium text-gray-900">
                               {periodSales.length ===
                               0
-                                ? 'No sales recorded'
+                                ? `No ${selectedCurrency} sales recorded`
                                 : 'No sales found'}
                             </p>
 
                             <p className="mt-1 max-w-sm text-xs leading-5 text-gray-400">
                               {periodSales.length ===
                               0
-                                ? `There are no sales recorded for ${period.toLowerCase()}.`
+                                ? `There are no ${selectedCurrency} sales recorded for ${period.toLowerCase()}.`
                                 : 'Try changing your search or status filter.'}
                             </p>
                           </div>
@@ -1755,14 +2022,14 @@ export default function SalesPage() {
                     <p className="mt-4 text-sm font-medium text-gray-900">
                       {periodSales.length ===
                       0
-                        ? 'No sales recorded'
+                        ? `No ${selectedCurrency} sales recorded`
                         : 'No sales found'}
                     </p>
 
                     <p className="mt-1 text-xs leading-5 text-gray-400">
                       {periodSales.length ===
                       0
-                        ? `There are no sales recorded for ${period.toLowerCase()}.`
+                        ? `There are no ${selectedCurrency} sales recorded for ${period.toLowerCase()}.`
                         : 'Try changing your search or status filter.'}
                     </p>
                   </div>
@@ -1862,6 +2129,7 @@ export default function SalesPage() {
                   Showing{' '}
                   {filteredSales.length} of{' '}
                   {periodSales.length}{' '}
+                  {selectedCurrency}{' '}
                   sales
                 </p>
               </div>
@@ -1878,7 +2146,7 @@ export default function SalesPage() {
                 </p>
 
                 <p className="mt-1 text-xs text-gray-500">
-                  Current sales by status
+                  {selectedCurrency} sales by status
                 </p>
               </div>
 
@@ -1929,7 +2197,8 @@ export default function SalesPage() {
                 </p>
 
                 <p className="mt-1 text-xs text-gray-500">
-                  Based on units sold
+                  Based on units sold in{' '}
+                  {selectedCurrency}
                 </p>
               </div>
 
@@ -1942,7 +2211,8 @@ export default function SalesPage() {
                   />
 
                   <p className="mt-3 text-xs text-gray-500">
-                    No product sales yet.
+                    No {selectedCurrency}{' '}
+                    product sales yet.
                   </p>
                 </div>
               ) : (
@@ -2003,7 +2273,8 @@ export default function SalesPage() {
               {periodSales.length ===
               0 ? (
                 <p className="text-sm leading-6 text-emerald-50">
-                  Once you start recording sales, Monietar will use them to give you a clearer view of what is moving and how sales contribute to your cash flow.
+                  Once you start recording{' '}
+                  {selectedCurrency} sales, Monietar will use them to give you a clearer view of what is moving and how sales contribute to your cash flow.
                 </p>
               ) : completedCount ===
                 0 ? (
@@ -2012,6 +2283,7 @@ export default function SalesPage() {
                   <span className="font-medium text-white">
                     {periodSales.length}{' '}
                     recorded{' '}
+                    {selectedCurrency}{' '}
                     {periodSales.length ===
                     1
                       ? 'sale'
@@ -2133,7 +2405,7 @@ export default function SalesPage() {
               </div>
 
               <p className="text-xs leading-5 text-gray-500">
-                Sales shown here come directly from your Monietar sales records and are filtered to your account.
+                Sales shown here come directly from your Monietar sales records and are filtered to your account and selected currency.
               </p>
             </section>
           </aside>
@@ -2147,7 +2419,8 @@ export default function SalesPage() {
             </p>
 
             <p className="text-gray-400">
-              Revenue is calculated from completed sales only.
+              Revenue is calculated from completed{' '}
+              {selectedCurrency} sales only.
             </p>
           </div>
         </div>
@@ -2208,11 +2481,11 @@ export default function SalesPage() {
                 0 ? (
                   <div className="border border-amber-200 bg-amber-50 px-4 py-4">
                     <p className="text-sm font-medium text-amber-900">
-                      No products are available in your inventory.
+                      No supported products are available in your inventory.
                     </p>
 
                     <p className="mt-1 text-xs leading-5 text-amber-800">
-                      Add an active product to your inventory before recording a sale.
+                      Add an active product priced in NGN or XOF before recording a sale.
                     </p>
                   </div>
                 ) : (
@@ -2265,7 +2538,9 @@ export default function SalesPage() {
                                 {product.name}
                                 {product.sku
                                   ? ` · ${product.sku}`
-                                  : ''}
+                                  : ''}{' '}
+                                ·{' '}
+                                {product.currency}
                               </option>
                             )
                           )}
@@ -2308,10 +2583,8 @@ export default function SalesPage() {
                                   toNumber(
                                     selectedProduct.selling_price
                                   ),
-                                  (
-                                    selectedProduct.currency ||
+                                  selectedProduct.currency ??
                                     'NGN'
-                                  ).toUpperCase()
                                 )}
                               </p>
                             </div>
@@ -2377,29 +2650,33 @@ export default function SalesPage() {
                               setSaleCurrency(
                                 event
                                   .target
-                                  .value
+                                  .value as Currency
                               )
                             }
                             disabled={
-                              recordingSale
+                              recordingSale ||
+                              !selectedProduct
                             }
                             className="border-r border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-500 outline-none disabled:cursor-not-allowed"
                           >
-                            <option>
-                              NGN
-                            </option>
-
-                            <option>
-                              XOF
-                            </option>
-
-                            <option>
-                              USD
-                            </option>
-
-                            <option>
-                              EUR
-                            </option>
+                            {SUPPORTED_CURRENCIES.map(
+                              (
+                                currency
+                              ) => (
+                                <option
+                                  key={
+                                    currency
+                                  }
+                                  value={
+                                    currency
+                                  }
+                                >
+                                  {
+                                    currency
+                                  }
+                                </option>
+                              )
+                            )}
                           </select>
 
                           <input
@@ -2426,6 +2703,12 @@ export default function SalesPage() {
                             placeholder="0"
                           />
                         </div>
+
+                        {selectedProduct && (
+                          <p className="mt-1.5 text-[11px] text-gray-400">
+                            Currency follows the product price.
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -2593,7 +2876,8 @@ export default function SalesPage() {
                   disabled={
                     recordingSale ||
                     products.length ===
-                      0
+                      0 ||
+                    !selectedProduct
                   }
                   className="inline-flex items-center gap-2 border border-emerald-900 bg-emerald-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
