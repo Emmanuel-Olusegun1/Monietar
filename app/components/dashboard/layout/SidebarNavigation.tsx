@@ -12,9 +12,7 @@ import {
 
 import { createClient } from '@/lib/supabase/client';
 
-const normalizePlan = (
-  value: unknown
-): Plan => {
+const normalizePlan = (value: unknown): Plan => {
   if (typeof value !== 'string') {
     return 'retail-starter';
   }
@@ -46,42 +44,51 @@ export default function SidebarNavigation() {
   const [loadingPlan, setLoadingPlan] =
     useState(true);
 
+  const [supabase] = useState(() =>
+    createClient()
+  );
+
   useEffect(() => {
     let mounted = true;
 
-    const supabase = createClient();
-
     const loadPlan = async () => {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
 
-      if (!mounted) {
-        return;
+        if (!mounted) {
+          return;
+        }
+
+        if (error || !user) {
+          setCurrentPlan('retail-starter');
+          return;
+        }
+
+        const metadata = user.user_metadata || {};
+
+        const userPlan = normalizePlan(
+          metadata.subscription_plan ??
+            metadata.plan
+        );
+
+        setCurrentPlan(userPlan);
+      } catch (error) {
+        console.error(
+          'Failed to load subscription plan:',
+          error
+        );
+
+        if (mounted) {
+          setCurrentPlan('retail-starter');
+        }
+      } finally {
+        if (mounted) {
+          setLoadingPlan(false);
+        }
       }
-
-      if (error || !user) {
-        /*
-         * Retail Starter is the safe default.
-         * This prevents an unauthenticated/loading state
-         * from accidentally exposing premium navigation.
-         */
-        setCurrentPlan('retail-starter');
-        setLoadingPlan(false);
-        return;
-      }
-
-      const metadata =
-        user.user_metadata || {};
-
-      const userPlan = normalizePlan(
-        metadata.subscription_plan ??
-          metadata.plan
-      );
-
-      setCurrentPlan(userPlan);
-      setLoadingPlan(false);
     };
 
     loadPlan();
@@ -89,7 +96,7 @@ export default function SidebarNavigation() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [supabase]);
 
   return (
     <nav className="flex-1 overflow-y-auto px-4 py-6">
@@ -113,30 +120,19 @@ export default function SidebarNavigation() {
                   `${item.href}/`
                 );
 
-              /*
-               * While the user's plan is loading, keep
-               * navigation locked rather than exposing
-               * premium pages momentarily.
-               */
               const enabled =
-                !loadingPlan &&
-                item.plans.includes(
-                  currentPlan
-                );
+                item.plans.includes(currentPlan);
 
               /*
-               * Locked Item
+               * Only show locked navigation after
+               * the user's plan has actually been checked.
                */
-              if (!enabled) {
+              if (!loadingPlan && !enabled) {
                 return (
                   <div
                     key={item.href}
                     aria-disabled="true"
-                    title={
-                      loadingPlan
-                        ? 'Checking your plan...'
-                        : `${item.name} is not available on your current plan`
-                    }
+                    title={`${item.name} is not available on your current plan`}
                     className="
                       flex min-h-[42px]
                       cursor-not-allowed
@@ -169,7 +165,9 @@ export default function SidebarNavigation() {
               }
 
               /*
-               * Active / Available Item
+               * During plan loading, keep normal links
+               * clickable. The user's actual plan will
+               * determine the locked state once loaded.
                */
               return (
                 <Link

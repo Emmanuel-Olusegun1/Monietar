@@ -45,21 +45,36 @@ const PLAN_CONFIG: Record<
   {
     name: string;
     transactionLimit: number;
+    connectedBankLimit: number;
+    cashVaultLimit: number;
+    description: string;
   }
 > = {
   'retail-starter': {
     name: 'Retail Starter',
-    transactionLimit: 500,
+    transactionLimit: 30,
+    connectedBankLimit: 1,
+    cashVaultLimit: 1,
+    description:
+      'The essential Monietar experience for everyday merchants who want to move beyond notebooks and start understanding their money.',
   },
 
   'growing-merchant': {
     name: 'Growing Merchant',
     transactionLimit: 2500,
+    connectedBankLimit: 3,
+    cashVaultLimit: Infinity,
+    description:
+      'For established merchants who need more automation, more connected accounts, and a clearer view of a growing business.',
   },
 
   'borderless-pro': {
     name: 'Borderless Pro',
     transactionLimit: Infinity,
+    connectedBankLimit: Infinity,
+    cashVaultLimit: Infinity,
+    description:
+      'For merchants operating across regions who need deeper financial visibility, multi-currency tracking, and intelligent reporting.',
   },
 };
 
@@ -568,9 +583,9 @@ function getPeriodRange(
 
 function dateToISO(date: Date) {
   /*
-  * Never use date.toISOString() here.
-  * This is a calendar date for a DATE column.
-  */
+   * Never use date.toISOString() here.
+   * This is a calendar date for a DATE column.
+   */
   return formatDateOnly(date);
 }
 
@@ -1175,7 +1190,9 @@ export default function OverviewPage() {
   const [
     cashVaults,
     setCashVaults,
-  ] = useState<CashVault[]>([]);
+  ] = useState<CashVault[]>(
+    []
+  );
 
   const [products, setProducts] =
     useState<Product[]>([]);
@@ -1397,10 +1414,6 @@ export default function OverviewPage() {
         |--------------------------------------------------------------------------
         | Business Scope
         |--------------------------------------------------------------------------
-        |
-        | When a business exists, use business-scoped transactions.
-        | If there is no business yet, fall back to the user's transactions.
-        |
         */
 
         if (activeBusiness) {
@@ -1542,7 +1555,8 @@ export default function OverviewPage() {
         | Automatic Transactions — Current Month
         |--------------------------------------------------------------------------
         |
-        | This is intentionally independent of the selected dashboard period.
+        | This count is intentionally independent of the selected
+        | dashboard period because the plan limit is monthly.
         |
         */
 
@@ -2028,8 +2042,17 @@ export default function OverviewPage() {
 
   const cashVaultBalance =
     useMemo(
-      () =>
-        cashVaults.reduce(
+      () => {
+        const usableVaults =
+          plan.cashVaultLimit ===
+          Infinity
+            ? cashVaults
+            : cashVaults.slice(
+                0,
+                plan.cashVaultLimit
+              );
+
+        return usableVaults.reduce(
           (
             total,
             vault
@@ -2039,9 +2062,21 @@ export default function OverviewPage() {
               vault.balance
             ),
           0
-        ),
-      [cashVaults]
+        );
+      },
+      [
+        cashVaults,
+        plan.cashVaultLimit,
+      ]
     );
+
+  const visibleCashVaultCount =
+    plan.cashVaultLimit === Infinity
+      ? cashVaults.length
+      : Math.min(
+          cashVaults.length,
+          plan.cashVaultLimit
+        );
 
   const cashPosition =
     accounts.length > 0
@@ -2252,6 +2287,7 @@ export default function OverviewPage() {
           </div>
 
           {/* Period selector */}
+
           <div className="relative">
             <button
               type="button"
@@ -2440,12 +2476,13 @@ export default function OverviewPage() {
             icon={Wallet}
           />
 
-          {/* Bank Activity */}
+          {/* Auto-logged Transactions */}
+
           <div className="bg-white p-5 sm:p-6">
             <div className="mb-5 flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-gray-400">
-                  Bank Transactions
+                  Auto-logged Transactions
                 </p>
 
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-gray-900">
@@ -2475,11 +2512,11 @@ export default function OverviewPage() {
             <p className="text-xs leading-5 text-gray-400">
               {currentPlan ===
               'retail-starter'
-                ? 'You can record up to 500 bank transactions automatically each month. You can add your own entries without a limit.'
+                ? 'Your first 30 bank transactions each month are logged automatically. Manual bookkeeping entries and bank statement imports are unlimited.'
                 : currentPlan ===
                   'growing-merchant'
-                ? 'You can record up to 2,500 bank transactions automatically each month. You can add your own entries without a limit.'
-                : 'You can record bank transactions automatically without a monthly limit.'}
+                ? 'Up to 2,500 bank transactions can be logged automatically each month.'
+                : 'Bank transactions can be logged automatically without a monthly limit.'}
             </p>
 
             <div className="mt-3 text-[10px] text-gray-400">
@@ -2488,6 +2525,16 @@ export default function OverviewPage() {
               {connectedBankCount === 1
                 ? 'account'
                 : 'accounts'}
+
+              {plan.connectedBankLimit !==
+                Infinity && (
+                <>
+                  {' '}
+                  /{' '}
+                  {plan.connectedBankLimit}{' '}
+                  allowed
+                </>
+              )}
             </div>
 
             {transactionUsage !==
@@ -2557,6 +2604,7 @@ export default function OverviewPage() {
             <div className="p-5 sm:p-6">
 
               {/* Summary */}
+
               <div className="mb-7 grid grid-cols-2 gap-6 sm:grid-cols-3">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.12em] text-gray-400">
@@ -2617,6 +2665,7 @@ export default function OverviewPage() {
               </div>
 
               {/* Empty state */}
+
               {!loading &&
                 !error &&
                 transactions.length ===
@@ -2656,12 +2705,14 @@ export default function OverviewPage() {
                 )}
 
               {/* Chart */}
+
               {(loading ||
                 transactions.length >
                   0) && (
                 <div className="relative h-[230px]">
 
                   {/* Grid */}
+
                   <div className="absolute inset-0 flex flex-col justify-between">
                     {[
                       1,
@@ -2679,6 +2730,7 @@ export default function OverviewPage() {
                   </div>
 
                   {/* Loading bars */}
+
                   {loading ? (
                     <div className="absolute inset-x-0 bottom-6 top-2 flex items-end justify-between gap-2">
                       {Array.from({
@@ -2763,7 +2815,9 @@ export default function OverviewPage() {
                                 )
                               }
                             >
+
                               {/* Tooltip */}
+
                               {isHovered && (
                                 <div className="absolute bottom-[calc(100%-10px)] left-1/2 z-20 w-40 -translate-x-1/2 border border-gray-200 bg-white p-3 shadow-lg">
                                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400">
@@ -2898,14 +2952,8 @@ export default function OverviewPage() {
                   )}
 
                   {/* Labels */}
-                  <div
-                    className={`absolute inset-x-0 bottom-0 flex gap-0 ${
-                      cashFlow.length >
-                      20
-                        ? 'justify-between'
-                        : 'justify-between'
-                    }`}
-                  >
+
+                  <div className="absolute inset-x-0 bottom-0 flex justify-between gap-0">
                     {loading
                       ? Array.from({
                           length: 7,
@@ -2927,14 +2975,11 @@ export default function OverviewPage() {
                             day,
                             index
                           ) => {
-                            /*
-                            * For long monthly charts, show fewer
-                            * labels so the dates do not overlap.
-                            */
                             const shouldShowLabel =
                               cashFlow.length <=
                                 16 ||
-                              index === 0 ||
+                              index ===
+                                0 ||
                               index ===
                                 cashFlow.length -
                                   1 ||
@@ -2968,6 +3013,7 @@ export default function OverviewPage() {
               )}
 
               {/* Legend */}
+
               <div className="mt-5 flex items-center gap-5 border-t border-gray-100 pt-4">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 bg-emerald-900" />
@@ -3345,15 +3391,15 @@ export default function OverviewPage() {
                 value={
                   loading
                     ? 'Loading...'
-                    : `${cashVaults.length} ${
-                        cashVaults.length ===
+                    : `${visibleCashVaultCount} ${
+                        visibleCashVaultCount ===
                         1
                           ? 'vault'
                           : 'vaults'
                       }`
                 }
                 detail={
-                  cashVaults.length >
+                  visibleCashVaultCount >
                   0
                     ? formatCurrency(
                         cashVaultBalance,
@@ -3402,16 +3448,14 @@ export default function OverviewPage() {
                     Retail Starter
                   </p>
 
-                  <p className="mt-1 max-w-xl text-xs leading-5 text-gray-400">
-                    Your plan gives you the basics
-                    you need to keep track of your
-                    business money. You get one
-                    physical Cash Vault, one
-                    connected bank account and up
-                    to 500 bank transactions
-                    recorded automatically each
-                    month. You can add your own
-                    entries without a limit.
+                  <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-400">
+                    Your free Monietar plan gives you
+                    the essentials: one connected bank
+                    account, 30 automatically logged bank
+                    transactions each month, unlimited
+                    manual bookkeeping and bank statement
+                    imports, one physical Cash Vault, and
+                    basic product and sales tracking.
                   </p>
                 </div>
               </div>
@@ -3425,26 +3469,14 @@ export default function OverviewPage() {
 
                     <span className="text-sm font-normal text-gray-400">
                       {' '}
-                      / 500
+                      / 30
                     </span>
                   </p>
 
                   <p className="text-[10px] text-gray-400">
-                    bank transactions this month
+                    auto-logged transactions this month
                   </p>
                 </div>
-
-                <Link
-                  href="/pricing"
-                  className="flex items-center gap-2 bg-emerald-900 px-4 py-2.5 text-xs font-medium text-white transition-colors hover:bg-emerald-800"
-                >
-                  See other plans
-
-                  <ArrowRight
-                    size={13}
-                    strokeWidth={1.8}
-                  />
-                </Link>
               </div>
             </div>
           </section>

@@ -37,7 +37,7 @@ type Profile = {
 const PLAN_CONFIG = {
   RETAIL_STARTER: {
     name: 'Retail Starter',
-    transactionLimit: 500,
+    transactionLimit: 30,
   },
   GROWING_MERCHANT: {
     name: 'Growing Merchant',
@@ -116,24 +116,12 @@ function getLagosDateParts(date = new Date()) {
   };
 }
 
-function getLagosDateString(date = new Date()) {
-  const { year, month, day } = getLagosDateParts(date);
-
-  return `${year}-${String(month).padStart(2, '0')}-${String(
-    day
-  ).padStart(2, '0')}`;
-}
-
 function getLagosMonthRange() {
   const { year, month } = getLagosDateParts();
 
   const start = `${year}-${String(month).padStart(2, '0')}-01`;
 
-  const lastDay = new Date(
-    year,
-    month,
-    0
-  ).getDate();
+  const lastDay = new Date(year, month, 0).getDate();
 
   const end = `${year}-${String(month).padStart(2, '0')}-${String(
     lastDay
@@ -145,7 +133,10 @@ function getLagosMonthRange() {
   };
 }
 
-function getDisplayName(profile: Profile | null, email: string | null) {
+function getDisplayName(
+  profile: Profile | null,
+  email: string | null
+) {
   if (profile?.display_name?.trim()) {
     return profile.display_name.trim();
   }
@@ -197,15 +188,19 @@ export default function Header() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+
   const [currentPlan, setCurrentPlan] =
     useState<Plan>('RETAIL_STARTER');
+
   const [monthlyTransactions, setMonthlyTransactions] =
     useState(0);
+
   const [loadingHeaderData, setLoadingHeaderData] =
     useState(true);
 
   const profileRef = useRef<HTMLDivElement>(null);
-  const mobileSearchRef = useRef<HTMLInputElement>(null);
+  const mobileSearchRef =
+    useRef<HTMLInputElement>(null);
 
   const plan = PLAN_CONFIG[currentPlan];
   const title = titles[pathname] ?? 'Dashboard';
@@ -259,15 +254,32 @@ export default function Header() {
             .maybeSingle(),
 
           (() => {
-            const { start, end } = getLagosMonthRange();
+            const { start, end } =
+              getLagosMonthRange();
 
+            /*
+             * Only automatically logged bank transactions
+             * count toward the monthly transaction allowance.
+             *
+             * manual:
+             *   Does not count.
+             *
+             * statement_import:
+             *   Does not count.
+             *
+             * bank_sync:
+             *   Counts toward the plan allowance.
+             */
             return supabase
               .from('transactions')
-              .select('id', { count: 'exact', head: true })
+              .select('id', {
+                count: 'exact',
+                head: true,
+              })
               .eq('user_id', user.id)
               .eq('is_deleted', false)
               .eq('status', 'completed')
-              .neq('source', 'manual')
+              .eq('source', 'bank_sync')
               .gte('date', start)
               .lte('date', end);
           })(),
@@ -275,7 +287,10 @@ export default function Header() {
 
         if (!mounted) return;
 
-        if (!profileResult.error && profileResult.data) {
+        if (
+          !profileResult.error &&
+          profileResult.data
+        ) {
           setProfile(profileResult.data);
         }
 
@@ -291,6 +306,10 @@ export default function Header() {
           'Failed to load header data:',
           error
         );
+
+        if (mounted) {
+          setMonthlyTransactions(0);
+        }
       } finally {
         if (mounted) {
           setLoadingHeaderData(false);
@@ -306,7 +325,9 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (
+      event: MouseEvent
+    ) => {
       if (
         profileRef.current &&
         !profileRef.current.contains(
@@ -363,6 +384,14 @@ export default function Header() {
       setSigningOut(false);
     }
   };
+
+  const hasTransactionLimit =
+    plan.transactionLimit !== Infinity;
+
+  const transactionLimitReached =
+    hasTransactionLimit &&
+    monthlyTransactions >=
+      plan.transactionLimit;
 
   return (
     <header
@@ -517,9 +546,11 @@ export default function Header() {
             <button
               type="button"
               onClick={() =>
-                router.push('/dashboard/transactions')
+                router.push(
+                  '/dashboard/transactions'
+                )
               }
-              className="
+              className={`
                 hidden h-10 items-center gap-2
                 border border-gray-200
                 bg-white
@@ -527,13 +558,22 @@ export default function Header() {
                 transition-colors
                 hover:bg-gray-50
                 md:flex
-              "
-              title="View monthly activity"
+                ${
+                  transactionLimitReached
+                    ? 'border-amber-200'
+                    : ''
+                }
+              `}
+              title="View monthly automatic transaction activity"
             >
               <Activity
                 size={16}
                 strokeWidth={1.7}
-                className="text-emerald-900"
+                className={
+                  transactionLimitReached
+                    ? 'text-amber-700'
+                    : 'text-emerald-900'
+                }
               />
 
               <div className="text-left leading-none">
@@ -550,7 +590,7 @@ export default function Header() {
                   ) : (
                     <>
                       {monthlyTransactions}
-                      {plan.transactionLimit !== Infinity
+                      {hasTransactionLimit
                         ? ` / ${plan.transactionLimit}`
                         : ' transactions'}
                     </>
@@ -679,7 +719,8 @@ export default function Header() {
                       </p>
 
                       <p className="truncate text-[11px] text-gray-400">
-                        {email ?? 'No email available'}
+                        {email ??
+                          'No email available'}
                       </p>
                     </div>
                   </div>
@@ -765,6 +806,7 @@ export default function Header() {
                   </button>
                 </div>
 
+                {/* Current Plan */}
                 <div className="border-t border-gray-200 px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div>
@@ -786,8 +828,50 @@ export default function Header() {
                       />
                     )}
                   </div>
+
+                  {/* Monthly Usage */}
+                  {currentPlan !==
+                    'BORDERLESS_PRO' && (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-gray-400">
+                          Automatic transactions
+                        </span>
+
+                        <span className="text-[10px] font-medium text-gray-600">
+                          {loadingHeaderData
+                            ? '...'
+                            : `${monthlyTransactions} / ${plan.transactionLimit}`}
+                        </span>
+                      </div>
+
+                      <div className="mt-1.5 h-1.5 w-full overflow-hidden bg-gray-100">
+                        <div
+                          className={`h-full transition-all ${
+                            transactionLimitReached
+                              ? 'bg-amber-500'
+                              : 'bg-emerald-900'
+                          }`}
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              (monthlyTransactions /
+                                plan.transactionLimit) *
+                                100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+
+                      <p className="mt-2 text-[10px] leading-4 text-gray-400">
+                        Bank statement imports and manual
+                        entries do not use this allowance.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
+                {/* Sign Out */}
                 <div className="border-t border-gray-200 p-2">
                   <button
                     type="button"

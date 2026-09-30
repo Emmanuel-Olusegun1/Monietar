@@ -4,94 +4,244 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { Check, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Check } from 'lucide-react';
+
+type Currency = 'NGN' | 'XOF';
+type BillingPeriod = 'monthly' | 'yearly';
+
+type Plan = {
+  name: string;
+  description: string;
+  price: Record<Currency, number>;
+  yearlyPrice: Record<Currency, number>;
+  originalPrice: Record<Currency, number> | null;
+  features: string[];
+  cta: string;
+  popular: boolean;
+  discounted: boolean;
+  url: string;
+};
+
+const plans: Record<'free' | 'pro' | 'premium', Plan> = {
+  free: {
+    name: 'Retail Starter',
+    description:
+      'The essential Monietar experience for everyday merchants who want to move beyond notebooks and start understanding their money.',
+    price: {
+      NGN: 0,
+      XOF: 0,
+    },
+    yearlyPrice: {
+      NGN: 0,
+      XOF: 0,
+    },
+    originalPrice: null,
+    features: [
+      '1 connected merchant bank account',
+      '30 automatically logged transactions per month',
+      'Unlimited Bank Statement (PDF/CSV) auto-parsing',
+      'Unlimited manual bookkeeping entries',
+      'Basic Profit & Loss (P&L) dashboard views',
+      '1 Independent Physical Cash Vault',
+      'Basic local product catalog & sales summaries',
+      'Standard customer care email support',
+    ],
+    cta: 'Join Waitlist',
+    popular: false,
+    discounted: false,
+    url: '#waitlist-section',
+  },
+
+  pro: {
+    name: 'Growing Merchant',
+    description:
+      'For established merchants who need more automation, more connected accounts, and a clearer view of a growing business.',
+    price: {
+      NGN: 7500,
+      XOF: 2800,
+    },
+    yearlyPrice: {
+      NGN: 75000,
+      XOF: 28000,
+    },
+    originalPrice: {
+      NGN: 15000,
+      XOF: 5600,
+    },
+    features: [
+      'Up to 2,500 automatically logged bank transactions monthly',
+      '3 connected merchant bank accounts',
+      'Multi-device alert syncing for shop assistants',
+      'Live, instant Profit & Loss (P&L) dashboard views',
+      'Automated inventory tracking & running-low stock alerts',
+      'Deeper cash-flow visibility for daily operations',
+      'Priority email & developer team chat support',
+    ],
+    cta: 'Lock In 50% Discount',
+    popular: true,
+    discounted: true,
+    url: '#waitlist-section',
+  },
+
+  premium: {
+    name: 'Borderless Pro',
+    description:
+      'For merchants operating across regions who need deeper financial visibility, multi-currency tracking, and intelligent reporting.',
+    price: {
+      NGN: 22500,
+      XOF: 8500,
+    },
+    yearlyPrice: {
+      NGN: 225000,
+      XOF: 85000,
+    },
+    originalPrice: {
+      NGN: 45000,
+      XOF: 17000,
+    },
+    features: [
+      'Unlimited monthly transactions across all channels',
+      'Dual-Currency Ledger Engine (Naira ⇄ CFA Franc)',
+      'Automated Parallel Market Rate Auto-Indexing',
+      '1-Tap audit-ready financial statement exports (PDF/Excel)',
+      'Custom AI Accounting Chatbot assistance',
+      'Weekly AI Voice Report Card summaries (Pidgin or English)',
+      'Dedicated account priority channels',
+    ],
+    cta: 'Lock In 50% Discount',
+    popular: false,
+    discounted: true,
+    url: '#waitlist-section',
+  },
+};
+
+const comparisonRows: Array<{
+  feature: string;
+  free: string | boolean;
+  pro: string | boolean;
+  premium: string | boolean;
+}> = [
+  {
+    feature: 'Automatic bank transaction logging',
+    free: '30 free transactions / month',
+    pro: 'Up to 2,500 / month',
+    premium: 'Unlimited',
+  },
+  {
+    feature: 'Bank Statement auto-parsing',
+    free: 'Unlimited PDF / CSV',
+    pro: 'Unlimited',
+    premium: 'Unlimited',
+  },
+  {
+    feature: 'Connected bank accounts',
+    free: '1 account',
+    pro: '3 accounts',
+    premium: 'Unlimited',
+  },
+  {
+    feature: 'Manual bookkeeping',
+    free: 'Unlimited',
+    pro: 'Unlimited',
+    premium: 'Unlimited',
+  },
+  {
+    feature: 'Physical Cash Vault',
+    free: '1 profile',
+    pro: 'Multiple',
+    premium: 'Multiple',
+  },
+  {
+    feature: 'Profit & Loss dashboard',
+    free: 'Basic',
+    pro: 'Live & instant',
+    premium: 'Advanced',
+  },
+  {
+    feature: 'Cash-flow visibility',
+    free: 'Basic',
+    pro: 'Detailed',
+    premium: 'Advanced',
+  },
+  {
+    feature: 'Product catalog & sales summaries',
+    free: 'Basic',
+    pro: 'Advanced',
+    premium: 'Advanced',
+  },
+  {
+    feature: 'Multi-device alert syncing',
+    free: false,
+    pro: true,
+    premium: true,
+  },
+  {
+    feature: 'Automated inventory tracking',
+    free: false,
+    pro: true,
+    premium: true,
+  },
+  {
+    feature: 'Running-low stock alerts',
+    free: false,
+    pro: true,
+    premium: true,
+  },
+  {
+    feature: 'Financial statement exports',
+    free: false,
+    pro: false,
+    premium: 'PDF / Excel',
+  },
+  {
+    feature: 'Dual-Currency Ledger',
+    free: false,
+    pro: false,
+    premium: 'Naira ⇄ CFA Franc',
+  },
+  {
+    feature: 'Parallel Market Rate Indexing',
+    free: false,
+    pro: false,
+    premium: true,
+  },
+  {
+    feature: 'AI Accounting Assistant',
+    free: false,
+    pro: false,
+    premium: true,
+  },
+  {
+    feature: 'AI Voice Reports',
+    free: false,
+    pro: false,
+    premium: 'Pidgin / English',
+  },
+  {
+    feature: 'Support',
+    free: 'Standard email',
+    pro: 'Priority email & chat',
+    premium: 'Dedicated priority',
+  },
+];
 
 export default function PricingPage() {
-  const [currency, setCurrency] = useState<'NGN' | 'XOF'>('NGN');
+  const [currency, setCurrency] = useState<Currency>('NGN');
   const [billingPeriod, setBillingPeriod] =
-    useState<'monthly' | 'yearly'>('monthly');
+    useState<BillingPeriod>('monthly');
 
-  const plans = {
-    free: {
-      name: 'Retail Starter',
-      description:
-        'The essential Monietar experience for everyday merchants who want to move beyond notebooks and start understanding their money.',
-      price: { NGN: 0, XOF: 0 },
-      yearlyPrice: { NGN: 0, XOF: 0 },
-      originalPrice: null,
-      features: [
-        '1 connected merchant bank account',
-        'Up to 500 automatically logged bank transactions monthly',
-        'Unlimited manual bookkeeping entries',
-        'Basic Profit & Loss (P&L) dashboard views',
-        '1 Independent Physical Cash Vault',
-        'Basic local product catalog & sales summaries',
-        'Standard customer care email support',
-      ],
-      cta: 'Join Waitlist',
-      popular: false,
-      discounted: false,
-      url: '#waitlist-section',
-    },
-
-    pro: {
-      name: 'Growing Merchant',
-      description:
-        'For established merchants who need more automation, more connected accounts, and a clearer view of a growing business.',
-      price: { NGN: 7500, XOF: 2800 },
-      yearlyPrice: { NGN: 75000, XOF: 28000 },
-      originalPrice: { NGN: 15000, XOF: 5600 },
-      features: [
-        'Up to 2,500 automatically logged bank transactions monthly',
-        '3 connected merchant bank accounts',
-        'Multi-device alert syncing for shop assistants',
-        'Live, instant Profit & Loss (P&L) dashboard views',
-        'Automated inventory tracking & running-low stock alerts',
-        'Deeper cash-flow visibility for daily operations',
-        'Priority email & developer team chat support',
-      ],
-      cta: 'Lock In 50% Discount',
-      popular: true,
-      discounted: true,
-      url: '#waitlist-section',
-    },
-
-    premium: {
-      name: 'Borderless Pro',
-      description:
-        'For merchants operating across regions who need deeper financial visibility, multi-currency tracking, and intelligent reporting.',
-      price: { NGN: 22500, XOF: 8500 },
-      yearlyPrice: { NGN: 225000, XOF: 85000 },
-      originalPrice: { NGN: 45000, XOF: 17000 },
-      features: [
-        'Unlimited monthly transactions across all channels',
-        'Dual-Currency Ledger Engine (Naira ⇄ CFA Franc)',
-        'Automated Parallel Market Rate Auto-Indexing',
-        '1-Tap audit-ready financial statement exports (PDF/Excel)',
-        'Custom AI Accounting Chatbot assistance',
-        'Weekly AI Voice Report Card summaries (Pidgin or English)',
-        'Dedicated account priority channels',
-      ],
-      cta: 'Lock In 50% Discount',
-      popular: false,
-      discounted: true,
-      url: '#waitlist-section',
-    },
-  };
-
-  const getPrice = (planKey: keyof typeof plans) => {
-    const plan = plans[planKey];
-
+  const getPrice = (plan: Plan) => {
     const amount =
       billingPeriod === 'yearly'
         ? plan.yearlyPrice[currency]
         : plan.price[currency];
 
-    const originalAmount = plan.originalPrice
-      ? billingPeriod === 'yearly'
-        ? plan.originalPrice[currency] * 10
-        : plan.originalPrice[currency]
-      : null;
+    const originalAmount =
+      plan.originalPrice === null
+        ? null
+        : billingPeriod === 'yearly'
+          ? plan.originalPrice[currency] * 10
+          : plan.originalPrice[currency];
 
     return {
       amount,
@@ -101,105 +251,6 @@ export default function PricingPage() {
       period: billingPeriod === 'yearly' ? '/year' : '/month',
     };
   };
-
-  const comparisonRows = [
-    {
-      feature: 'Automatic bank transaction logging',
-      free: 'Up to 500 / month',
-      pro: 'Up to 2,500 / month',
-      premium: 'Unlimited',
-    },
-    {
-      feature: 'Connected bank accounts',
-      free: '1 account',
-      pro: '3 accounts',
-      premium: 'Unlimited',
-    },
-    {
-      feature: 'Manual bookkeeping',
-      free: 'Unlimited',
-      pro: 'Unlimited',
-      premium: 'Unlimited',
-    },
-    {
-      feature: 'Physical Cash Vault',
-      free: '1 profile',
-      pro: 'Multiple',
-      premium: 'Multiple',
-    },
-    {
-      feature: 'Profit & Loss dashboard',
-      free: 'Basic',
-      pro: 'Live & instant',
-      premium: 'Advanced',
-    },
-    {
-      feature: 'Cash-flow visibility',
-      free: 'Basic',
-      pro: 'Detailed',
-      premium: 'Advanced',
-    },
-    {
-      feature: 'Product catalog & sales summaries',
-      free: 'Basic',
-      pro: 'Advanced',
-      premium: 'Advanced',
-    },
-    {
-      feature: 'Multi-device alert syncing',
-      free: false,
-      pro: true,
-      premium: true,
-    },
-    {
-      feature: 'Automated inventory tracking',
-      free: false,
-      pro: true,
-      premium: true,
-    },
-    {
-      feature: 'Running-low stock alerts',
-      free: false,
-      pro: true,
-      premium: true,
-    },
-    {
-      feature: 'Financial statement exports',
-      free: false,
-      pro: false,
-      premium: 'PDF / Excel',
-    },
-    {
-      feature: 'Dual-Currency Ledger',
-      free: false,
-      pro: false,
-      premium: 'Naira ⇄ CFA Franc',
-    },
-    {
-      feature: 'Parallel Market Rate Indexing',
-      free: false,
-      pro: false,
-      premium: true,
-    },
-    {
-      feature: 'AI Accounting Assistant',
-      free: false,
-      pro: false,
-      premium: true,
-    },
-    {
-      feature: 'AI Voice Reports',
-      free: false,
-      pro: false,
-      premium: 'Pidgin / English',
-    },
-    {
-      feature: 'Support',
-      free: 'Standard email',
-      pro: 'Priority email & chat',
-      premium: 'Dedicated priority',
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-[#f1f1f1] font-sans text-gray-900 antialiased selection:bg-emerald-900/10 selection:text-emerald-900">
@@ -235,7 +286,10 @@ export default function PricingPage() {
                 className="mt-12 grid grid-cols-1 gap-8 border-t border-gray-300 pt-7 sm:grid-cols-[1fr_1.5fr] lg:mt-16"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.15 }}
+                transition={{
+                  duration: 0.6,
+                  delay: 0.15,
+                }}
               >
                 <div>
                   <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
@@ -336,10 +390,10 @@ export default function PricingPage() {
               </div>
             </motion.div>
 
-            {/* Pricing Grid */}
+            {/* Plan Cards */}
             <div className="mt-10 grid grid-cols-1 border-t border-gray-300 lg:grid-cols-3">
               {Object.entries(plans).map(([key, plan], index) => {
-                const price = getPrice(key as keyof typeof plans);
+                const price = getPrice(plan);
 
                 return (
                   <motion.div
@@ -347,17 +401,27 @@ export default function PricingPage() {
                     className={`flex h-full flex-col border-b border-gray-300 py-8 lg:min-h-[690px] lg:border-r lg:px-8 lg:py-10 ${
                       index === 2 ? 'lg:border-r-0' : ''
                     } ${
-                      plan.popular ? 'bg-[#f8faf9]' : 'bg-white'
+                      plan.popular
+                        ? 'bg-[#f8faf9]'
+                        : 'bg-white'
                     }`}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
+                    initial={{
+                      opacity: 0,
+                      y: 20,
+                    }}
+                    whileInView={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    viewport={{
+                      once: true,
+                    }}
                     transition={{
                       duration: 0.55,
                       delay: index * 0.08,
                     }}
                   >
-                    {/* Plan Meta */}
+                    {/* Card Header */}
                     <div className="flex items-start justify-between">
                       <span className="font-mono text-[10px] tracking-widest text-gray-400">
                         0{index + 1}
@@ -376,7 +440,7 @@ export default function PricingPage() {
                       )}
                     </div>
 
-                    {/* Plan Header */}
+                    {/* Plan Details */}
                     <div className="mt-8">
                       <h2 className="text-2xl font-semibold tracking-[-0.025em] text-gray-950">
                         {plan.name}
@@ -410,11 +474,12 @@ export default function PricingPage() {
                         </span>
                       </div>
 
-                      {billingPeriod === 'yearly' && price.amount > 0 && (
-                        <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-emerald-900">
-                          Includes 2 months free
-                        </p>
-                      )}
+                      {billingPeriod === 'yearly' &&
+                        price.amount > 0 && (
+                          <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-emerald-900">
+                            Includes 2 months free
+                          </p>
+                        )}
 
                       {key === 'free' && (
                         <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-gray-400">
@@ -423,35 +488,46 @@ export default function PricingPage() {
                       )}
                     </div>
 
-                 
-
                     {/* Features */}
                     <ul className="mt-7 flex-1 space-y-3.5">
-                      {plan.features.map((feature, featureIndex) => (
-                        <motion.li
-                          key={featureIndex}
-                          className="flex items-start gap-3"
-                          initial={{ opacity: 0, x: -8 }}
-                          whileInView={{ opacity: 1, x: 0 }}
-                          viewport={{ once: true }}
-                          transition={{
-                            duration: 0.35,
-                            delay: featureIndex * 0.03,
-                          }}
-                        >
-                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-900" />
+                      {plan.features.map(
+                        (feature, featureIndex) => (
+                          <motion.li
+                            key={featureIndex}
+                            className="flex items-start gap-3"
+                            initial={{
+                              opacity: 0,
+                              x: -8,
+                            }}
+                            whileInView={{
+                              opacity: 1,
+                              x: 0,
+                            }}
+                            viewport={{
+                              once: true,
+                            }}
+                            transition={{
+                              duration: 0.35,
+                              delay:
+                                featureIndex * 0.03,
+                            }}
+                          >
+                            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-900" />
 
-                          <span className="text-xs leading-5 text-gray-600">
-                            {feature}
-                          </span>
-                        </motion.li>
-                      ))}
+                            <span className="text-xs leading-5 text-gray-600">
+                              {feature}
+                            </span>
+                          </motion.li>
+                        ),
+                      )}
                     </ul>
 
                     {/* CTA */}
                     <motion.a
                       href={plan.url}
-                      whileHover={{ x: 3 }}
+                      whileHover={{
+                        x: 3,
+                      }}
                       className={`mt-8 flex w-full items-center justify-between border-t pt-4 text-xs font-semibold uppercase tracking-[0.12em] transition-colors ${
                         plan.popular
                           ? 'border-emerald-900 text-emerald-900'
@@ -459,6 +535,7 @@ export default function PricingPage() {
                       }`}
                     >
                       <span>{plan.cta}</span>
+
                       <ArrowUpRight className="h-4 w-4" />
                     </motion.a>
                   </motion.div>
@@ -473,10 +550,20 @@ export default function PricingPage() {
           <div className="mx-auto max-w-[1440px]">
             <motion.div
               className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_1.5fr]"
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
+              initial={{
+                opacity: 0,
+                y: 15,
+              }}
+              whileInView={{
+                opacity: 1,
+                y: 0,
+              }}
+              viewport={{
+                once: true,
+              }}
+              transition={{
+                duration: 0.6,
+              }}
             >
               <div>
                 <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
@@ -528,9 +615,15 @@ export default function PricingPage() {
                     <motion.tr
                       key={row.feature}
                       className="group transition-colors hover:bg-white/60"
-                      initial={{ opacity: 0 }}
-                      whileInView={{ opacity: 1 }}
-                      viewport={{ once: true }}
+                      initial={{
+                        opacity: 0,
+                      }}
+                      whileInView={{
+                        opacity: 1,
+                      }}
+                      viewport={{
+                        once: true,
+                      }}
                       transition={{
                         duration: 0.35,
                         delay: index * 0.025,
@@ -545,7 +638,9 @@ export default function PricingPage() {
                           row.free ? (
                             <Check className="mx-auto h-4 w-4 text-emerald-900" />
                           ) : (
-                            <span className="text-gray-300">—</span>
+                            <span className="text-gray-300">
+                              —
+                            </span>
                           )
                         ) : (
                           row.free
@@ -557,7 +652,9 @@ export default function PricingPage() {
                           row.pro ? (
                             <Check className="mx-auto h-4 w-4 text-emerald-900" />
                           ) : (
-                            <span className="text-gray-300">—</span>
+                            <span className="text-gray-300">
+                              —
+                            </span>
                           )
                         ) : (
                           row.pro
@@ -569,7 +666,9 @@ export default function PricingPage() {
                           row.premium ? (
                             <Check className="mx-auto h-4 w-4 text-emerald-900" />
                           ) : (
-                            <span className="text-gray-300">—</span>
+                            <span className="text-gray-300">
+                              —
+                            </span>
                           )
                         ) : (
                           row.premium
@@ -588,16 +687,25 @@ export default function PricingPage() {
           <div className="mx-auto max-w-[1440px]">
             <motion.div
               className="border-t border-gray-300 pt-8"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
+              initial={{
+                opacity: 0,
+              }}
+              whileInView={{
+                opacity: 1,
+              }}
+              viewport={{
+                once: true,
+              }}
+              transition={{
+                duration: 0.5,
+              }}
             >
               <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-400">
                 How the plans grow
               </span>
 
               <div className="mt-8 grid grid-cols-1 md:grid-cols-3">
+                {/* Step 01 */}
                 <div className="border-b border-gray-300 py-6 md:border-b-0 md:border-r md:pr-8">
                   <span className="font-mono text-[10px] tracking-widest text-gray-400">
                     01
@@ -614,6 +722,7 @@ export default function PricingPage() {
                   </p>
                 </div>
 
+                {/* Step 02 */}
                 <div className="border-b border-gray-300 py-6 md:border-b-0 md:border-r md:px-8">
                   <span className="font-mono text-[10px] tracking-widest text-emerald-900">
                     02
@@ -630,6 +739,7 @@ export default function PricingPage() {
                   </p>
                 </div>
 
+                {/* Step 03 */}
                 <div className="py-6 md:pl-8">
                   <span className="font-mono text-[10px] tracking-widest text-gray-400">
                     03

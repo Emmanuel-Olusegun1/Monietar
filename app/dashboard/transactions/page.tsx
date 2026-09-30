@@ -19,8 +19,15 @@ import {
   Plus,
   Loader2,
   BarChart3,
+  FileText,
+  Upload,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import type { LucideIcon } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/client';
@@ -33,6 +40,8 @@ import { createClient } from '@/lib/supabase/client';
 
 type TransactionType = 'income' | 'expense';
 
+type Currency = 'NGN' | 'XOF';
+
 type Plan =
   | 'retail-starter'
   | 'growing-merchant'
@@ -44,6 +53,12 @@ type PeriodKey =
   | 'this-month'
   | 'last-month'
   | 'this-year';
+
+type TransactionSource =
+  | 'manual'
+  | 'bank_sync'
+  | 'statement_import'
+  | string;
 
 type TransactionRow = {
   id: string;
@@ -61,6 +76,7 @@ type TransactionRow = {
   account_id: string | null;
   reference: string | null;
   notes: string | null;
+  source: string | null;
 };
 
 type Transaction = {
@@ -74,13 +90,14 @@ type Transaction = {
   accountId: string | null;
   accountLabel: string;
   reference: string;
-  currency: string;
+  currency: Currency;
+  source: TransactionSource;
 };
 
 type AccountOption = {
   id: string;
   name: string;
-  currency: string;
+  currency: Currency;
 };
 
 type ChartPoint = {
@@ -97,6 +114,13 @@ type ChartPoint = {
 */
 
 const BUSINESS_TIME_ZONE = 'Africa/Lagos';
+
+const SUPPORTED_CURRENCIES: Currency[] = ['NGN', 'XOF'];
+
+const STARTER_AUTOMATIC_TRANSACTION_LIMIT = 30;
+
+const STATEMENT_IMPORT_ENDPOINT =
+  '/api/transactions/import-statement';
 
 const periods: {
   key: PeriodKey;
@@ -147,42 +171,51 @@ const DEFAULT_CATEGORIES = [
 */
 
 function getLagosDateParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-NG', {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: BUSINESS_TIME_ZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).formatToParts(date);
+  });
+
+  const parts = formatter.formatToParts(date);
+
+  const year = Number(
+    parts.find((part) => part.type === 'year')?.value
+  );
+
+  const month = Number(
+    parts.find((part) => part.type === 'month')?.value
+  );
+
+  const day = Number(
+    parts.find((part) => part.type === 'day')?.value
+  );
 
   return {
-    year: Number(
-      parts.find((part) => part.type === 'year')?.value ?? 0
-    ),
-    month: Number(
-      parts.find((part) => part.type === 'month')?.value ?? 0
-    ),
-    day: Number(
-      parts.find((part) => part.type === 'day')?.value ?? 0
-    ),
+    year,
+    month,
+    day,
   };
 }
 
 function getLagosHour(date = new Date()) {
-  const value = new Intl.DateTimeFormat('en-NG', {
-    timeZone: BUSINESS_TIME_ZONE,
-    hour: '2-digit',
-    hour12: false,
-  }).format(date);
-
-  return Number(value);
+  return Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: BUSINESS_TIME_ZONE,
+      hour: 'numeric',
+      hour12: false,
+    }).format(date)
+  );
 }
 
 function getLagosDateString(date = new Date()) {
   const { year, month, day } = getLagosDateParts(date);
 
-  return `${year}-${String(month).padStart(2, '0')}-${String(
-    day
-  ).padStart(2, '0')}`;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(
+    2,
+    '0'
+  )}`;
 }
 
 function parseDateOnly(value: string) {
@@ -191,32 +224,26 @@ function parseDateOnly(value: string) {
     .map(Number);
 
   return new Date(
-    year,
-    (month || 1) - 1,
-    day || 1
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    )
   );
 }
 
 function formatDateOnly(date: Date) {
-  const year = date.getFullYear();
-  const month = String(
-    date.getMonth() + 1
-  ).padStart(2, '0');
-  const day = String(
-    date.getDate()
-  ).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
+  return date.toISOString().slice(0, 10);
 }
 
-function addDays(date: Date, amount: number) {
-  const result = new Date(date);
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
 
-  result.setDate(
-    result.getDate() + amount
+  next.setUTCDate(
+    next.getUTCDate() + days
   );
 
-  return result;
+  return next;
 }
 
 function getTodayInputValue() {
@@ -228,6 +255,8 @@ function getPeriodRange(period: PeriodKey) {
     getLagosDateString()
   );
 
+  const dayOfWeek = today.getUTCDay();
+
   switch (period) {
     case 'today':
       return {
@@ -236,13 +265,14 @@ function getPeriodRange(period: PeriodKey) {
       };
 
     case 'this-week': {
-      const day = today.getDay();
-      const difference =
-        day === 0 ? 6 : day - 1;
+      const mondayOffset =
+        dayOfWeek === 0
+          ? -6
+          : 1 - dayOfWeek;
 
       const start = addDays(
         today,
-        -difference
+        mondayOffset
       );
 
       return {
@@ -253,28 +283,42 @@ function getPeriodRange(period: PeriodKey) {
 
     case 'this-month': {
       const start = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        1
+        Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth(),
+          1
+        )
+      );
+
+      const end = new Date(
+        Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth() + 1,
+          0
+        )
       );
 
       return {
         start: formatDateOnly(start),
-        end: formatDateOnly(today),
+        end: formatDateOnly(end),
       };
     }
 
     case 'last-month': {
       const start = new Date(
-        today.getFullYear(),
-        today.getMonth() - 1,
-        1
+        Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth() - 1,
+          1
+        )
       );
 
       const end = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        0
+        Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth(),
+          0
+        )
       );
 
       return {
@@ -285,48 +329,64 @@ function getPeriodRange(period: PeriodKey) {
 
     case 'this-year': {
       const start = new Date(
-        today.getFullYear(),
-        0,
-        1
+        Date.UTC(
+          today.getUTCFullYear(),
+          0,
+          1
+        )
+      );
+
+      const end = new Date(
+        Date.UTC(
+          today.getUTCFullYear(),
+          11,
+          31
+        )
       );
 
       return {
         start: formatDateOnly(start),
-        end: formatDateOnly(today),
+        end: formatDateOnly(end),
       };
     }
+
+    default:
+      return {
+        start: formatDateOnly(today),
+        end: formatDateOnly(today),
+      };
   }
 }
 
 function formatTransactionDate(
-  date: string
+  value: string
 ) {
-  const parsed = parseDateOnly(date);
+  const date = parseDateOnly(value);
 
-  if (Number.isNaN(parsed.getTime())) {
-    return date;
-  }
-
-  return parsed.toLocaleDateString(
+  return new Intl.DateTimeFormat(
     'en-NG',
     {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'UTC',
     }
-  );
+  ).format(date);
 }
 
-function formatShortDate(date: string) {
-  const parsed = parseDateOnly(date);
+function formatShortDate(
+  value: string
+) {
+  const date = parseDateOnly(value);
 
-  return parsed.toLocaleDateString(
+  return new Intl.DateTimeFormat(
     'en-NG',
     {
       day: 'numeric',
       month: 'short',
+      timeZone: 'UTC',
     }
-  );
+  ).format(date);
 }
 
 /*
@@ -335,64 +395,83 @@ function formatShortDate(date: string) {
 |--------------------------------------------------------------------------
 */
 
-function normalizePlan(value: unknown): Plan {
-  if (typeof value !== 'string') {
-    return 'retail-starter';
+function normalizePlan(
+  value: unknown
+): Plan {
+  if (
+    value === 'growing-merchant' ||
+    value === 'borderless-pro' ||
+    value === 'retail-starter'
+  ) {
+    return value;
   }
 
-  const normalized = value
-    .trim()
-    .toLowerCase()
-    .replace(/[_\s]+/g, '-');
+  return 'retail-starter';
+}
 
-  switch (normalized) {
+function getPlanName(
+  plan: Plan
+) {
+  switch (plan) {
     case 'growing-merchant':
-      return 'growing-merchant';
+      return 'Growing Merchant';
 
     case 'borderless-pro':
-      return 'borderless-pro';
+      return 'Borderless Pro';
 
-    case 'retail-starter':
     default:
-      return 'retail-starter';
+      return 'Retail Starter';
   }
 }
 
 function formatCurrency(
   amount: number,
-  currency = 'NGN'
+  currency: Currency = 'NGN'
 ) {
-  const currencySymbol =
-    currency === 'NGN'
-      ? '₦'
-      : currency === 'USD'
-        ? '$'
-        : currency === 'EUR'
-          ? '€'
-          : currency === 'XOF'
-            ? 'CFA '
-            : `${currency} `;
+  if (currency === 'XOF') {
+    return `CFA ${amount.toLocaleString(
+      'fr-FR',
+      {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }
+    )}`;
+  }
 
-  return `${currencySymbol}${Math.round(
-    Math.abs(amount)
-  ).toLocaleString('en-NG')}`;
+  return `₦${amount.toLocaleString(
+    'en-NG',
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  )}`;
 }
 
 function toNumber(
-  value: number | string | null
+  value: unknown
 ) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return 0;
-  }
-
   const number = Number(value);
 
   return Number.isFinite(number)
     ? number
     : 0;
+}
+
+function normalizeCurrency(
+  value: unknown
+): Currency | null {
+  const currency = String(
+    value ?? ''
+  ).toUpperCase();
+
+  if (
+    currency === 'NGN' ||
+    currency === 'XOF'
+  ) {
+    return currency;
+  }
+
+  return null;
 }
 
 function getTransactionAmount(
@@ -410,24 +489,33 @@ function getAccountLabel(
     return 'No account';
   }
 
-  return `Account ${accountId.slice(0, 8)}`;
+  return `Account ${accountId.slice(
+    0,
+    8
+  )}`;
 }
 
 function getTransactionReference(
   transaction: TransactionRow
 ) {
-  if (transaction.reference) {
-    return transaction.reference;
-  }
-
-  return transaction.id
-    .slice(0, 8)
-    .toUpperCase();
+  return (
+    transaction.reference ||
+    transaction.id.slice(0, 8)
+  );
 }
 
 function normalizeTransaction(
   transaction: TransactionRow
-): Transaction {
+): Transaction | null {
+  const currency =
+    normalizeCurrency(
+      transaction.currency
+    );
+
+  if (!currency) {
+    return null;
+  }
+
   return {
     id: transaction.id,
     description:
@@ -436,7 +524,7 @@ function normalizeTransaction(
       'Transaction',
     category:
       transaction.category ||
-      'Uncategorized',
+      'Other',
     amount:
       getTransactionAmount(
         transaction
@@ -458,308 +546,199 @@ function normalizeTransaction(
       getTransactionReference(
         transaction
       ),
-    currency:
-      transaction.currency ||
-      'NGN',
+    currency,
+    source:
+      transaction.source ||
+      'manual',
   };
 }
 
-function getDateValue(date: string) {
-  return parseDateOnly(date).getTime();
+function getDateValue(
+  transaction: Transaction
+) {
+  return transaction.date;
 }
 
 function getPeriodChartPoints(
   period: PeriodKey,
   transactions: Transaction[]
 ): ChartPoint[] {
-  const {
-    start,
-    end,
-  } = getPeriodRange(period);
+  const range =
+    getPeriodRange(period);
 
-  const startDate =
-    parseDateOnly(start);
+  const start =
+    parseDateOnly(range.start);
 
-  const endDate =
-    parseDateOnly(end);
-
-  /*
-  |--------------------------------------------------------------------------
-  | Today
-  |--------------------------------------------------------------------------
-  | Six four-hour blocks.
-  */
-
-  if (period === 'today') {
-    const points: ChartPoint[] =
-      Array.from(
-        { length: 6 },
-        (_, index) => {
-          const startHour =
-            index * 4;
-
-          const label =
-            startHour === 0
-              ? '12 AM'
-              : startHour === 12
-                ? '12 PM'
-                : startHour < 12
-                  ? `${startHour} AM`
-                  : `${startHour - 12} PM`;
-
-          return {
-            key: `hour-${startHour}`,
-            label,
-            moneyIn: 0,
-            moneyOut: 0,
-          };
-        }
-      );
-
-    transactions.forEach(
-      (transaction) => {
-        if (
-          transaction.date !==
-          start
-        ) {
-          return;
-        }
-
-        if (!transaction.createdAt) {
-          return;
-        }
-
-        const hour =
-          getLagosHour(
-            new Date(
-              transaction.createdAt
-            )
-          );
-
-        const bucket = Math.min(
-          5,
-          Math.floor(hour / 4)
-        );
-
-        if (
-          transaction.type ===
-          'income'
-        ) {
-          points[bucket].moneyIn +=
-            transaction.amount;
-        } else {
-          points[bucket].moneyOut +=
-            transaction.amount;
-        }
-      }
-    );
-
-    return points;
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | This Week
-  |--------------------------------------------------------------------------
-  */
-
-  if (period === 'this-week') {
-    const points: ChartPoint[] = [];
-
-    let cursor = new Date(
-      startDate
-    );
-
-    while (
-      cursor <= endDate
-    ) {
-      const date =
-        formatDateOnly(cursor);
-
-      const label =
-        cursor.toLocaleDateString(
-          'en-NG',
-          {
-            weekday: 'short',
-            day: 'numeric',
-          }
-        );
-
-      points.push({
-        key: date,
-        label,
-        moneyIn: 0,
-        moneyOut: 0,
-      });
-
-      cursor = addDays(
-        cursor,
-        1
-      );
-    }
-
-    transactions.forEach(
-      (transaction) => {
-        const point =
-          points.find(
-            (item) =>
-              item.key ===
-              transaction.date
-          );
-
-        if (!point) {
-          return;
-        }
-
-        if (
-          transaction.type ===
-          'income'
-        ) {
-          point.moneyIn +=
-            transaction.amount;
-        } else {
-          point.moneyOut +=
-            transaction.amount;
-        }
-      }
-    );
-
-    return points;
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | This Month / Last Month
-  |--------------------------------------------------------------------------
-  */
-
-  if (
-    period === 'this-month' ||
-    period === 'last-month'
-  ) {
-    const points: ChartPoint[] = [];
-
-    let cursor = new Date(
-      startDate
-    );
-
-    while (
-      cursor <= endDate
-    ) {
-      const date =
-        formatDateOnly(cursor);
-
-      points.push({
-        key: date,
-        label:
-          cursor.getDate().toString(),
-        moneyIn: 0,
-        moneyOut: 0,
-      });
-
-      cursor = addDays(
-        cursor,
-        1
-      );
-    }
-
-    transactions.forEach(
-      (transaction) => {
-        const point =
-          points.find(
-            (item) =>
-              item.key ===
-              transaction.date
-          );
-
-        if (!point) {
-          return;
-        }
-
-        if (
-          transaction.type ===
-          'income'
-        ) {
-          point.moneyIn +=
-            transaction.amount;
-        } else {
-          point.moneyOut +=
-            transaction.amount;
-        }
-      }
-    );
-
-    return points;
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | This Year
-  |--------------------------------------------------------------------------
-  */
+  const end =
+    parseDateOnly(range.end);
 
   const points: ChartPoint[] = [];
 
-  let cursor = new Date(
-    startDate.getFullYear(),
-    0,
-    1
-  );
+  if (period === 'today') {
+    for (
+      let hour = 0;
+      hour < 24;
+      hour += 4
+    ) {
+      const key = `${hour}`;
 
-  const currentMonth =
-    endDate.getMonth();
+      points.push({
+        key,
+        label: `${hour === 0 ? '12' : hour > 12 ? hour - 12 : hour}${hour < 12 ? 'am' : 'pm'}`,
+        moneyIn: 0,
+        moneyOut: 0,
+      });
+    }
 
-  while (
-    cursor.getMonth() <=
-    currentMonth
+    transactions.forEach(
+      (transaction) => {
+        const createdDate =
+          transaction.createdAt
+            ? new Date(
+                transaction.createdAt
+              )
+            : parseDateOnly(
+                transaction.date
+              );
+
+        const hour =
+          getLagosHour(
+            createdDate
+          );
+
+        const bucket =
+          Math.min(
+            20,
+            Math.floor(hour / 4) * 4
+          );
+
+        const point =
+          points.find(
+            (item) =>
+              item.key ===
+              String(bucket)
+          );
+
+        if (!point) {
+          return;
+        }
+
+        if (
+          transaction.type ===
+          'income'
+        ) {
+          point.moneyIn +=
+            transaction.amount;
+        } else {
+          point.moneyOut +=
+            transaction.amount;
+        }
+      }
+    );
+
+    return points;
+  }
+
+  if (
+    period === 'this-year'
   ) {
-    const month =
-      cursor.getMonth();
+    for (
+      let month = 0;
+      month < 12;
+      month += 1
+    ) {
+      const date = new Date(
+        Date.UTC(
+          start.getUTCFullYear(),
+          month,
+          1
+        )
+      );
+
+      points.push({
+        key: `${date.getUTCFullYear()}-${month}`,
+        label:
+          new Intl.DateTimeFormat(
+            'en-NG',
+            {
+              month: 'short',
+              timeZone: 'UTC',
+            }
+          ).format(date),
+        moneyIn: 0,
+        moneyOut: 0,
+      });
+    }
+
+    transactions.forEach(
+      (transaction) => {
+        const date =
+          parseDateOnly(
+            transaction.date
+          );
+
+        const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`;
+
+        const point =
+          points.find(
+            (item) =>
+              item.key === key
+          );
+
+        if (!point) {
+          return;
+        }
+
+        if (
+          transaction.type ===
+          'income'
+        ) {
+          point.moneyIn +=
+            transaction.amount;
+        } else {
+          point.moneyOut +=
+            transaction.amount;
+        }
+      }
+    );
+
+    return points;
+  }
+
+  const totalDays =
+    Math.floor(
+      (end.getTime() -
+        start.getTime()) /
+        86400000
+    ) + 1;
+
+  for (
+    let index = 0;
+    index < totalDays;
+    index += 1
+  ) {
+    const date =
+      addDays(start, index);
+
+    const value =
+      formatDateOnly(date);
 
     points.push({
-      key: `${cursor.getFullYear()}-${String(
-        month + 1
-      ).padStart(2, '0')}`,
+      key: value,
       label:
-        cursor.toLocaleDateString(
-          'en-NG',
-          {
-            month: 'short',
-          }
-        ),
+        formatShortDate(value),
       moneyIn: 0,
       moneyOut: 0,
     });
-
-    cursor = new Date(
-      cursor.getFullYear(),
-      cursor.getMonth() + 1,
-      1
-    );
   }
 
   transactions.forEach(
     (transaction) => {
-      const parsed =
-        parseDateOnly(
-          transaction.date
-        );
-
-      if (
-        parsed.getFullYear() !==
-        endDate.getFullYear()
-      ) {
-        return;
-      }
-
-      const key = `${parsed.getFullYear()}-${String(
-        parsed.getMonth() + 1
-      ).padStart(2, '0')}`;
-
       const point =
         points.find(
           (item) =>
-            item.key === key
+            item.key ===
+            transaction.date
         );
 
       if (!point) {
@@ -785,12 +764,6 @@ function getPeriodChartPoints(
 function downloadCsv(
   transactions: Transaction[]
 ) {
-  if (
-    transactions.length === 0
-  ) {
-    return;
-  }
-
   const headers = [
     'Transaction ID',
     'Description',
@@ -801,21 +774,24 @@ function downloadCsv(
     'Date',
     'Account',
     'Reference',
+    'Source',
   ];
 
-  const rows = transactions.map(
-    (transaction) => [
-      transaction.id,
-      transaction.description,
-      transaction.category,
-      transaction.type,
-      transaction.amount,
-      transaction.currency,
-      transaction.date,
-      transaction.accountLabel,
-      transaction.reference,
-    ]
-  );
+  const rows =
+    transactions.map(
+      (transaction) => [
+        transaction.id,
+        transaction.description,
+        transaction.category,
+        transaction.type,
+        transaction.amount,
+        transaction.currency,
+        transaction.date,
+        transaction.accountLabel,
+        transaction.reference,
+        transaction.source,
+      ]
+    );
 
   const csv = [
     headers,
@@ -823,40 +799,41 @@ function downloadCsv(
   ]
     .map((row) =>
       row
-        .map((value) => {
-          const stringValue =
-            String(value ?? '');
-
-          return `"${stringValue.replace(
+        .map((value) =>
+          `"${String(
+            value ?? ''
+          ).replace(
             /"/g,
             '""'
-          )}"`;
-        })
+          )}"`
+        )
         .join(',')
     )
     .join('\n');
 
-  const blob = new Blob(
-    [csv],
-    {
+  const blob =
+    new Blob([csv], {
       type: 'text/csv;charset=utf-8;',
-    }
-  );
+    });
 
   const url =
     URL.createObjectURL(blob);
 
-  const link =
+  const anchor =
     document.createElement('a');
 
-  link.href = url;
-  link.download = `monietar-transactions-${getLagosDateString()}.csv`;
+  anchor.href = url;
+  anchor.download = `monietar-transactions-${getLagosDateString()}.csv`;
 
-  document.body.appendChild(link);
+  document.body.appendChild(
+    anchor
+  );
 
-  link.click();
+  anchor.click();
 
-  document.body.removeChild(link);
+  document.body.removeChild(
+    anchor
+  );
 
   URL.revokeObjectURL(url);
 }
@@ -868,54 +845,121 @@ function downloadCsv(
 */
 
 export default function TransactionsPage() {
+  const supabase = useMemo(
+    () => createClient(),
+    []
+  );
+
+  /*
+  |--------------------------------------------------------------------------
+  | Main State
+  |--------------------------------------------------------------------------
+  */
+
   const [
     transactions,
     setTransactions,
-  ] = useState<Transaction[]>([]);
+  ] = useState<Transaction[]>(
+    []
+  );
 
-  const [accounts, setAccounts] =
-    useState<AccountOption[]>([]);
+  const [
+    accounts,
+    setAccounts,
+  ] = useState<AccountOption[]>(
+    []
+  );
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [
+    error,
+    setError,
+  ] = useState<string | null>(
+    null
+  );
 
-  const [search, setSearch] =
-    useState('');
+  const [
+    search,
+    setSearch,
+  ] = useState('');
 
   const [
     selectedCategory,
     setSelectedCategory,
-  ] = useState('All categories');
+  ] = useState(
+    'All categories'
+  );
 
   const [
     selectedAccount,
     setSelectedAccount,
-  ] = useState('All accounts');
+  ] = useState(
+    'All accounts'
+  );
 
   const [
     selectedPeriod,
     setSelectedPeriod,
-  ] =
-    useState<PeriodKey>(
-      'this-month'
-    );
+  ] = useState<PeriodKey>(
+    'this-month'
+  );
 
-  const [filterOpen, setFilterOpen] =
-    useState(false);
+  const [
+    selectedCurrency,
+    setSelectedCurrency,
+  ] = useState<Currency>(
+    'NGN'
+  );
 
-  const [periodOpen, setPeriodOpen] =
-    useState(false);
+  const [
+    filterOpen,
+    setFilterOpen,
+  ] = useState(false);
+
+  const [
+    periodOpen,
+    setPeriodOpen,
+  ] = useState(false);
 
   const [
     selectedTransactions,
     setSelectedTransactions,
-  ] = useState<string[]>([]);
+  ] = useState<string[]>(
+    []
+  );
 
-  const [canExport, setCanExport] =
-    useState(false);
+  /*
+  |--------------------------------------------------------------------------
+  | Plan
+  |--------------------------------------------------------------------------
+  */
+
+  const [
+    plan,
+    setPlan,
+  ] = useState<Plan>(
+    'retail-starter'
+  );
+
+  const [
+    canExport,
+    setCanExport,
+  ] = useState(false);
+
+  const [
+    automaticTransactionCount,
+    setAutomaticTransactionCount,
+  ] = useState(0);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Manual Transaction Modal
+  |--------------------------------------------------------------------------
+  */
 
   const [
     addTransactionOpen,
@@ -930,87 +974,102 @@ export default function TransactionsPage() {
   const [
     transactionError,
     setTransactionError,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
 
   const [
     transactionType,
     setTransactionType,
-  ] =
-    useState<TransactionType>(
-      'income'
-    );
-
-  const [amount, setAmount] =
-    useState('');
-
-  const [category, setCategory] =
-    useState('');
-
-  const [description, setDescription] =
-    useState('');
-
-  const [date, setDate] =
-    useState(getTodayInputValue());
-
-  const [currency, setCurrency] =
-    useState('NGN');
-
-  const [accountId, setAccountId] =
-    useState('');
-
-  const [reference, setReference] =
-    useState('');
-
-  const [notes, setNotes] =
-    useState('');
-
-  /*
-  |--------------------------------------------------------------------------
-  | Supabase
-  |--------------------------------------------------------------------------
-  */
-
-  const supabase = useMemo(
-    () => createClient(),
-    []
+  ] = useState<TransactionType>(
+    'income'
   );
 
+  const [
+    amount,
+    setAmount,
+  ] = useState('');
+
+  const [
+    category,
+    setCategory,
+  ] = useState('');
+
+  const [
+    description,
+    setDescription,
+  ] = useState('');
+
+  const [
+    date,
+    setDate,
+  ] = useState(
+    getTodayInputValue()
+  );
+
+  const [
+    currency,
+    setCurrency,
+  ] = useState<Currency>(
+    'NGN'
+  );
+
+  const [
+    accountId,
+    setAccountId,
+  ] = useState('');
+
+  const [
+    reference,
+    setReference,
+  ] = useState('');
+
+  const [
+    notes,
+    setNotes,
+  ] = useState('');
+
   /*
   |--------------------------------------------------------------------------
-  | Load User Plan
+  | Bank Statement Modal
   |--------------------------------------------------------------------------
   */
 
-  useEffect(() => {
-    let mounted = true;
+  const [
+    statementModalOpen,
+    setStatementModalOpen,
+  ] = useState(false);
 
-    async function loadPlan() {
-      const {
-        data: { user },
-      } =
-        await supabase.auth.getUser();
+  const [
+    statementFile,
+    setStatementFile,
+  ] = useState<File | null>(
+    null
+  );
 
-      if (!mounted) {
-        return;
-      }
+  const [
+    statementCurrency,
+    setStatementCurrency,
+  ] = useState<Currency>(
+    'NGN'
+  );
 
-      const plan = normalizePlan(
-        user?.user_metadata
-          ?.subscription_plan ??
-          user?.user_metadata?.plan
-      );
+  const [
+    statementAccountId,
+    setStatementAccountId,
+  ] = useState('');
 
-      setCanExport(
-        plan === 'borderless-pro'
-      );
-    }
+  const [
+    statementError,
+    setStatementError,
+  ] = useState<string | null>(
+    null
+  );
 
-    loadPlan();
-
-    return () => {
-      mounted = false;
-    };
-  }, [supabase]);
+  const [
+    uploadingStatement,
+    setUploadingStatement,
+  ] = useState(false);
 
   /*
   |--------------------------------------------------------------------------
@@ -1018,44 +1077,91 @@ export default function TransactionsPage() {
   |--------------------------------------------------------------------------
   */
 
-  async function loadAccounts(
-    userId: string
-  ) {
-    const {
-      data,
-      error: accountError,
-    } =
-      await supabase
-        .from('accounts')
-        .select(
-          `
-            id,
-            name,
-            currency
-          `
-        )
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .order('is_default', {
-          ascending: false,
-        })
-        .order('name', {
-          ascending: true,
-        });
+  const loadAccounts =
+    useCallback(
+      async (userId: string) => {
+        const {
+          data,
+          error: accountError,
+        } = await supabase
+          .from('accounts')
+          .select(
+            `
+              id,
+              name,
+              currency
+            `
+          )
+          .eq(
+            'user_id',
+            userId
+          )
+          .eq(
+            'is_active',
+            true
+          )
+          .in(
+            'currency',
+            SUPPORTED_CURRENCIES
+          )
+          .order(
+            'is_default',
+            {
+              ascending: false,
+            }
+          )
+          .order(
+            'name',
+            {
+              ascending: true,
+            }
+          );
 
-    if (accountError) {
-      console.error(
-        'Failed to load accounts:',
-        accountError
-      );
+        if (accountError) {
+          console.error(
+            'Failed to load accounts:',
+            accountError
+          );
 
-      return;
-    }
+          return;
+        }
 
-    setAccounts(
-      (data ?? []) as AccountOption[]
+        const normalized =
+          (data ?? [])
+            .map(
+              (account) => {
+                const accountCurrency =
+                  normalizeCurrency(
+                    account.currency
+                  );
+
+                if (
+                  !accountCurrency
+                ) {
+                  return null;
+                }
+
+                return {
+                  id: account.id,
+                  name: account.name,
+                  currency:
+                    accountCurrency,
+                };
+              }
+            )
+            .filter(
+              (
+                account
+              ): account is AccountOption =>
+                account !== null
+            );
+
+        setAccounts(
+          normalized
+        );
+      },
+      [supabase]
     );
-  }
 
   /*
   |--------------------------------------------------------------------------
@@ -1063,36 +1169,35 @@ export default function TransactionsPage() {
   |--------------------------------------------------------------------------
   */
 
-  async function loadTransactions() {
-    try {
-      setLoading(true);
-      setError(null);
+  const loadTransactions =
+    useCallback(
+      async () => {
+        setLoading(true);
+        setError(null);
 
-      const {
-        data: { user },
-        error: authError,
-      } =
-        await supabase.auth.getUser();
+        const {
+          data: {
+            user,
+          },
+        } =
+          await supabase.auth.getUser();
 
-      if (authError) {
-        throw authError;
-      }
+        if (!user) {
+          setError(
+            'Your session has expired. Please sign in again.'
+          );
+          setLoading(false);
+          return;
+        }
 
-      if (!user) {
-        throw new Error(
-          'You must be signed in to view your transactions.'
+        await loadAccounts(
+          user.id
         );
-      }
 
-      await loadAccounts(
-        user.id
-      );
-
-      const {
-        data,
-        error: transactionError,
-      } =
-        await supabase
+        const {
+          data,
+          error: transactionError,
+        } = await supabase
           .from('transactions')
           .select(
             `
@@ -1110,7 +1215,8 @@ export default function TransactionsPage() {
               is_deleted,
               account_id,
               reference,
-              notes
+              notes,
+              source
             `
           )
           .eq(
@@ -1125,9 +1231,12 @@ export default function TransactionsPage() {
             'status',
             'completed'
           )
-          .order('date', {
-            ascending: false,
-          })
+          .order(
+            'date',
+            {
+              ascending: false,
+            }
+          )
           .order(
             'created_at',
             {
@@ -1135,279 +1244,298 @@ export default function TransactionsPage() {
             }
           );
 
-      if (transactionError) {
-        throw transactionError;
-      }
+        if (
+          transactionError
+        ) {
+          console.error(
+            'Failed to load transactions:',
+            transactionError
+          );
 
-      const normalized =
-        (
-          (data ??
-            []) as TransactionRow[]
-        ).map(
-          normalizeTransaction
+          setError(
+            transactionError.message ||
+              'Unable to load transactions.'
+          );
+
+          setTransactions(
+            []
+          );
+          setLoading(false);
+          return;
+        }
+
+        const normalized =
+          (data ?? [])
+            .map(
+              (transaction) =>
+                normalizeTransaction(
+                  transaction as TransactionRow
+                )
+            )
+            .filter(
+              (
+                transaction
+              ): transaction is Transaction =>
+                transaction !== null
+            );
+
+        setTransactions(
+          normalized
         );
 
-      setTransactions(
-        normalized
-      );
-    } catch (err) {
-      console.error(
-        'Failed to load transactions:',
-        err
-      );
+        setLoading(false);
+      },
+      [
+        loadAccounts,
+        supabase,
+      ]
+    );
 
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to load your transactions.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+  /*
+  |--------------------------------------------------------------------------
+  | Load Plan + Automatic Usage
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
-    loadTransactions();
+    let mounted = true;
+
+    async function loadPlan() {
+      const {
+        data: {
+          user,
+        },
+      } =
+        await supabase.auth.getUser();
+
+      if (!mounted) {
+        return;
+      }
+
+      const nextPlan =
+        normalizePlan(
+          user?.user_metadata
+            ?.subscription_plan ??
+            user?.user_metadata
+              ?.plan
+        );
+
+      setPlan(
+        nextPlan
+      );
+
+      setCanExport(
+        nextPlan ===
+          'borderless-pro'
+      );
+
+      if (!user) {
+        return;
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Retail Starter Automatic Transactions
+      |--------------------------------------------------------------------------
+      |
+      | Only bank-sync transactions are counted here.
+      |
+      | Manual transactions:
+      | source = manual
+      |
+      | Statement imports:
+      | source = statement_import
+      |
+      | Automatic bank transactions:
+      | source = bank_sync
+      |
+      */
+
+      const monthRange =
+        getPeriodRange(
+          'this-month'
+        );
+
+      const {
+        count,
+        error: usageError,
+      } =
+        await supabase
+          .from('transactions')
+          .select(
+            'id',
+            {
+              count: 'exact',
+              head: true,
+            }
+          )
+          .eq(
+            'user_id',
+            user.id
+          )
+          .eq(
+            'status',
+            'completed'
+          )
+          .eq(
+            'is_deleted',
+            false
+          )
+          .eq(
+            'source',
+            'bank_sync'
+          )
+          .gte(
+            'date',
+            monthRange.start
+          )
+          .lte(
+            'date',
+            monthRange.end
+          );
+
+      if (
+        usageError
+      ) {
+        console.error(
+          'Failed to load automatic transaction usage:',
+          usageError
+        );
+
+        if (mounted) {
+          setAutomaticTransactionCount(
+            0
+          );
+        }
+
+        return;
+      }
+
+      if (mounted) {
+        setAutomaticTransactionCount(
+          count ?? 0
+        );
+      }
+    }
+
+    loadPlan();
+
+    return () => {
+      mounted = false;
+    };
   }, [supabase]);
 
   /*
   |--------------------------------------------------------------------------
-  | Add Transaction Form
+  | Initial Transactions
   |--------------------------------------------------------------------------
   */
 
-  function resetTransactionForm() {
-    setTransactionType(
-      'income'
-    );
-    setAmount('');
-    setCategory('');
-    setDescription('');
-    setDate(
-      getTodayInputValue()
-    );
-    setCurrency('NGN');
-    setAccountId('');
-    setReference('');
-    setNotes('');
-    setTransactionError(null);
-  }
-
-  function openAddTransaction() {
-    resetTransactionForm();
-
-    if (accounts.length > 0) {
-      setAccountId(
-        accounts[0].id
-      );
-
-      setCurrency(
-        accounts[0].currency ||
-          'NGN'
-      );
-    }
-
-    setAddTransactionOpen(true);
-  }
-
-  function closeAddTransaction() {
-    if (savingTransaction) {
-      return;
-    }
-
-    setAddTransactionOpen(false);
-    resetTransactionForm();
-  }
-
-  async function handleAddTransaction(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    setTransactionError(null);
-
-    const parsedAmount =
-      Number(amount);
-
-    if (
-      !Number.isFinite(
-        parsedAmount
-      ) ||
-      parsedAmount <= 0
-    ) {
-      setTransactionError(
-        'Enter an amount greater than zero.'
-      );
-
-      return;
-    }
-
-    if (!category.trim()) {
-      setTransactionError(
-        'Please choose or enter a category.'
-      );
-
-      return;
-    }
-
-    if (!date) {
-      setTransactionError(
-        'Please select a date.'
-      );
-
-      return;
-    }
-
-    setSavingTransaction(true);
-
-    try {
-      const {
-        data: { user },
-        error: authError,
-      } =
-        await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
-      }
-
-      if (!user) {
-        throw new Error(
-          'You must be signed in to add a transaction.'
-        );
-      }
-
-      const selectedAccount =
-        accounts.find(
-          (account) =>
-            account.id ===
-            accountId
-        );
-
-      const {
-        error: insertError,
-      } =
-        await supabase
-          .from('transactions')
-          .insert({
-            user_id: user.id,
-            type: transactionType,
-            amount:
-              parsedAmount,
-            amount_base:
-              parsedAmount,
-            currency:
-              currency ||
-              selectedAccount?.currency ||
-              'NGN',
-            exchange_rate: 1,
-            category:
-              category.trim(),
-            description:
-              description.trim() ||
-              category.trim(),
-            date,
-            account_id:
-              accountId || null,
-            status:
-              'completed',
-            reference:
-              reference.trim() ||
-              null,
-            notes:
-              notes.trim() ||
-              null,
-            is_deleted:
-              false,
-            source:
-              'manual',
-          });
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      setAddTransactionOpen(
-        false
-      );
-
-      resetTransactionForm();
-
-      await loadTransactions();
-    } catch (err) {
-      console.error(
-        'Failed to add transaction:',
-        err
-      );
-
-      setTransactionError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to add this transaction.'
-      );
-    } finally {
-      setSavingTransaction(
-        false
-      );
-    }
-  }
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
   /*
   |--------------------------------------------------------------------------
-  | Period
+  | Derived Plan Usage
   |--------------------------------------------------------------------------
   */
 
-  const periodLabel =
-    periods.find(
-      (period) =>
-        period.key ===
-        selectedPeriod
-    )?.label ??
-    'This month';
+  const transactionUsage =
+    Math.min(
+      100,
+      Math.round(
+        (automaticTransactionCount /
+          STARTER_AUTOMATIC_TRANSACTION_LIMIT) *
+          100
+      )
+    );
+
+  const remainingAutomaticTransactions =
+    Math.max(
+      0,
+      STARTER_AUTOMATIC_TRANSACTION_LIMIT -
+        automaticTransactionCount
+    );
 
   /*
   |--------------------------------------------------------------------------
-  | Filter Options
+  | Current Period
   |--------------------------------------------------------------------------
   */
 
-  const categories = useMemo(() => {
-    const uniqueCategories =
-      Array.from(
-        new Set(
-          transactions
-            .map(
-              (transaction) =>
-                transaction.category
-            )
-            .filter(Boolean)
-        )
-      ).sort();
+  const period = periods.find(
+    (item) =>
+      item.key ===
+      selectedPeriod
+  ) ?? periods[2];
 
-    return [
-      'All categories',
-      ...uniqueCategories,
-    ];
-  }, [transactions]);
+  const periodRange =
+    useMemo(
+      () =>
+        getPeriodRange(
+          selectedPeriod
+        ),
+      [selectedPeriod]
+    );
 
-  const accountFilterOptions =
+  /*
+  |--------------------------------------------------------------------------
+  | Categories
+  |--------------------------------------------------------------------------
+  */
+
+  const categoryOptions =
     useMemo(() => {
-      const uniqueAccounts =
-        Array.from(
-          new Set(
-            transactions.map(
-              (transaction) =>
-                transaction.accountLabel
-            )
+      const values =
+        transactions
+          .filter(
+            (transaction) =>
+              transaction.currency ===
+              selectedCurrency
           )
-        ).sort();
+          .map(
+            (transaction) =>
+              transaction.category
+          )
+          .filter(Boolean);
 
       return [
-        'All accounts',
-        ...uniqueAccounts,
+        'All categories',
+        ...Array.from(
+          new Set(values)
+        ).sort(),
       ];
-    }, [transactions]);
+    }, [
+      selectedCurrency,
+      transactions,
+    ]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Accounts
+  |--------------------------------------------------------------------------
+  */
+
+  const accountOptions =
+    useMemo(() => {
+      return [
+        'All accounts',
+        ...accounts
+          .filter(
+            (account) =>
+              account.currency ===
+              selectedCurrency
+          )
+          .map(
+            (account) =>
+              account.name
+          ),
+      ];
+    }, [
+      accounts,
+      selectedCurrency,
+    ]);
 
   /*
   |--------------------------------------------------------------------------
@@ -1417,80 +1545,135 @@ export default function TransactionsPage() {
 
   const filteredTransactions =
     useMemo(() => {
-      const query =
+      const normalizedSearch =
         search
-          .toLowerCase()
-          .trim();
-
-      const {
-        start,
-        end,
-      } =
-        getPeriodRange(
-          selectedPeriod
-        );
+          .trim()
+          .toLowerCase();
 
       return transactions.filter(
         (transaction) => {
-          /*
-          |------------------------------------------------------------------
-          | Date filter
-          |------------------------------------------------------------------
-          | Compare YYYY-MM-DD strings directly.
-          | This avoids browser timezone / UTC shifting.
-          */
+          if (
+            transaction.currency !==
+            selectedCurrency
+          ) {
+            return false;
+          }
 
-          const matchesPeriod =
-            transaction.date >=
-              start &&
-            transaction.date <=
-              end;
+          if (
+            transaction.date <
+              periodRange.start ||
+            transaction.date >
+              periodRange.end
+          ) {
+            return false;
+          }
 
-          const matchesSearch =
-            !query ||
-            transaction.description
-              .toLowerCase()
-              .includes(query) ||
-            transaction.category
-              .toLowerCase()
-              .includes(query) ||
-            transaction.reference
-              .toLowerCase()
-              .includes(query) ||
-            transaction.accountLabel
-              .toLowerCase()
-              .includes(query) ||
-            transaction.id
-              .toLowerCase()
-              .includes(query);
+          if (
+            selectedCategory !==
+              'All categories' &&
+            transaction.category !==
+              selectedCategory
+          ) {
+            return false;
+          }
 
-          const matchesCategory =
-            selectedCategory ===
-              'All categories' ||
-            transaction.category ===
-              selectedCategory;
+          if (
+            selectedAccount !==
+              'All accounts' &&
+            transaction.accountLabel !==
+              selectedAccount
+          ) {
+            return false;
+          }
 
-          const matchesAccount =
-            selectedAccount ===
-              'All accounts' ||
-            transaction.accountLabel ===
-              selectedAccount;
+          if (
+            normalizedSearch
+          ) {
+            const searchable =
+              [
+                transaction.description,
+                transaction.category,
+                transaction.reference,
+                transaction.accountLabel,
+                transaction.id,
+                transaction.source,
+              ]
+                .join(' ')
+                .toLowerCase();
 
-          return (
-            matchesPeriod &&
-            matchesSearch &&
-            matchesCategory &&
-            matchesAccount
-          );
+            if (
+              !searchable.includes(
+                normalizedSearch
+              )
+            ) {
+              return false;
+            }
+          }
+
+          return true;
         }
       );
     }, [
-      transactions,
+      periodRange.end,
+      periodRange.start,
       search,
-      selectedCategory,
       selectedAccount,
-      selectedPeriod,
+      selectedCategory,
+      selectedCurrency,
+      transactions,
     ]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Summary
+  |--------------------------------------------------------------------------
+  */
+
+  const totalMoneyIn =
+    useMemo(
+      () =>
+        filteredTransactions
+          .filter(
+            (transaction) =>
+              transaction.type ===
+              'income'
+          )
+          .reduce(
+            (
+              total,
+              transaction
+            ) =>
+              total +
+              transaction.amount,
+            0
+          ),
+      [filteredTransactions]
+    );
+
+  const totalMoneyOut =
+    useMemo(
+      () =>
+        filteredTransactions
+          .filter(
+            (transaction) =>
+              transaction.type ===
+              'expense'
+          )
+          .reduce(
+            (
+              total,
+              transaction
+            ) =>
+              total +
+              transaction.amount,
+            0
+          ),
+      [filteredTransactions]
+    );
+
+  const netMovement =
+    totalMoneyIn -
+    totalMoneyOut;
 
   /*
   |--------------------------------------------------------------------------
@@ -1506,198 +1689,29 @@ export default function TransactionsPage() {
           filteredTransactions
         ),
       [
-        selectedPeriod,
         filteredTransactions,
+        selectedPeriod,
       ]
     );
 
-  const chartMax = useMemo(
-    () =>
-      Math.max(
-        1,
-        ...chartPoints.flatMap(
-          (point) => [
-            point.moneyIn,
-            point.moneyOut,
-          ]
-        )
-      ),
-    [chartPoints]
-  );
-
-  /*
-  |--------------------------------------------------------------------------
-  | Summary
-  |--------------------------------------------------------------------------
-  */
-
-  const totalMoneyIn =
-    filteredTransactions
-      .filter(
-        (transaction) =>
-          transaction.type ===
-          'income'
+  const chartMax =
+    Math.max(
+      1,
+      ...chartPoints.flatMap(
+        (point) => [
+          point.moneyIn,
+          point.moneyOut,
+        ]
       )
-      .reduce(
-        (
-          total,
-          transaction
-        ) =>
-          total +
-          transaction.amount,
-        0
-      );
-
-  const totalMoneyOut =
-    filteredTransactions
-      .filter(
-        (transaction) =>
-          transaction.type ===
-          'expense'
-      )
-      .reduce(
-        (
-          total,
-          transaction
-        ) =>
-          total +
-          transaction.amount,
-        0
-      );
-
-  const netMovement =
-    totalMoneyIn -
-    totalMoneyOut;
-
-  const transactionCount =
-    filteredTransactions.length;
+    );
 
   /*
   |--------------------------------------------------------------------------
-  | Selection
+  | Insights
   |--------------------------------------------------------------------------
   */
 
-  const allVisibleSelected =
-    filteredTransactions.length >
-      0 &&
-    filteredTransactions.every(
-      (transaction) =>
-        selectedTransactions.includes(
-          transaction.id
-        )
-    );
-
-  function toggleTransaction(
-    id: string
-  ) {
-    setSelectedTransactions(
-      (current) =>
-        current.includes(id)
-          ? current.filter(
-              (
-                transactionId
-              ) =>
-                transactionId !==
-                id
-            )
-          : [
-              ...current,
-              id,
-            ]
-    );
-  }
-
-  function toggleAllVisible() {
-    if (allVisibleSelected) {
-      setSelectedTransactions(
-        (current) =>
-          current.filter(
-            (id) =>
-              !filteredTransactions.some(
-                (
-                  transaction
-                ) =>
-                  transaction.id ===
-                  id
-              )
-          )
-      );
-
-      return;
-    }
-
-    setSelectedTransactions(
-      (current) => [
-        ...new Set([
-          ...current,
-          ...filteredTransactions.map(
-            (
-              transaction
-            ) =>
-              transaction.id
-          ),
-        ]),
-      ]
-    );
-  }
-
-  function clearFilters() {
-    setSearch('');
-    setSelectedCategory(
-      'All categories'
-    );
-    setSelectedAccount(
-      'All accounts'
-    );
-  }
-
-  const hasActiveFilters =
-    search !== '' ||
-    selectedCategory !==
-      'All categories' ||
-    selectedAccount !==
-      'All accounts';
-
-  /*
-  |--------------------------------------------------------------------------
-  | Export
-  |--------------------------------------------------------------------------
-  */
-
-  function handleExport() {
-    if (!canExport) {
-      return;
-    }
-
-    downloadCsv(
-      filteredTransactions
-    );
-  }
-
-  function handleExportSelected() {
-    if (!canExport) {
-      return;
-    }
-
-    const selected =
-      transactions.filter(
-        (transaction) =>
-          selectedTransactions.includes(
-            transaction.id
-          )
-      );
-
-    downloadCsv(selected);
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Insight
-  |--------------------------------------------------------------------------
-  */
-
-  const categoryTotals =
+  const largestExpenseCategory =
     useMemo(() => {
       const totals =
         new Map<
@@ -1723,19 +1737,19 @@ export default function TransactionsPage() {
           }
         );
 
-      return Array.from(
-        totals.entries()
-      ).sort(
-        (a, b) => b[1] - a[1]
+      return (
+        Array.from(
+          totals.entries()
+        ).sort(
+          (a, b) =>
+            b[1] - a[1]
+        )[0] ?? null
       );
     }, [
       filteredTransactions,
     ]);
 
-  const largestExpenseCategory =
-    categoryTotals[0];
-
-  const incomeCategories =
+  const largestIncomeCategory =
     useMemo(() => {
       const totals =
         new Map<
@@ -1761,33 +1775,673 @@ export default function TransactionsPage() {
           }
         );
 
-      return Array.from(
-        totals.entries()
-      ).sort(
-        (a, b) => b[1] - a[1]
+      return (
+        Array.from(
+          totals.entries()
+        ).sort(
+          (a, b) =>
+            b[1] - a[1]
+        )[0] ?? null
       );
     }, [
       filteredTransactions,
     ]);
 
-  const largestIncomeCategory =
-    incomeCategories[0];
+  let insightHeadline =
+    'Start recording your business activity to see useful money insights.';
 
-  const insightHeadline =
-    transactionCount === 0
-      ? 'No money activity yet for this period.'
-      : netMovement > 0
-        ? 'More money came in than went out.'
-        : netMovement < 0
-          ? 'More money went out than came in.'
-          : 'The money in and money out are equal.';
+  let insightDescription =
+    'As you record sales, expenses and other money movements, Monietar will help you understand what is happening with your money.';
 
-  const insightDescription =
-    transactionCount === 0
-      ? 'Once you record some transactions, Monietar will show useful patterns from your business activity here.'
-      : largestIncomeCategory
-        ? `${largestIncomeCategory[0]} brought in the most money during this period.`
-        : 'Monietar is looking at your recorded money activity.';
+  if (
+    !loading &&
+    filteredTransactions.length >
+      0
+  ) {
+    if (
+      netMovement > 0
+    ) {
+      insightHeadline =
+        'More money came in than went out this period.';
+
+      insightDescription =
+        'You received more money than you spent during this period. Keep an eye on your spending as the period continues.';
+    } else if (
+      netMovement < 0
+    ) {
+      insightHeadline =
+        'More money went out than came in this period.';
+
+      insightDescription =
+        'Take a look at your recent spending to see what is taking the most money out of your business.';
+    } else {
+      insightHeadline =
+        'The money coming in and going out is about the same.';
+
+      insightDescription =
+        'Keep recording your business activity so Monietar can give you a clearer picture of your money.';
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Manual Transaction
+  |--------------------------------------------------------------------------
+  */
+
+  function openAddTransaction() {
+    setTransactionError(
+      null
+    );
+
+    setTransactionType(
+      'income'
+    );
+
+    setAmount('');
+    setCategory('');
+    setDescription('');
+    setDate(
+      getTodayInputValue()
+    );
+    setReference('');
+    setNotes('');
+
+    const defaultAccount =
+      accounts.find(
+        (account) =>
+          account.currency ===
+          selectedCurrency
+      );
+
+    if (defaultAccount) {
+      setAccountId(
+        defaultAccount.id
+      );
+      setCurrency(
+        defaultAccount.currency
+      );
+    } else {
+      setAccountId('');
+      setCurrency(
+        selectedCurrency
+      );
+    }
+
+    setAddTransactionOpen(
+      true
+    );
+  }
+
+  function closeAddTransaction() {
+    if (
+      savingTransaction
+    ) {
+      return;
+    }
+
+    setAddTransactionOpen(
+      false
+    );
+
+    setTransactionError(
+      null
+    );
+  }
+
+  async function handleAddTransaction(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    setTransactionError(
+      null
+    );
+
+    const parsedAmount =
+      Number(amount);
+
+    const trimmedCategory =
+      category.trim();
+
+    const trimmedDescription =
+      description.trim();
+
+    if (
+      !Number.isFinite(
+        parsedAmount
+      ) ||
+      parsedAmount <= 0
+    ) {
+      setTransactionError(
+        'Please enter a valid transaction amount.'
+      );
+      return;
+    }
+
+    if (
+      !trimmedCategory
+    ) {
+      setTransactionError(
+        'Please select or enter a category.'
+      );
+      return;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Description is mandatory
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      !trimmedDescription
+    ) {
+      setTransactionError(
+        'Please enter a description for this transaction.'
+      );
+      return;
+    }
+
+    if (
+      !date
+    ) {
+      setTransactionError(
+        'Please select a transaction date.'
+      );
+      return;
+    }
+
+    if (
+      !SUPPORTED_CURRENCIES.includes(
+        currency
+      )
+    ) {
+      setTransactionError(
+        'Only NGN and XOF transactions are supported on Retail Starter.'
+      );
+      return;
+    }
+
+    const selectedAccount =
+      accounts.find(
+        (account) =>
+          account.id ===
+          accountId
+      );
+
+    if (
+      selectedAccount &&
+      selectedAccount.currency !==
+        currency
+    ) {
+      setTransactionError(
+        `The selected account uses ${selectedAccount.currency}. Please use the same currency for this transaction.`
+      );
+      return;
+    }
+
+    setSavingTransaction(
+      true
+    );
+
+    const {
+      data: {
+        user,
+      },
+    } =
+      await supabase.auth.getUser();
+
+    if (!user) {
+      setSavingTransaction(
+        false
+      );
+
+      setTransactionError(
+        'Your session has expired. Please sign in again.'
+      );
+
+      return;
+    }
+
+    const {
+      error: insertError,
+    } =
+      await supabase
+        .from('transactions')
+        .insert({
+          user_id:
+            user.id,
+          type:
+            transactionType,
+          amount:
+            parsedAmount,
+          amount_base:
+            parsedAmount,
+          currency:
+            currency,
+          exchange_rate:
+            1,
+          category:
+            trimmedCategory,
+          description:
+            trimmedDescription,
+          date,
+          account_id:
+            accountId ||
+            null,
+          status:
+            'completed',
+          reference:
+            reference.trim() ||
+            null,
+          notes:
+            notes.trim() ||
+            null,
+          is_deleted:
+            false,
+
+          /*
+          |--------------------------------------------------------------------------
+          | Manual entries are unlimited on Retail Starter.
+          |--------------------------------------------------------------------------
+          */
+
+          source:
+            'manual',
+        });
+
+    if (
+      insertError
+    ) {
+      console.error(
+        'Failed to add transaction:',
+        insertError
+      );
+
+      setSavingTransaction(
+        false
+      );
+
+      setTransactionError(
+        insertError.message ||
+          'Unable to add this transaction.'
+      );
+
+      return;
+    }
+
+    setSavingTransaction(
+      false
+    );
+
+    setAddTransactionOpen(
+      false
+    );
+
+    await loadTransactions();
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Bank Statement Modal
+  |--------------------------------------------------------------------------
+  */
+
+  function openStatementModal() {
+    setStatementError(
+      null
+    );
+    setStatementFile(
+      null
+    );
+
+    setStatementCurrency(
+      selectedCurrency
+    );
+
+    const defaultAccount =
+      accounts.find(
+        (account) =>
+          account.currency ===
+          selectedCurrency
+      );
+
+    setStatementAccountId(
+      defaultAccount?.id ?? ''
+    );
+
+    setStatementModalOpen(
+      true
+    );
+  }
+
+  function closeStatementModal() {
+    if (
+      uploadingStatement
+    ) {
+      return;
+    }
+
+    setStatementModalOpen(
+      false
+    );
+
+    setStatementFile(
+      null
+    );
+
+    setStatementError(
+      null
+    );
+  }
+
+  async function handleStatementUpload() {
+    setStatementError(
+      null
+    );
+
+    if (!statementFile) {
+      setStatementError(
+        'Please choose a PDF or CSV bank statement.'
+      );
+      return;
+    }
+
+    if (
+      !statementAccountId
+    ) {
+      setStatementError(
+        'Please select the account this statement belongs to.'
+      );
+      return;
+    }
+
+    const isPdf =
+      statementFile.type ===
+        'application/pdf' ||
+      statementFile.name
+        .toLowerCase()
+        .endsWith('.pdf');
+
+    const isCsv =
+      statementFile.type ===
+        'text/csv' ||
+      statementFile.name
+        .toLowerCase()
+        .endsWith('.csv');
+
+    if (!isPdf && !isCsv) {
+      setStatementError(
+        'Only PDF and CSV bank statements are supported.'
+      );
+      return;
+    }
+
+    const account =
+      accounts.find(
+        (item) =>
+          item.id ===
+          statementAccountId
+      );
+
+    if (!account) {
+      setStatementError(
+        'The selected account could not be found.'
+      );
+      return;
+    }
+
+    if (
+      account.currency !==
+      statementCurrency
+    ) {
+      setStatementError(
+        `The selected account uses ${account.currency}. Please select an account using ${statementCurrency}.`
+      );
+      return;
+    }
+
+    setUploadingStatement(
+      true
+    );
+
+    try {
+      const {
+        data: {
+          user,
+        },
+      } =
+        await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error(
+          'Your session has expired. Please sign in again.'
+        );
+      }
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        'file',
+        statementFile
+      );
+
+      formData.append(
+        'account_id',
+        statementAccountId
+      );
+
+      formData.append(
+        'currency',
+        statementCurrency
+      );
+
+      formData.append(
+        'user_id',
+        user.id
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | Statement imports must be stored as:
+      | source = statement_import
+      |
+      | They should NOT consume the Starter automatic bank-sync allowance.
+      |--------------------------------------------------------------------------
+      */
+
+      formData.append(
+        'source',
+        'statement_import'
+      );
+
+      const response =
+        await fetch(
+          STATEMENT_IMPORT_ENDPOINT,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        );
+
+      const result =
+        await response
+          .json()
+          .catch(
+            () => null
+          );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          result?.error ||
+            'Unable to import this bank statement.'
+        );
+      }
+
+      setStatementModalOpen(
+        false
+      );
+
+      setStatementFile(
+        null
+      );
+
+      await loadTransactions();
+    } catch (uploadError) {
+      console.error(
+        'Bank statement import failed:',
+        uploadError
+      );
+
+      setStatementError(
+        uploadError instanceof
+          Error
+          ? uploadError.message
+          : 'Unable to import this bank statement.'
+      );
+    } finally {
+      setUploadingStatement(
+        false
+      );
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Currency
+  |--------------------------------------------------------------------------
+  */
+
+  function handleCurrencyChange(
+    nextCurrency: Currency
+  ) {
+    setSelectedCurrency(
+      nextCurrency
+    );
+
+    setSelectedAccount(
+      'All accounts'
+    );
+
+    setSelectedCategory(
+      'All categories'
+    );
+
+    setSelectedTransactions(
+      []
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Selection
+  |--------------------------------------------------------------------------
+  */
+
+  function toggleTransaction(
+    id: string
+  ) {
+    setSelectedTransactions(
+      (current) =>
+        current.includes(id)
+          ? current.filter(
+              (item) =>
+                item !== id
+            )
+          : [
+              ...current,
+              id,
+            ]
+    );
+  }
+
+  function toggleSelectAll() {
+    const ids =
+      filteredTransactions.map(
+        (transaction) =>
+          transaction.id
+      );
+
+    const allSelected =
+      ids.length > 0 &&
+      ids.every((id) =>
+        selectedTransactions.includes(
+          id
+        )
+      );
+
+    if (allSelected) {
+      setSelectedTransactions(
+        (current) =>
+          current.filter(
+            (id) =>
+              !ids.includes(id)
+          )
+      );
+    } else {
+      setSelectedTransactions(
+        (current) =>
+          Array.from(
+            new Set([
+              ...current,
+              ...ids,
+            ])
+          )
+      );
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Export
+  |--------------------------------------------------------------------------
+  */
+
+  function handleExport() {
+    if (!canExport) {
+      return;
+    }
+
+    downloadCsv(
+      filteredTransactions
+    );
+  }
+
+  function handleExportSelected() {
+    if (!canExport) {
+      return;
+    }
+
+    const selected =
+      filteredTransactions.filter(
+        (transaction) =>
+          selectedTransactions.includes(
+            transaction.id
+          )
+      );
+
+    if (
+      selected.length === 0
+    ) {
+      return;
+    }
+
+    downloadCsv(selected);
+  }
+
+  const allVisibleSelected =
+    filteredTransactions.length >
+      0 &&
+    filteredTransactions.every(
+      (transaction) =>
+        selectedTransactions.includes(
+          transaction.id
+        )
+    );
 
   /*
   |--------------------------------------------------------------------------
@@ -1798,7 +2452,8 @@ export default function TransactionsPage() {
   return (
     <main className="min-h-full bg-[#f1f1f1] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-[1500px]">
-        {/* Header */}
+
+        {/* Page Header */}
 
         <section className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -1806,18 +2461,70 @@ export default function TransactionsPage() {
               Money activity
             </p>
 
-            <h2 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-              Transactions
-            </h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+                Transactions
+              </h2>
+
+              <span className="border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-emerald-900">
+                {getPlanName(plan)}
+              </span>
+            </div>
 
             <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-              See all the money coming
-              into and going out of your
-              business.
+              See all the money coming into and going out of your business.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+
+            {/* Currency */}
+
+            <div className="flex h-10 border border-gray-200 bg-white">
+              {SUPPORTED_CURRENCIES.map(
+                (item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() =>
+                      handleCurrencyChange(
+                        item
+                      )
+                    }
+                    className={`px-3 text-xs font-semibold transition-colors ${
+                      selectedCurrency ===
+                      item
+                        ? 'bg-emerald-900 text-white'
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* Bank Statement */}
+
+            <button
+              type="button"
+              onClick={
+                openStatementModal
+              }
+              className="flex h-10 items-center gap-2 border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              <Upload
+                size={15}
+                strokeWidth={1.7}
+              />
+              <span className="hidden sm:inline">
+                Add bank statement
+              </span>
+              <span className="sm:hidden">
+                Statement
+              </span>
+            </button>
+
             {/* Add Transaction */}
 
             <button
@@ -1825,21 +2532,12 @@ export default function TransactionsPage() {
               onClick={
                 openAddTransaction
               }
-              className="
-                flex h-10 items-center gap-2
-                bg-emerald-900
-                px-4
-                text-sm font-medium
-                text-white
-                transition-colors
-                hover:bg-emerald-800
-              "
+              className="flex h-10 items-center gap-2 bg-emerald-900 px-4 text-sm font-medium text-white transition-colors hover:bg-emerald-800"
             >
               <Plus
                 size={15}
                 strokeWidth={1.8}
               />
-
               Add transaction
             </button>
 
@@ -1854,15 +2552,11 @@ export default function TransactionsPage() {
                       !open
                   )
                 }
-                className="
-                  flex h-10 items-center gap-2
-                  border border-gray-200
-                  bg-white
-                  px-3
-                  text-sm text-gray-700
-                  transition-colors
-                  hover:bg-gray-50
-                "
+                className="flex h-10 items-center gap-2 border border-gray-200 bg-white px-3 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+                aria-expanded={
+                  periodOpen
+                }
+                aria-haspopup="listbox"
               >
                 <CalendarDays
                   size={15}
@@ -1870,53 +2564,46 @@ export default function TransactionsPage() {
                 />
 
                 <span>
-                  {periodLabel}
+                  {period.label}
                 </span>
 
                 <ChevronDown
                   size={14}
                   strokeWidth={1.7}
-                  className={
+                  className={`text-gray-400 transition-transform ${
                     periodOpen
-                      ? 'rotate-180 text-gray-400'
-                      : 'text-gray-400'
-                  }
+                      ? 'rotate-180'
+                      : ''
+                  }`}
                 />
               </button>
 
               {periodOpen && (
-                <div className="absolute right-0 z-30 mt-2 w-40 border border-gray-200 bg-white py-1 shadow-sm">
+                <div className="absolute right-0 z-30 mt-2 w-44 border border-gray-200 bg-white py-1 shadow-sm">
                   {periods.map(
-                    (period) => (
+                    (item) => (
                       <button
                         key={
-                          period.key
+                          item.key
                         }
                         type="button"
                         onClick={() => {
                           setSelectedPeriod(
-                            period.key
+                            item.key
                           );
-
                           setPeriodOpen(
                             false
                           );
                         }}
-                        className={`
-                          flex w-full items-center
-                          px-3 py-2.5
-                          text-left text-sm
-                          transition-colors
-                          ${
-                            selectedPeriod ===
-                            period.key
-                              ? 'bg-emerald-50 text-emerald-900'
-                              : 'text-gray-600 hover:bg-gray-50'
-                          }
-                        `}
+                        className={`flex w-full px-3 py-2.5 text-left text-xs transition-colors ${
+                          selectedPeriod ===
+                          item.key
+                            ? 'bg-emerald-50 font-medium text-emerald-900'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
                       >
                         {
-                          period.label
+                          item.label
                         }
                       </button>
                     )
@@ -1933,41 +2620,30 @@ export default function TransactionsPage() {
                 handleExport
               }
               disabled={
-                !canExport ||
-                filteredTransactions.length ===
-                  0
+                !canExport
               }
+              className="flex h-10 items-center gap-2 border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               title={
                 canExport
                   ? 'Export transactions'
-                  : 'Exports are available on Borderless Pro'
+                  : 'Available on Borderless Pro'
               }
-              className="
-                flex h-10 items-center gap-2
-                border border-gray-200
-                bg-white
-                px-3
-                text-sm font-medium
-                text-gray-500
-                transition-colors
-                hover:bg-gray-50
-                disabled:cursor-not-allowed
-                disabled:opacity-50
-              "
             >
-              {!canExport ? (
-                <Lock
-                  size={14}
-                  strokeWidth={1.7}
-                />
-              ) : (
+              {canExport ? (
                 <Download
                   size={15}
                   strokeWidth={1.7}
                 />
+              ) : (
+                <Lock
+                  size={14}
+                  strokeWidth={1.7}
+                />
               )}
 
-              Export
+              <span className="hidden sm:inline">
+                Export
+              </span>
             </button>
           </div>
         </section>
@@ -1975,31 +2651,89 @@ export default function TransactionsPage() {
         {/* Error */}
 
         {error && (
-          <div className="mb-6 border border-red-200 bg-red-50 px-5 py-4">
-            <p className="text-sm font-medium text-red-800">
-              We couldn't load your
-              transactions
-            </p>
-
-            <p className="mt-1 text-xs leading-5 text-red-600">
+          <div className="mb-6 border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-xs leading-5 text-red-700">
               {error}
             </p>
           </div>
         )}
 
+        {/* Starter Usage */}
+
+        {plan ===
+          'retail-starter' && (
+          <section className="mb-6 border border-gray-200 bg-white">
+            <div className="flex flex-col gap-5 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center bg-emerald-50 text-emerald-900">
+                    <Wallet
+                      size={15}
+                      strokeWidth={1.7}
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Starter bank activity
+                    </p>
+
+                    <p className="mt-1 text-xs text-gray-400">
+                      Automatic bank transactions this month
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full max-w-md">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs text-gray-500">
+                    {automaticTransactionCount} of{' '}
+                    {
+                      STARTER_AUTOMATIC_TRANSACTION_LIMIT
+                    }{' '}
+                    used
+                  </span>
+
+                  <span className="text-xs font-medium text-emerald-900">
+                    {
+                      remainingAutomaticTransactions
+                    }{' '}
+                    left
+                  </span>
+                </div>
+
+                <div className="h-1.5 w-full bg-gray-100">
+                  <div
+                    className="h-full bg-emerald-900 transition-all"
+                    style={{
+                      width: `${transactionUsage}%`,
+                    }}
+                  />
+                </div>
+
+                <p className="mt-2 text-[10px] leading-4 text-gray-400">
+                  Manual entries are unlimited. Bank statement imports do not use this allowance.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Summary */}
 
-        <section className="grid grid-cols-1 gap-px overflow-hidden border border-gray-200 bg-gray-200 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-6 grid grid-cols-1 gap-px border border-gray-200 bg-gray-200 sm:grid-cols-2 xl:grid-cols-4">
           <TransactionMetric
             label="Money in"
             value={
               loading
                 ? '—'
                 : formatCurrency(
-                    totalMoneyIn
+                    totalMoneyIn,
+                    selectedCurrency
                   )
             }
-            description="Money recorded as coming in"
+            description={`Total money received in ${selectedCurrency} during ${period.label.toLowerCase()}.`}
             icon={
               ArrowDownRight
             }
@@ -2012,11 +2746,14 @@ export default function TransactionsPage() {
               loading
                 ? '—'
                 : formatCurrency(
-                    totalMoneyOut
+                    totalMoneyOut,
+                    selectedCurrency
                   )
             }
-            description="Money recorded as going out"
-            icon={ArrowUpRight}
+            description={`Total money spent in ${selectedCurrency} during ${period.label.toLowerCase()}.`}
+            icon={
+              ArrowUpRight
+            }
           />
 
           <TransactionMetric
@@ -2027,14 +2764,15 @@ export default function TransactionsPage() {
                 : formatCurrency(
                     Math.abs(
                       netMovement
-                    )
+                    ),
+                    selectedCurrency
                   )
             }
             description={
               netMovement >=
               0
-                ? 'Money in minus money out'
-                : 'More money went out than came in'
+                ? 'More money came in than went out.'
+                : 'More money went out than came in.'
             }
             icon={
               netMovement >=
@@ -2053,621 +2791,427 @@ export default function TransactionsPage() {
             value={
               loading
                 ? '—'
-                : transactionCount.toString()
+                : filteredTransactions.length.toLocaleString()
             }
-            description="Money records for this period"
-            icon={Receipt}
+            description={`Showing ${selectedCurrency} activity for ${period.label.toLowerCase()}.`}
+            icon={
+              BarChart3
+            }
             neutral
           />
         </section>
 
-        {/* Money Chart */}
+        {/* Main Layout */}
 
-        <section className="mt-6 border border-gray-200 bg-white">
-          <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <BarChart3
-                    size={16}
-                    strokeWidth={1.7}
-                    className="text-emerald-900"
-                  />
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.8fr)]">
 
+          {/* Left */}
+
+          <div className="space-y-6">
+
+            {/* Chart */}
+
+            <section className="border border-gray-200 bg-white">
+              <div className="flex items-center justify-between border-b border-gray-200 px-5 py-5 sm:px-6">
+                <div>
                   <p className="text-sm font-semibold text-gray-900">
-                    Money In & Out
+                    Money In &amp; Out
+                  </p>
+
+                  <p className="mt-1 text-xs text-gray-400">
+                    {selectedCurrency} movement for{' '}
+                    {period.label.toLowerCase()}.
                   </p>
                 </div>
 
-                <p className="mt-1 text-xs text-gray-400">
-                  See how your money moved
-                  during {periodLabel.toLowerCase()}.
-                </p>
-              </div>
+                <div className="flex items-center gap-3 text-[10px] text-gray-400">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 bg-emerald-900" />
+                    Money in
+                  </span>
 
-              <div className="flex items-center gap-4 text-[10px] text-gray-500">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 bg-emerald-900" />
-                  Money in
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 bg-gray-300" />
-                  Money out
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 bg-gray-300" />
+                    Money out
+                  </span>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="p-5 sm:p-6">
-            {loading ? (
-              <div className="flex h-64 items-center justify-center">
-                <div className="text-center">
-                  <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-900" />
+              <div className="p-5 sm:p-6">
+                {loading ? (
+                  <div className="flex h-64 items-end gap-3">
+                    {Array.from(
+                      {
+                        length: 8,
+                      }
+                    ).map(
+                      (_, index) => (
+                        <div
+                          key={
+                            index
+                          }
+                          className="flex-1 animate-pulse bg-gray-100"
+                          style={{
+                            height: `${30 + (index % 4) * 15}%`,
+                          }}
+                        />
+                      )
+                    )}
+                  </div>
+                ) : chartPoints.length ===
+                  0 ? (
+                  <div className="flex h-64 items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-gray-900">
+                        No activity yet
+                      </p>
 
-                  <p className="mt-3 text-xs text-gray-400">
-                    Loading money activity...
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-x-auto pb-2">
-                <div
-                  className={`flex h-64 min-w-[${Math.max(
-                    640,
-                    chartPoints.length * 55
-                  )}px] items-end gap-2`}
-                >
-                  {chartPoints.map(
-                    (point) => {
-                      const moneyInHeight =
-                        point.moneyIn >
-                        0
-                          ? Math.max(
-                              5,
-                              (point.moneyIn /
-                                chartMax) *
-                                100
-                            )
-                          : 0;
-
-                      const moneyOutHeight =
-                        point.moneyOut >
-                        0
-                          ? Math.max(
-                              5,
-                              (point.moneyOut /
-                                chartMax) *
-                                100
-                            )
-                          : 0;
-
-                      return (
+                      <p className="mt-1 text-xs text-gray-400">
+                        Add a transaction or import a bank statement.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex h-64 items-end gap-2 overflow-x-auto sm:gap-3">
+                    {chartPoints.map(
+                      (
+                        point
+                      ) => (
                         <div
                           key={
                             point.key
                           }
-                          className="flex min-w-[42px] flex-1 flex-col items-center justify-end"
+                          className="flex min-w-[42px] flex-1 flex-col items-center justify-end gap-2"
                         >
-                          <div className="mb-2 flex h-[205px] w-full items-end justify-center gap-1">
-                            <div className="flex h-full w-3 items-end justify-center">
-                              <div
-                                className="w-full bg-emerald-900 transition-all duration-300"
-                                style={{
-                                  height: `${moneyInHeight}%`,
-                                }}
-                                title={`Money in: ${formatCurrency(
-                                  point.moneyIn
-                                )}`}
-                              />
-                            </div>
+                          <div className="flex h-52 w-full items-end justify-center gap-1">
+                            <div
+                              className="w-1/2 max-w-5 bg-emerald-900 transition-all"
+                              style={{
+                                height: `${
+                                  point.moneyIn /
+                                  chartMax *
+                                  100
+                                }%`,
+                                minHeight:
+                                  point.moneyIn >
+                                  0
+                                    ? '3px'
+                                    : '0',
+                              }}
+                              title={`Money in: ${formatCurrency(
+                                point.moneyIn,
+                                selectedCurrency
+                              )}`}
+                            />
 
-                            <div className="flex h-full w-3 items-end justify-center">
-                              <div
-                                className="w-full bg-gray-300 transition-all duration-300"
-                                style={{
-                                  height: `${moneyOutHeight}%`,
-                                }}
-                                title={`Money out: ${formatCurrency(
-                                  point.moneyOut
-                                )}`}
-                              />
-                            </div>
+                            <div
+                              className="w-1/2 max-w-5 bg-gray-300 transition-all"
+                              style={{
+                                height: `${
+                                  point.moneyOut /
+                                  chartMax *
+                                  100
+                                }%`,
+                                minHeight:
+                                  point.moneyOut >
+                                  0
+                                    ? '3px'
+                                    : '0',
+                              }}
+                              title={`Money out: ${formatCurrency(
+                                point.moneyOut,
+                                selectedCurrency
+                              )}`}
+                            />
                           </div>
 
-                          <p className="whitespace-nowrap text-[9px] text-gray-400">
+                          <span className="whitespace-nowrap text-[9px] text-gray-400">
                             {
                               point.label
                             }
-                          </p>
+                          </span>
                         </div>
-                      );
-                    }
-                  )}
-                </div>
-              </div>
-            )}
-
-            {!loading &&
-              chartPoints.every(
-                (point) =>
-                  point.moneyIn ===
-                    0 &&
-                  point.moneyOut ===
-                    0
-              ) && (
-                <div className="pointer-events-none -mt-44 flex h-40 items-center justify-center">
-                  <p className="text-xs text-gray-400">
-                    No money activity
-                    recorded for this
-                    period.
-                  </p>
-                </div>
-              )}
-          </div>
-        </section>
-
-        {/* Main Content */}
-
-        <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.7fr)]">
-          {/* Transaction Ledger */}
-
-          <section className="min-w-0 border border-gray-200 bg-white">
-            {/* Table Header */}
-
-            <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    Your transactions
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-400">
-                    See and manage the money
-                    you've recorded.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFilterOpen(
-                      (open) =>
-                        !open
-                    )
-                  }
-                  className={`
-                    flex h-9 w-fit items-center gap-2
-                    border px-3
-                    text-xs font-medium
-                    transition-colors
-                    ${
-                      filterOpen ||
-                      hasActiveFilters
-                        ? 'border-emerald-900 bg-emerald-50 text-emerald-900'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <SlidersHorizontal
-                    size={14}
-                    strokeWidth={1.7}
-                  />
-
-                  Filters
-
-                  {hasActiveFilters && (
-                    <span className="flex h-4 min-w-4 items-center justify-center bg-emerald-900 px-1 text-[9px] text-white">
-                      {
-                        [
-                          search !==
-                            '',
-                          selectedCategory !==
-                            'All categories',
-                          selectedAccount !==
-                            'All accounts',
-                        ].filter(
-                          Boolean
-                        ).length
-                      }
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {/* Search */}
-
-              <div className="relative mt-5">
-                <Search
-                  size={15}
-                  strokeWidth={1.7}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(
-                    event
-                  ) =>
-                    setSearch(
-                      event.target
-                        .value
-                    )
-                  }
-                  placeholder="Search transactions..."
-                  className="
-                    h-10 w-full
-                    border border-gray-200
-                    bg-[#f9f9f9]
-                    pl-9 pr-9
-                    text-sm text-gray-900
-                    outline-none
-                    transition-colors
-                    placeholder:text-gray-400
-                    focus:border-emerald-900
-                    focus:bg-white
-                  "
-                />
-
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSearch('')
-                    }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
-                    aria-label="Clear search"
-                  >
-                    <X
-                      size={14}
-                      strokeWidth={1.7}
-                    />
-                  </button>
+                      )
+                    )}
+                  </div>
                 )}
               </div>
+            </section>
 
-              {/* Filters */}
+            {/* Transactions */}
 
-              {filterOpen && (
-                <div className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2">
-                  <FilterSelect
-                    label="Category"
-                    value={
-                      selectedCategory
-                    }
-                    options={
-                      categories
-                    }
-                    onChange={
-                      setSelectedCategory
-                    }
-                  />
+            <section className="border border-gray-200 bg-white">
 
-                  <FilterSelect
-                    label="Account"
-                    value={
-                      selectedAccount
-                    }
-                    options={
-                      accountFilterOptions
-                    }
-                    onChange={
-                      setSelectedAccount
-                    }
-                  />
-                </div>
-              )}
+              {/* Toolbar */}
 
-              {hasActiveFilters && (
-                <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
-                  <p className="text-[10px] text-gray-400">
-                    Some filters are
-                    active.
-                  </p>
+              <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
-                  <button
-                    type="button"
-                    onClick={
-                      clearFilters
-                    }
-                    className="text-[10px] font-medium text-emerald-900 hover:underline"
-                  >
-                    Clear filters
-                  </button>
-                </div>
-              )}
-            </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Transaction ledger
+                    </p>
 
-            {/* Bulk Actions */}
+                    <p className="mt-1 text-xs text-gray-400">
+                      {selectedCurrency} transactions for{' '}
+                      {period.label.toLowerCase()}.
+                    </p>
+                  </div>
 
-            {selectedTransactions.length >
-              0 && (
-              <div className="flex items-center justify-between border-b border-gray-200 bg-emerald-50 px-5 py-3 sm:px-6">
-                <p className="text-xs font-medium text-emerald-900">
-                  {
-                    selectedTransactions.length
-                  }{' '}
-                  selected
-                </p>
+                  <div className="flex flex-wrap items-center gap-2">
 
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={
-                      handleExportSelected
-                    }
-                    disabled={
-                      !canExport
-                    }
-                    title={
-                      canExport
-                        ? 'Export selected transactions'
-                        : 'Exports are available on Borderless Pro'
-                    }
-                    className="
-                      flex items-center gap-1.5
-                      text-[10px] font-medium
-                      text-emerald-900
-                      hover:underline
-                      disabled:cursor-not-allowed
-                      disabled:no-underline
-                      disabled:opacity-50
-                    "
-                  >
-                    {!canExport && (
-                      <Lock
-                        size={11}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFilterOpen(
+                          (open) =>
+                            !open
+                        )
+                      }
+                      className={`flex h-9 items-center gap-2 border px-3 text-xs font-medium transition-colors ${
+                        filterOpen
+                          ? 'border-emerald-900 bg-emerald-50 text-emerald-900'
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <SlidersHorizontal
+                        size={14}
                         strokeWidth={
                           1.7
                         }
                       />
-                    )}
+                      Filters
+                    </button>
 
-                    Export selected
-                  </button>
+                    <div className="relative">
+                      <Search
+                        size={14}
+                        strokeWidth={
+                          1.7
+                        }
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      />
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedTransactions(
-                        []
-                      )
-                    }
-                    className="text-[10px] text-gray-500 hover:underline"
-                  >
-                    Clear
-                  </button>
+                      <input
+                        type="search"
+                        value={
+                          search
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setSearch(
+                            event
+                              .target
+                              .value
+                          )
+                        }
+                        placeholder="Search transactions..."
+                        className="h-9 w-full border border-gray-200 bg-white pl-9 pr-3 text-xs text-gray-700 outline-none placeholder:text-gray-400 focus:border-emerald-900 sm:w-64"
+                      />
+                    </div>
+                  </div>
                 </div>
+
+                {filterOpen && (
+                  <div className="mt-5 grid grid-cols-1 gap-4 border-t border-gray-100 pt-5 sm:grid-cols-2 lg:grid-cols-3">
+
+                    <FilterSelect
+                      label="Category"
+                      value={
+                        selectedCategory
+                      }
+                      options={
+                        categoryOptions
+                      }
+                      onChange={
+                        setSelectedCategory
+                      }
+                    />
+
+                    <FilterSelect
+                      label="Account"
+                      value={
+                        selectedAccount
+                      }
+                      options={
+                        accountOptions
+                      }
+                      onChange={
+                        setSelectedAccount
+                      }
+                    />
+
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearch(
+                            ''
+                          );
+                          setSelectedCategory(
+                            'All categories'
+                          );
+                          setSelectedAccount(
+                            'All accounts'
+                          );
+                        }}
+                        className="h-9 w-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                      >
+                        Clear filters
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {selectedTransactions.length >
+                  0 && (
+                  <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs text-gray-500">
+                      {
+                        selectedTransactions.length
+                      }{' '}
+                      selected
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={
+                        handleExportSelected
+                      }
+                      disabled={
+                        !canExport
+                      }
+                      className="flex h-8 items-center justify-center gap-2 border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {canExport ? (
+                        <Download
+                          size={
+                            13
+                          }
+                        />
+                      ) : (
+                        <Lock
+                          size={
+                            13
+                          }
+                        />
+                      )}
+                      Export selected
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* Loading */}
+              {/* Desktop */}
 
-            {loading ? (
-              <div className="px-6 py-20 text-center">
-                <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-900" />
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[760px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/70">
+                      <th className="w-12 px-5 py-3 text-left">
+                        <input
+                          type="checkbox"
+                          checked={
+                            allVisibleSelected
+                          }
+                          onChange={
+                            toggleSelectAll
+                          }
+                          className="h-3.5 w-3.5 accent-emerald-900"
+                          aria-label="Select all visible transactions"
+                        />
+                      </th>
 
-                <p className="mt-4 text-sm font-medium text-gray-900">
-                  Loading transactions
-                </p>
+                      <th className="px-3 py-3 text-left text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                        Transaction
+                      </th>
 
-                <p className="mt-1 text-xs text-gray-400">
-                  Getting your latest money
-                  records.
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Desktop Table */}
+                      <th className="px-3 py-3 text-left text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                        Category
+                      </th>
 
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[760px]">
-                    <thead>
-                      <tr className="border-b border-gray-100 bg-[#fafafa]">
-                        <th className="w-10 px-5 py-3 text-left sm:px-6">
-                          <input
-                            type="checkbox"
-                            checked={
-                              allVisibleSelected
+                      <th className="px-3 py-3 text-left text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                        Account
+                      </th>
+
+                      <th className="px-3 py-3 text-right text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                        Amount
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-gray-100">
+                    {loading ? (
+                      Array.from(
+                        {
+                          length: 6,
+                        }
+                      ).map(
+                        (
+                          _,
+                          index
+                        ) => (
+                          <tr
+                            key={
+                              index
                             }
-                            onChange={
-                              toggleAllVisible
-                            }
-                            className="h-3.5 w-3.5 accent-emerald-900"
-                            aria-label="Select all transactions"
-                          />
-                        </th>
-
-                        <th className="px-3 py-3 text-left text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
-                          Transaction
-                        </th>
-
-                        <th className="px-3 py-3 text-left text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
-                          Category
-                        </th>
-
-                        <th className="px-3 py-3 text-left text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
-                          Account
-                        </th>
-
-                        <th className="px-3 py-3 text-right text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
-                          Amount
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-gray-100">
-                      {filteredTransactions.length ===
-                      0 ? (
-                        <tr>
-                          <td
-                            colSpan={
-                              5
-                            }
-                            className="px-6 py-16 text-center"
                           >
+                            <td className="px-5 py-4">
+                              <div className="h-3 w-3 animate-pulse bg-gray-100" />
+                            </td>
+
+                            <td className="px-3 py-4">
+                              <div className="h-4 w-40 animate-pulse bg-gray-100" />
+                              <div className="mt-2 h-2.5 w-24 animate-pulse bg-gray-100" />
+                            </td>
+
+                            <td className="px-3 py-4">
+                              <div className="h-4 w-20 animate-pulse bg-gray-100" />
+                            </td>
+
+                            <td className="px-3 py-4">
+                              <div className="h-4 w-24 animate-pulse bg-gray-100" />
+                            </td>
+
+                            <td className="px-3 py-4 text-right">
+                              <div className="ml-auto h-4 w-24 animate-pulse bg-gray-100" />
+                            </td>
+                          </tr>
+                        )
+                      )
+                    ) : filteredTransactions.length ===
+                      0 ? (
+                      <tr>
+                        <td
+                          colSpan={
+                            5
+                          }
+                        >
+                          <div className="px-5 py-16 text-center">
                             <EmptyTransactions
                               onAdd={
                                 openAddTransaction
                               }
-                            />
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredTransactions.map(
-                          (
-                            transaction
-                          ) => (
-                            <tr
-                              key={
-                                transaction.id
+                              onImport={
+                                openStatementModal
                               }
-                              className="transition-colors hover:bg-gray-50/70"
-                            >
-                              <td className="px-5 py-4 sm:px-6">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTransactions.includes(
-                                    transaction.id
-                                  )}
-                                  onChange={() =>
-                                    toggleTransaction(
-                                      transaction.id
-                                    )
-                                  }
-                                  className="h-3.5 w-3.5 accent-emerald-900"
-                                  aria-label={`Select ${transaction.description}`}
-                                />
-                              </td>
-
-                              <td className="px-3 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className={`flex h-9 w-9 shrink-0 items-center justify-center ${
-                                      transaction.type ===
-                                      'income'
-                                        ? 'bg-emerald-50 text-emerald-900'
-                                        : 'bg-gray-100 text-gray-500'
-                                    }`}
-                                  >
-                                    {transaction.type ===
-                                    'income' ? (
-                                      <ArrowDownRight
-                                        size={
-                                          16
-                                        }
-                                        strokeWidth={
-                                          1.7
-                                        }
-                                      />
-                                    ) : (
-                                      <ArrowUpRight
-                                        size={
-                                          16
-                                        }
-                                        strokeWidth={
-                                          1.7
-                                        }
-                                      />
-                                    )}
-                                  </div>
-
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-gray-900">
-                                      {
-                                        transaction.description
-                                      }
-                                    </p>
-
-                                    <p className="mt-1 text-[10px] text-gray-400">
-                                      {
-                                        transaction.reference
-                                      }{' '}
-                                      ·{' '}
-                                      {formatTransactionDate(
-                                        transaction.date
-                                      )}
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
-
-                              <td className="px-3 py-4">
-                                <p className="text-xs text-gray-700">
-                                  {
-                                    transaction.category
-                                  }
-                                </p>
-
-                                <p className="mt-1 text-[10px] text-gray-400">
-                                  {transaction.type ===
-                                  'income'
-                                    ? 'Money in'
-                                    : 'Money out'}
-                                </p>
-                              </td>
-
-                              <td className="px-3 py-4">
-                                <p className="max-w-[150px] truncate text-xs text-gray-700">
-                                  {
-                                    transaction.accountLabel
-                                  }
-                                </p>
-                              </td>
-
-                              <td className="px-3 py-4 text-right">
-                                <p
-                                  className={`text-sm font-semibold ${
-                                    transaction.type ===
-                                    'income'
-                                      ? 'text-emerald-900'
-                                      : 'text-gray-900'
-                                  }`}
-                                >
-                                  {transaction.type ===
-                                  'income'
-                                    ? '+'
-                                    : '-'}
-                                  {formatCurrency(
-                                    transaction.amount,
-                                    transaction.currency
-                                  )}
-                                </p>
-                              </td>
-                            </tr>
-                          )
-                        )
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Transactions */}
-
-                <div className="divide-y divide-gray-100 md:hidden">
-                  {filteredTransactions.length ===
-                  0 ? (
-                    <div className="px-5 py-16 text-center">
-                      <EmptyTransactions
-                        onAdd={
-                          openAddTransaction
-                        }
-                      />
-                    </div>
-                  ) : (
-                    filteredTransactions.map(
-                      (
-                        transaction
-                      ) => (
-                        <div
-                          key={
-                            transaction.id
-                          }
-                          className="px-5 py-4"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-3">
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredTransactions.map(
+                        (
+                          transaction
+                        ) => (
+                          <tr
+                            key={
+                              transaction.id
+                            }
+                            className="transition-colors hover:bg-gray-50/70"
+                          >
+                            <td className="px-5 py-4">
                               <input
                                 type="checkbox"
                                 checked={selectedTransactions.includes(
@@ -2678,143 +3222,345 @@ export default function TransactionsPage() {
                                     transaction.id
                                   )
                                 }
-                                className="h-3.5 w-3.5 shrink-0 accent-emerald-900"
+                                className="h-3.5 w-3.5 accent-emerald-900"
                                 aria-label={`Select ${transaction.description}`}
                               />
+                            </td>
 
-                              <div
-                                className={`flex h-9 w-9 shrink-0 items-center justify-center ${
+                            <td className="px-3 py-4">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`flex h-9 w-9 shrink-0 items-center justify-center ${
+                                    transaction.type ===
+                                    'income'
+                                      ? 'bg-emerald-50 text-emerald-900'
+                                      : 'bg-gray-100 text-gray-500'
+                                  }`}
+                                >
+                                  {transaction.type ===
+                                  'income' ? (
+                                    <ArrowDownRight
+                                      size={
+                                        16
+                                      }
+                                      strokeWidth={
+                                        1.7
+                                      }
+                                    />
+                                  ) : (
+                                    <ArrowUpRight
+                                      size={
+                                        16
+                                      }
+                                      strokeWidth={
+                                        1.7
+                                      }
+                                    />
+                                  )}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p className="max-w-[260px] truncate text-sm font-medium text-gray-900">
+                                    {
+                                      transaction.description
+                                    }
+                                  </p>
+
+                                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                                    <span className="text-[10px] text-gray-400">
+                                      {
+                                        transaction.reference
+                                      }
+                                    </span>
+
+                                    <span className="text-[10px] text-gray-300">
+                                      •
+                                    </span>
+
+                                    <span className="text-[10px] text-gray-400">
+                                      {
+                                        transaction.source ===
+                                        'manual'
+                                          ? 'Manual'
+                                          : transaction.source ===
+                                              'statement_import'
+                                            ? 'Statement import'
+                                            : transaction.source ===
+                                                'bank_sync'
+                                              ? 'Bank sync'
+                                              : transaction.source
+                                      }
+                                    </span>
+
+                                    <span className="text-[10px] text-gray-300">
+                                      •
+                                    </span>
+
+                                    <span className="text-[10px] text-gray-400">
+                                      {formatTransactionDate(
+                                        transaction.date
+                                      )}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="px-3 py-4">
+                              <span className="inline-flex bg-gray-50 px-2 py-1 text-[10px] font-medium text-gray-600">
+                                {
+                                  transaction.category
+                                }
+                              </span>
+                            </td>
+
+                            <td className="px-3 py-4">
+                              <span className="text-xs text-gray-500">
+                                {
+                                  transaction.accountLabel
+                                }
+                              </span>
+                            </td>
+
+                            <td className="px-3 py-4 text-right">
+                              <p
+                                className={`text-sm font-semibold ${
                                   transaction.type ===
                                   'income'
-                                    ? 'bg-emerald-50 text-emerald-900'
-                                    : 'bg-gray-100 text-gray-500'
+                                    ? 'text-emerald-900'
+                                    : 'text-gray-900'
                                 }`}
                               >
                                 {transaction.type ===
-                                'income' ? (
-                                  <ArrowDownRight
-                                    size={
-                                      16
-                                    }
-                                    strokeWidth={
-                                      1.7
-                                    }
-                                  />
-                                ) : (
-                                  <ArrowUpRight
-                                    size={
-                                      16
-                                    }
-                                    strokeWidth={
-                                      1.7
-                                    }
-                                  />
-                                )}
-                              </div>
+                                'income'
+                                  ? '+'
+                                  : '-'}
+                                {
+                                  formatCurrency(
+                                    transaction.amount,
+                                    transaction.currency
+                                  )
+                                }
+                              </p>
+                            </td>
+                          </tr>
+                        )
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-medium text-gray-900">
-                                  {
-                                    transaction.description
-                                  }
-                                </p>
+              {/* Mobile */}
 
-                                <p className="mt-1 text-[10px] text-gray-400">
-                                  {
-                                    transaction.category
-                                  }{' '}
-                                  ·{' '}
-                                  {
-                                    transaction.accountLabel
-                                  }
-                                </p>
-                              </div>
-                            </div>
+              <div className="divide-y divide-gray-100 md:hidden">
+                {loading ? (
+                  Array.from(
+                    {
+                      length: 5,
+                    }
+                  ).map(
+                    (
+                      _,
+                      index
+                    ) => (
+                      <div
+                        key={
+                          index
+                        }
+                        className="px-5 py-5"
+                      >
+                        <div className="h-4 w-44 animate-pulse bg-gray-100" />
+                        <div className="mt-3 h-3 w-28 animate-pulse bg-gray-100" />
+                      </div>
+                    )
+                  )
+                ) : filteredTransactions.length ===
+                  0 ? (
+                  <div className="px-5 py-16 text-center">
+                    <EmptyTransactions
+                      onAdd={
+                        openAddTransaction
+                      }
+                      onImport={
+                        openStatementModal
+                      }
+                    />
+                  </div>
+                ) : (
+                  filteredTransactions.map(
+                    (
+                      transaction
+                    ) => (
+                      <div
+                        key={
+                          transaction.id
+                        }
+                        className="px-5 py-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedTransactions.includes(
+                                transaction.id
+                              )}
+                              onChange={() =>
+                                toggleTransaction(
+                                  transaction.id
+                                )
+                              }
+                              className="h-3.5 w-3.5 shrink-0 accent-emerald-900"
+                              aria-label={`Select ${transaction.description}`}
+                            />
 
-                            <p
-                              className={`shrink-0 text-sm font-semibold ${
+                            <div
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center ${
                                 transaction.type ===
                                 'income'
-                                  ? 'text-emerald-900'
-                                  : 'text-gray-900'
+                                  ? 'bg-emerald-50 text-emerald-900'
+                                  : 'bg-gray-100 text-gray-500'
                               }`}
                             >
                               {transaction.type ===
+                              'income' ? (
+                                <ArrowDownRight
+                                  size={
+                                    16
+                                  }
+                                  strokeWidth={
+                                    1.7
+                                  }
+                                />
+                              ) : (
+                                <ArrowUpRight
+                                  size={
+                                    16
+                                  }
+                                  strokeWidth={
+                                    1.7
+                                  }
+                                />
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-gray-900">
+                                {
+                                  transaction.description
+                                }
+                              </p>
+
+                              <p className="mt-1 text-[10px] text-gray-400">
+                                {
+                                  transaction.category
+                                }{' '}
+                                ·{' '}
+                                {
+                                  transaction.accountLabel
+                                }
+                              </p>
+                            </div>
+                          </div>
+
+                          <p
+                            className={`shrink-0 text-sm font-semibold ${
+                              transaction.type ===
                               'income'
-                                ? '+'
-                                : '-'}
-                              {formatCurrency(
+                                ? 'text-emerald-900'
+                                : 'text-gray-900'
+                            }`}
+                          >
+                            {transaction.type ===
+                            'income'
+                              ? '+'
+                              : '-'}
+                            {
+                              formatCurrency(
                                 transaction.amount,
                                 transaction.currency
-                              )}
-                            </p>
-                          </div>
-
-                          <div className="mt-3 flex items-center justify-between pl-[84px]">
-                            <span className="text-[10px] text-gray-400">
-                              {
-                                transaction.reference
-                              }
-                            </span>
-
-                            <span className="text-[10px] text-gray-400">
-                              {formatTransactionDate(
-                                transaction.date
-                              )}
-                            </span>
-                          </div>
+                              )
+                            }
+                          </p>
                         </div>
-                      )
+
+                        <div className="mt-3 flex items-center justify-between pl-[84px]">
+                          <span className="truncate text-[10px] text-gray-400">
+                            {
+                              transaction.reference
+                            }
+                          </span>
+
+                          <span className="text-[10px] text-gray-400">
+                            {formatTransactionDate(
+                              transaction.date
+                            )}
+                          </span>
+                        </div>
+                      </div>
                     )
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Footer */}
-
-            <div className="flex flex-col gap-2 border-t border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-              <p className="text-[10px] text-gray-400">
-                Showing{' '}
-                {
-                  filteredTransactions.length
-                }{' '}
-                of{' '}
-                {transactions.length}{' '}
-                transactions
-              </p>
-
-              <div className="flex items-center gap-4 text-[10px]">
-                <span className="text-gray-400">
-                  Money left
-                </span>
-
-                <span
-                  className={`font-semibold ${
-                    netMovement >=
-                    0
-                      ? 'text-emerald-900'
-                      : 'text-red-600'
-                  }`}
-                >
-                  {netMovement >=
-                  0
-                    ? '+'
-                    : '-'}
-                  {formatCurrency(
-                    Math.abs(
-                      netMovement
-                    )
-                  )}
-                </span>
+                  )
+                )}
               </div>
-            </div>
-          </section>
+
+              {/* Footer */}
+
+              <div className="flex flex-col gap-2 border-t border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <p className="text-[10px] text-gray-400">
+                  Showing{' '}
+                  {
+                    filteredTransactions.length
+                  }{' '}
+                  of{' '}
+                  {
+                    transactions.filter(
+                      (
+                        transaction
+                      ) =>
+                        transaction.currency ===
+                        selectedCurrency
+                    ).length
+                  }{' '}
+                  {selectedCurrency}{' '}
+                  transactions
+                </p>
+
+                <div className="flex items-center gap-4 text-[10px]">
+                  <span className="text-gray-400">
+                    Money left
+                  </span>
+
+                  <span
+                    className={`font-semibold ${
+                      netMovement >=
+                      0
+                        ? 'text-emerald-900'
+                        : 'text-red-600'
+                    }`}
+                  >
+                    {netMovement >=
+                    0
+                      ? '+'
+                      : '-'}
+                    {
+                      formatCurrency(
+                        Math.abs(
+                          netMovement
+                        ),
+                        selectedCurrency
+                      )
+                    }
+                  </span>
+                </div>
+              </div>
+            </section>
+          </div>
 
           {/* Right Column */}
 
           <div className="space-y-6">
-            {/* Monietar Insight */}
+
+            {/* Insight */}
 
             <section className="border border-gray-200 bg-emerald-900 text-white">
               <div className="border-b border-white/10 px-5 py-5">
@@ -2825,15 +3571,16 @@ export default function TransactionsPage() {
                     </p>
 
                     <p className="mt-1 text-xs text-emerald-200">
-                      Based on your money
-                      activity
+                      Based on your money activity
                     </p>
                   </div>
 
                   <div className="flex h-9 w-9 items-center justify-center border border-white/10 bg-white/5">
                     <Zap
                       size={17}
-                      strokeWidth={1.7}
+                      strokeWidth={
+                        1.7
+                      }
                     />
                   </div>
                 </div>
@@ -2853,7 +3600,15 @@ export default function TransactionsPage() {
 
                   {largestExpenseCategory &&
                     ` ${largestExpenseCategory[0]} is where you spent the most during this period, at ${formatCurrency(
-                      largestExpenseCategory[1]
+                      largestExpenseCategory[1],
+                      selectedCurrency
+                    )}.`}
+
+                  {!largestExpenseCategory &&
+                    largestIncomeCategory &&
+                    ` ${largestIncomeCategory[0]} brought in the most money during this period, at ${formatCurrency(
+                      largestIncomeCategory[1],
+                      selectedCurrency
                     )}.`}
                 </p>
 
@@ -2868,11 +3623,14 @@ export default function TransactionsPage() {
                       0
                         ? '+'
                         : '-'}
-                      {formatCurrency(
-                        Math.abs(
-                          netMovement
+                      {
+                        formatCurrency(
+                          Math.abs(
+                            netMovement
+                          ),
+                          selectedCurrency
                         )
-                      )}
+                      }
                     </span>
                   </div>
                 </div>
@@ -2884,12 +3642,11 @@ export default function TransactionsPage() {
             <section className="border border-gray-200 bg-white">
               <div className="border-b border-gray-200 px-5 py-5">
                 <p className="text-sm font-semibold text-gray-900">
-                  Money In & Out
+                  Money In &amp; Out
                 </p>
 
                 <p className="mt-1 text-xs text-gray-400">
-                  See how much money came
-                  in and went out.
+                  See how much money came in and went out.
                 </p>
               </div>
 
@@ -2900,9 +3657,15 @@ export default function TransactionsPage() {
                   }
                   label="Money in"
                   value={formatCurrency(
-                    totalMoneyIn
+                    totalMoneyIn,
+                    selectedCurrency
                   )}
-                  percentage={100}
+                  percentage={
+                    totalMoneyIn >
+                    0
+                      ? 100
+                      : 0
+                  }
                   positive
                 />
 
@@ -2912,7 +3675,8 @@ export default function TransactionsPage() {
                   }
                   label="Money out"
                   value={formatCurrency(
-                    totalMoneyOut
+                    totalMoneyOut,
+                    selectedCurrency
                   )}
                   percentage={
                     totalMoneyIn >
@@ -2932,12 +3696,26 @@ export default function TransactionsPage() {
                       Money left
                     </span>
 
-                    <span className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(
-                        Math.abs(
-                          netMovement
+                    <span
+                      className={`text-sm font-semibold ${
+                        netMovement >=
+                        0
+                          ? 'text-emerald-900'
+                          : 'text-red-600'
+                      }`}
+                    >
+                      {netMovement >=
+                      0
+                        ? '+'
+                        : '-'}
+                      {
+                        formatCurrency(
+                          Math.abs(
+                            netMovement
+                          ),
+                          selectedCurrency
                         )
-                      )}
+                      }
                     </span>
                   </div>
                 </div>
@@ -2958,6 +3736,7 @@ export default function TransactionsPage() {
               </div>
 
               <div className="divide-y divide-gray-100">
+
                 <button
                   type="button"
                   onClick={
@@ -2981,15 +3760,53 @@ export default function TransactionsPage() {
                       </p>
 
                       <p className="mt-0.5 text-[10px] text-gray-400">
-                        Add money in or
-                        money out
+                        Add money in or money out
                       </p>
                     </div>
                   </div>
 
                   <ArrowRight
                     size={14}
-                    strokeWidth={1.7}
+                    strokeWidth={
+                      1.7
+                    }
+                    className="text-gray-400"
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    openStatementModal
+                  }
+                  className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-gray-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center bg-gray-50 text-gray-500">
+                      <FileText
+                        size={15}
+                        strokeWidth={
+                          1.7
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-medium text-gray-900">
+                        Add bank statement
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] text-gray-400">
+                        Import a PDF or CSV statement
+                      </p>
+                    </div>
+                  </div>
+
+                  <ArrowRight
+                    size={14}
+                    strokeWidth={
+                      1.7
+                    }
                     className="text-gray-400"
                   />
                 </button>
@@ -3014,15 +3831,16 @@ export default function TransactionsPage() {
                       </p>
 
                       <p className="mt-0.5 text-[10px] text-gray-400">
-                        View your connected
-                        accounts
+                        View your connected accounts
                       </p>
                     </div>
                   </div>
 
                   <ArrowRight
                     size={14}
-                    strokeWidth={1.7}
+                    strokeWidth={
+                      1.7
+                    }
                     className="text-gray-400"
                   />
                 </button>
@@ -3032,7 +3850,9 @@ export default function TransactionsPage() {
         </div>
       </div>
 
+      {/* ================================================================== */}
       {/* Add Transaction Modal */}
+      {/* ================================================================== */}
 
       {addTransactionOpen && (
         <div
@@ -3042,14 +3862,16 @@ export default function TransactionsPage() {
           ) => {
             if (
               event.target ===
-              event.currentTarget
+                event.currentTarget &&
+              !savingTransaction
             ) {
               closeAddTransaction();
             }
           }}
         >
           <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto border border-gray-200 bg-white shadow-xl">
-            {/* Modal Header */}
+
+            {/* Header */}
 
             <div className="flex items-start justify-between border-b border-gray-200 px-5 py-5 sm:px-6">
               <div>
@@ -3058,8 +3880,7 @@ export default function TransactionsPage() {
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-gray-400">
-                  Record money coming in or
-                  going out of your business.
+                  Record money coming in or going out of your business.
                 </p>
               </div>
 
@@ -3089,6 +3910,7 @@ export default function TransactionsPage() {
               }
             >
               <div className="space-y-5 px-5 py-6 sm:px-6">
+
                 {/* Type */}
 
                 <div>
@@ -3117,7 +3939,6 @@ export default function TransactionsPage() {
                           1.7
                         }
                       />
-
                       Money in
                     </button>
 
@@ -3141,7 +3962,6 @@ export default function TransactionsPage() {
                           1.7
                         }
                       />
-
                       Money out
                     </button>
                   </div>
@@ -3159,22 +3979,18 @@ export default function TransactionsPage() {
                       {currency ===
                       'NGN'
                         ? '₦'
-                        : currency ===
-                            'USD'
-                          ? '$'
-                          : currency ===
-                              'EUR'
-                            ? '€'
-                            : currency ===
-                                'XOF'
-                              ? 'CFA'
-                              : currency}
+                        : 'CFA'}
                     </div>
 
                     <input
                       type="number"
                       min="0"
-                      step="0.01"
+                      step={
+                        currency ===
+                        'XOF'
+                          ? '1'
+                          : '0.01'
+                      }
                       inputMode="decimal"
                       value={
                         amount
@@ -3183,7 +3999,8 @@ export default function TransactionsPage() {
                         event
                       ) =>
                         setAmount(
-                          event.target
+                          event
+                            .target
                             .value
                         )
                       }
@@ -3200,6 +4017,9 @@ export default function TransactionsPage() {
                   <label className="block">
                     <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
                       Category
+                      <span className="ml-1 text-red-500">
+                        *
+                      </span>
                     </span>
 
                     <input
@@ -3211,7 +4031,8 @@ export default function TransactionsPage() {
                         event
                       ) =>
                         setCategory(
-                          event.target
+                          event
+                            .target
                             .value
                         )
                       }
@@ -3227,7 +4048,9 @@ export default function TransactionsPage() {
 
                     <datalist id="transaction-categories">
                       {DEFAULT_CATEGORIES.map(
-                        (item) => (
+                        (
+                          item
+                        ) => (
                           <option
                             key={
                               item
@@ -3244,16 +4067,22 @@ export default function TransactionsPage() {
                   <label className="block">
                     <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
                       Date
+                      <span className="ml-1 text-red-500">
+                        *
+                      </span>
                     </span>
 
                     <input
                       type="date"
-                      value={date}
+                      value={
+                        date
+                      }
                       onChange={(
                         event
                       ) =>
                         setDate(
-                          event.target
+                          event
+                            .target
                             .value
                         )
                       }
@@ -3278,24 +4107,41 @@ export default function TransactionsPage() {
                         }
                         onChange={(
                           event
-                        ) =>
+                        ) => {
+                          const nextCurrency =
+                            event
+                              .target
+                              .value as Currency;
+
                           setCurrency(
-                            event.target
-                              .value
-                          )
-                        }
+                            nextCurrency
+                          );
+
+                          const matchingAccount =
+                            accounts.find(
+                              (
+                                account
+                              ) =>
+                                account.currency ===
+                                nextCurrency
+                            );
+
+                          if (
+                            matchingAccount
+                          ) {
+                            setAccountId(
+                              matchingAccount.id
+                            );
+                          } else {
+                            setAccountId(
+                              ''
+                            );
+                          }
+                        }}
                         className="h-10 w-full appearance-none border border-gray-200 bg-white px-3 pr-8 text-sm text-gray-900 outline-none focus:border-emerald-900"
                       >
                         <option value="NGN">
                           NGN — Nigerian Naira
-                        </option>
-
-                        <option value="USD">
-                          USD — US Dollar
-                        </option>
-
-                        <option value="EUR">
-                          EUR — Euro
                         </option>
 
                         <option value="XOF">
@@ -3358,28 +4204,32 @@ export default function TransactionsPage() {
                           No account
                         </option>
 
-                        {accounts.map(
-                          (
-                            account
-                          ) => (
-                            <option
-                              key={
-                                account.id
-                              }
-                              value={
-                                account.id
-                              }
-                            >
-                              {
-                                account.name
-                              }{' '}
-                              ·{' '}
-                              {
-                                account.currency
-                              }
-                            </option>
+                        {accounts
+                          .filter(
+                            (
+                              account
+                            ) =>
+                              account.currency ===
+                              currency
                           )
-                        )}
+                          .map(
+                            (
+                              account
+                            ) => (
+                              <option
+                                key={
+                                  account.id
+                                }
+                                value={
+                                  account.id
+                                }
+                              >
+                                {
+                                  account.name
+                                }
+                              </option>
+                            )
+                          )}
                       </select>
 
                       <ChevronDown
@@ -3393,11 +4243,14 @@ export default function TransactionsPage() {
                   </label>
                 </div>
 
-                {/* Description */}
+                {/* Description - REQUIRED */}
 
                 <label className="block">
                   <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
                     Description
+                    <span className="ml-1 text-red-500">
+                      *
+                    </span>
                   </span>
 
                   <input
@@ -3409,7 +4262,8 @@ export default function TransactionsPage() {
                       event
                     ) =>
                       setDescription(
-                        event.target
+                        event
+                          .target
                           .value
                       )
                     }
@@ -3419,8 +4273,13 @@ export default function TransactionsPage() {
                         ? 'e.g. Customer payment'
                         : 'e.g. Stock purchase'
                     }
+                    required
                     className="h-10 w-full border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-900"
                   />
+
+                  <p className="mt-1.5 text-[10px] text-gray-400">
+                    A clear description helps you understand this transaction later.
+                  </p>
                 </label>
 
                 {/* Reference */}
@@ -3442,7 +4301,8 @@ export default function TransactionsPage() {
                       event
                     ) =>
                       setReference(
-                        event.target
+                        event
+                          .target
                           .value
                       )
                     }
@@ -3469,12 +4329,15 @@ export default function TransactionsPage() {
                       event
                     ) =>
                       setNotes(
-                        event.target
+                        event
+                          .target
                           .value
                       )
                     }
                     placeholder="Add any extra details..."
-                    rows={3}
+                    rows={
+                      3
+                    }
                     className="w-full resize-none border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-900"
                   />
                 </label>
@@ -3490,7 +4353,7 @@ export default function TransactionsPage() {
                 )}
               </div>
 
-              {/* Modal Footer */}
+              {/* Footer */}
 
               <div className="flex flex-col-reverse gap-2 border-t border-gray-200 bg-[#fafafa] px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
                 <button
@@ -3516,27 +4379,444 @@ export default function TransactionsPage() {
                   {savingTransaction ? (
                     <>
                       <Loader2
-                        size={15}
+                        size={
+                          15
+                        }
                         className="animate-spin"
                       />
-
                       Saving...
                     </>
                   ) : (
                     <>
                       <Plus
-                        size={15}
+                        size={
+                          15
+                        }
                         strokeWidth={
                           1.8
                         }
                       />
-
                       Add transaction
                     </>
                   )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================== */}
+      {/* Bank Statement Modal */}
+      {/* ================================================================== */}
+
+      {statementModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6"
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+                event.currentTarget &&
+              !uploadingStatement
+            ) {
+              closeStatementModal();
+            }
+          }}
+        >
+          <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto border border-gray-200 bg-white shadow-xl">
+
+            {/* Header */}
+
+            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-5 sm:px-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center bg-emerald-50 text-emerald-900">
+                    <FileText
+                      size={16}
+                      strokeWidth={
+                        1.7
+                      }
+                    />
+                  </div>
+
+                  <p className="text-sm font-semibold text-gray-900">
+                    Add bank statement
+                  </p>
+                </div>
+
+                <p className="mt-2 max-w-md text-xs leading-5 text-gray-400">
+                  Upload a PDF or CSV bank statement and Monietar will prepare the transactions for your records.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  closeStatementModal
+                }
+                disabled={
+                  uploadingStatement
+                }
+                className="flex h-8 w-8 items-center justify-center text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Close"
+              >
+                <X
+                  size={17}
+                  strokeWidth={
+                    1.7
+                  }
+                />
+              </button>
+            </div>
+
+            <div className="space-y-5 px-5 py-6 sm:px-6">
+
+              {/* File Upload */}
+
+              <div>
+                <label
+                  htmlFor="bank-statement-file"
+                  className={`flex cursor-pointer flex-col items-center justify-center border-2 border-dashed px-6 py-10 text-center transition-colors ${
+                    statementFile
+                      ? 'border-emerald-300 bg-emerald-50/50'
+                      : 'border-gray-200 bg-gray-50 hover:border-emerald-300 hover:bg-emerald-50/30'
+                  }`}
+                >
+                  <div className="flex h-11 w-11 items-center justify-center bg-white text-emerald-900 shadow-sm">
+                    <Upload
+                      size={19}
+                      strokeWidth={
+                        1.7
+                      }
+                    />
+                  </div>
+
+                  {statementFile ? (
+                    <>
+                      <p className="mt-4 max-w-full truncate text-sm font-medium text-gray-900">
+                        {
+                          statementFile.name
+                        }
+                      </p>
+
+                      <p className="mt-1 text-xs text-gray-400">
+                        {(
+                          statementFile.size /
+                          1024 /
+                          1024
+                        ).toFixed(
+                          2
+                        )}{' '}
+                        MB
+                      </p>
+
+                      <span className="mt-3 text-xs font-medium text-emerald-900">
+                        Choose another file
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-4 text-sm font-medium text-gray-900">
+                        Upload your bank statement
+                      </p>
+
+                      <p className="mt-1 max-w-sm text-xs leading-5 text-gray-400">
+                        Select a PDF or CSV statement from your bank.
+                      </p>
+
+                      <span className="mt-4 bg-emerald-900 px-4 py-2 text-xs font-medium text-white">
+                        Choose file
+                      </span>
+                    </>
+                  )}
+                </label>
+
+                <input
+                  id="bank-statement-file"
+                  type="file"
+                  accept=".pdf,.csv,application/pdf,text/csv"
+                  className="sr-only"
+                  onChange={(
+                    event
+                  ) => {
+                    const file =
+                      event
+                        .target
+                        .files?.[0] ??
+                      null;
+
+                    setStatementError(
+                      null
+                    );
+
+                    if (
+                      !file
+                    ) {
+                      setStatementFile(
+                        null
+                      );
+                      return;
+                    }
+
+                    const isPdf =
+                      file.type ===
+                        'application/pdf' ||
+                      file.name
+                        .toLowerCase()
+                        .endsWith(
+                          '.pdf'
+                        );
+
+                    const isCsv =
+                      file.type ===
+                        'text/csv' ||
+                      file.name
+                        .toLowerCase()
+                        .endsWith(
+                          '.csv'
+                        );
+
+                    if (
+                      !isPdf &&
+                      !isCsv
+                    ) {
+                      setStatementFile(
+                        null
+                      );
+
+                      setStatementError(
+                        'Please upload a PDF or CSV bank statement.'
+                      );
+
+                      return;
+                    }
+
+                    setStatementFile(
+                      file
+                    );
+                  }}
+                />
+
+                <p className="mt-2 text-[10px] text-gray-400">
+                  Supported formats: PDF and CSV.
+                </p>
+              </div>
+
+              {/* Currency + Account */}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                    Statement currency
+                  </span>
+
+                  <div className="relative">
+                    <select
+                      value={
+                        statementCurrency
+                      }
+                      onChange={(
+                        event
+                      ) => {
+                        const nextCurrency =
+                          event
+                            .target
+                            .value as Currency;
+
+                        setStatementCurrency(
+                          nextCurrency
+                        );
+
+                        const matchingAccount =
+                          accounts.find(
+                            (
+                              account
+                            ) =>
+                              account.currency ===
+                              nextCurrency
+                          );
+
+                        setStatementAccountId(
+                          matchingAccount?.id ??
+                            ''
+                        );
+                      }}
+                      className="h-10 w-full appearance-none border border-gray-200 bg-white px-3 pr-8 text-sm text-gray-900 outline-none focus:border-emerald-900"
+                    >
+                      <option value="NGN">
+                        NGN — Nigerian Naira
+                      </option>
+
+                      <option value="XOF">
+                        XOF — CFA Franc
+                      </option>
+                    </select>
+
+                    <ChevronDown
+                      size={13}
+                      strokeWidth={
+                        1.7
+                      }
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+                  </div>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                    Account
+                  </span>
+
+                  <div className="relative">
+                    <select
+                      value={
+                        statementAccountId
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setStatementAccountId(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      className="h-10 w-full appearance-none border border-gray-200 bg-white px-3 pr-8 text-sm text-gray-900 outline-none focus:border-emerald-900"
+                    >
+                      <option value="">
+                        Select account
+                      </option>
+
+                      {accounts
+                        .filter(
+                          (
+                            account
+                          ) =>
+                            account.currency ===
+                            statementCurrency
+                        )
+                        .map(
+                          (
+                            account
+                          ) => (
+                            <option
+                              key={
+                                account.id
+                              }
+                              value={
+                                account.id
+                              }
+                            >
+                              {
+                                account.name
+                              }
+                            </option>
+                          )
+                        )}
+                    </select>
+
+                    <ChevronDown
+                      size={13}
+                      strokeWidth={
+                        1.7
+                      }
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+                  </div>
+                </label>
+              </div>
+
+              {/* Starter Information */}
+
+              <div className="border border-emerald-100 bg-emerald-50 px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <FileText
+                    size={15}
+                    strokeWidth={
+                      1.7
+                    }
+                    className="mt-0.5 shrink-0 text-emerald-900"
+                  />
+
+                  <div>
+                    <p className="text-xs font-medium text-emerald-900">
+                      Retail Starter
+                    </p>
+
+                    <p className="mt-1 text-[11px] leading-5 text-emerald-800">
+                      Bank statement imports are included in your Starter plan. They do not use your 30 automatically logged bank transaction allowance.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {statementError && (
+                <div className="border border-red-200 bg-red-50 px-4 py-3">
+                  <p className="text-xs leading-5 text-red-700">
+                    {
+                      statementError
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+
+            <div className="flex flex-col-reverse gap-2 border-t border-gray-200 bg-[#fafafa] px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+              <button
+                type="button"
+                onClick={
+                  closeStatementModal
+                }
+                disabled={
+                  uploadingStatement
+                }
+                className="h-10 border border-gray-200 bg-white px-4 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  handleStatementUpload
+                }
+                disabled={
+                  uploadingStatement ||
+                  !statementFile ||
+                  !statementAccountId
+                }
+                className="flex h-10 items-center justify-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {uploadingStatement ? (
+                  <>
+                    <Loader2
+                      size={
+                        15
+                      }
+                      className="animate-spin"
+                    />
+                    Preparing statement...
+                  </>
+                ) : (
+                  <>
+                    <Upload
+                      size={
+                        15
+                      }
+                      strokeWidth={
+                        1.8
+                      }
+                    />
+                    Add statement
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -3552,8 +4832,10 @@ export default function TransactionsPage() {
 
 function EmptyTransactions({
   onAdd,
+  onImport,
 }: {
   onAdd: () => void;
+  onImport: () => void;
 }) {
   return (
     <>
@@ -3569,22 +4851,42 @@ function EmptyTransactions({
       </p>
 
       <p className="mt-1 text-xs text-gray-400">
-        Try changing your search,
-        period, or filters.
+        Try changing your search, period, currency, or filters.
       </p>
 
-      <button
-        type="button"
-        onClick={onAdd}
-        className="mx-auto mt-4 flex h-9 items-center gap-2 bg-emerald-900 px-3 text-xs font-medium text-white transition-colors hover:bg-emerald-800"
-      >
-        <Plus
-          size={13}
-          strokeWidth={1.8}
-        />
+      <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={
+            onAdd
+          }
+          className="mx-auto flex h-9 items-center gap-2 bg-emerald-900 px-3 text-xs font-medium text-white transition-colors hover:bg-emerald-800"
+        >
+          <Plus
+            size={13}
+            strokeWidth={
+              1.8
+            }
+          />
+          Add transaction
+        </button>
 
-        Add transaction
-      </button>
+        <button
+          type="button"
+          onClick={
+            onImport
+          }
+          className="mx-auto flex h-9 items-center gap-2 border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+        >
+          <Upload
+            size={13}
+            strokeWidth={
+              1.8
+            }
+          />
+          Add bank statement
+        </button>
+      </div>
     </>
   );
 }
@@ -3634,7 +4936,9 @@ function TransactionMetric({
         >
           <Icon
             size={17}
-            strokeWidth={1.7}
+            strokeWidth={
+              1.7
+            }
           />
         </div>
       </div>
@@ -3673,30 +4977,33 @@ function FilterSelect({
 
       <div className="relative">
         <select
-          value={value}
-          onChange={(event) =>
+          value={
+            value
+          }
+          onChange={(
+            event
+          ) =>
             onChange(
               event.target.value
             )
           }
-          className="
-            h-9 w-full
-            appearance-none
-            border border-gray-200
-            bg-white
-            px-3 pr-8
-            text-xs text-gray-700
-            outline-none
-            focus:border-emerald-900
-          "
+          className="h-9 w-full appearance-none border border-gray-200 bg-white px-3 pr-8 text-xs text-gray-700 outline-none focus:border-emerald-900"
         >
           {options.map(
-            (option) => (
+            (
+              option
+            ) => (
               <option
-                key={option}
-                value={option}
+                key={
+                  option
+                }
+                value={
+                  option
+                }
               >
-                {option}
+                {
+                  option
+                }
               </option>
             )
           )}
@@ -3704,7 +5011,9 @@ function FilterSelect({
 
         <ChevronDown
           size={13}
-          strokeWidth={1.7}
+          strokeWidth={
+            1.7
+          }
           className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
         />
       </div>
@@ -3737,7 +5046,9 @@ function MovementRow({
         <div className="flex items-center gap-2">
           <Icon
             size={14}
-            strokeWidth={1.7}
+            strokeWidth={
+              1.7
+            }
             className={
               positive
                 ? 'text-emerald-900'

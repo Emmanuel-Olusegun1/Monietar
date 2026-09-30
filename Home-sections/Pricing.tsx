@@ -19,7 +19,8 @@ export default function Pricing() {
       originalPrice: null,
       features: [
         '1 connected merchant bank account',
-        'Up to 500 automatically logged bank transactions monthly',
+        '30 free auto-logged transactions',
+        'Unlimited Bank Statement (PDF/CSV) auto-parsing',
         'Unlimited manual bookkeeping entries',
         'Basic Profit & Loss (P&L) dashboard views',
         '1 Independent Physical Cash Vault',
@@ -57,7 +58,7 @@ export default function Pricing() {
     premium: {
       name: 'Borderless Pro',
       description:
-        'For merchants operating across currencies and regions who need deeper financial intelligence and audit-ready reporting.',
+        'For merchants operating across regions who need deeper financial visibility, multi-currency tracking, and intelligent reporting.',
       price: { NGN: 22500, XOF: 8500 },
       yearlyPrice: { NGN: 225000, XOF: 85000 },
       originalPrice: { NGN: 45000, XOF: 17000 },
@@ -66,7 +67,7 @@ export default function Pricing() {
         'Dual-Currency Ledger Engine (Naira ⇄ CFA Franc)',
         'Automated Parallel Market Rate Auto-Indexing',
         '1-Tap audit-ready financial statement exports (PDF/Excel)',
-        'Custom AI Accounting Chatbot assistants',
+        'Custom AI Accounting Chatbot assistance',
         'Weekly AI Voice Report Card summaries (Pidgin or English)',
         'Dedicated account priority channels',
       ],
@@ -219,11 +220,7 @@ export default function Pricing() {
                 key={key}
                 className={`flex h-full flex-col border-b border-gray-300 py-8 lg:min-h-[650px] lg:border-r lg:px-7 lg:py-9 ${
                   index === 2 ? 'lg:border-r-0' : ''
-                } ${
-                  plan.popular
-                    ? 'bg-white/40'
-                    : ''
-                }`}
+                } ${plan.popular ? 'bg-white/40' : ''}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -291,40 +288,12 @@ export default function Pricing() {
                     </p>
                   )}
 
-                  {planKeyIsFree(key) && (
+                  {key === 'free' && (
                     <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-gray-400">
                       No credit card required
                     </p>
                   )}
                 </div>
-
-                {/* Core positioning */}
-                {/* {key === 'free' && (
-                  <div className="mt-6 border-l-2 border-emerald-900 pl-4">
-                    <p className="text-xs font-medium leading-5 text-gray-700">
-                      Get the real Monietar experience — just with limits
-                      designed for smaller businesses.
-                    </p>
-                  </div>
-                )}
-
-                {key === 'pro' && (
-                  <div className="mt-6 border-l-2 border-emerald-900 pl-4">
-                    <p className="text-xs font-medium leading-5 text-gray-700">
-                      More automation, more accounts, and more visibility as
-                      your daily business activity increases.
-                    </p>
-                  </div>
-                )}
-
-                {key === 'premium' && (
-                  <div className="mt-6 border-l-2 border-emerald-900 pl-4">
-                    <p className="text-xs font-medium leading-5 text-gray-700">
-                      Built for merchants whose money, sourcing, and sales
-                      move across currencies and regions.
-                    </p>
-                  </div>
-                )} */}
 
                 {/* Features */}
                 <ul className="mt-7 flex-1 space-y-3">
@@ -379,9 +348,11 @@ export default function Pricing() {
             <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-400">
               Start
             </span>
+
             <p className="mt-2 text-sm font-medium text-gray-900">
               Experience Monietar
             </p>
+
             <p className="mt-1 text-xs leading-5 text-gray-500">
               Connect your first account and start building a clearer picture
               of your business.
@@ -392,9 +363,11 @@ export default function Pricing() {
             <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-emerald-900">
               Grow
             </span>
+
             <p className="mt-2 text-sm font-medium text-gray-900">
               Automate more
             </p>
+
             <p className="mt-1 text-xs leading-5 text-gray-500">
               Connect more accounts, handle more activity, and get deeper
               operational visibility.
@@ -405,9 +378,11 @@ export default function Pricing() {
             <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-400">
               Expand
             </span>
+
             <p className="mt-2 text-sm font-medium text-gray-900">
               Go borderless
             </p>
+
             <p className="mt-1 text-xs leading-5 text-gray-500">
               Manage multi-currency activity, financial reporting, and
               cross-region business intelligence.
@@ -446,8 +421,4 @@ export default function Pricing() {
       </div>
     </section>
   );
-}
-
-function planKeyIsFree(key: string) {
-  return key === 'free';
 }
