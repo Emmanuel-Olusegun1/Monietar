@@ -268,9 +268,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!accountId || !userId) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'The account and user details are required to import a statement.' },
+        { error: 'The user details are required to import a statement.' },
         { status: 400 }
       );
     }

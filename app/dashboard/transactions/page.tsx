@@ -1071,6 +1071,9 @@ export default function TransactionsPage() {
     setUploadingStatement,
   ] = useState(false);
 
+  const canSubmitStatement =
+    Boolean(statementFile);
+
   /*
   |--------------------------------------------------------------------------
   | Load Accounts
@@ -2099,16 +2102,8 @@ export default function TransactionsPage() {
     setStatementCurrency(
       selectedCurrency
     );
-
-    const defaultAccount =
-      accounts.find(
-        (account) =>
-          account.currency ===
-          selectedCurrency
-      );
-
     setStatementAccountId(
-      defaultAccount?.id ?? ''
+      ''
     );
 
     setStatementModalOpen(
@@ -2148,15 +2143,6 @@ export default function TransactionsPage() {
       return;
     }
 
-    if (
-      !statementAccountId
-    ) {
-      setStatementError(
-        'Please select the account this statement belongs to.'
-      );
-      return;
-    }
-
     const isPdf =
       statementFile.type ===
         'application/pdf' ||
@@ -2174,30 +2160,6 @@ export default function TransactionsPage() {
     if (!isPdf && !isCsv) {
       setStatementError(
         'Only PDF and CSV bank statements are supported.'
-      );
-      return;
-    }
-
-    const account =
-      accounts.find(
-        (item) =>
-          item.id ===
-          statementAccountId
-      );
-
-    if (!account) {
-      setStatementError(
-        'The selected account could not be found.'
-      );
-      return;
-    }
-
-    if (
-      account.currency !==
-      statementCurrency
-    ) {
-      setStatementError(
-        `The selected account uses ${account.currency}. Please select an account using ${statementCurrency}.`
       );
       return;
     }
@@ -4604,10 +4566,7 @@ export default function TransactionsPage() {
                 </p>
               </div>
 
-              {/* Currency + Account */}
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
                 <label className="block">
                   <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
                     Statement currency
@@ -4629,19 +4588,8 @@ export default function TransactionsPage() {
                         setStatementCurrency(
                           nextCurrency
                         );
-
-                        const matchingAccount =
-                          accounts.find(
-                            (
-                              account
-                            ) =>
-                              account.currency ===
-                              nextCurrency
-                          );
-
                         setStatementAccountId(
-                          matchingAccount?.id ??
-                            ''
+                          ''
                         );
                       }}
                       className="h-10 w-full appearance-none border border-gray-200 bg-white px-3 pr-8 text-sm text-gray-900 outline-none focus:border-emerald-900"
@@ -4653,69 +4601,6 @@ export default function TransactionsPage() {
                       <option value="XOF">
                         XOF — CFA Franc
                       </option>
-                    </select>
-
-                    <ChevronDown
-                      size={13}
-                      strokeWidth={
-                        1.7
-                      }
-                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                    />
-                  </div>
-                </label>
-
-                <label className="block">
-                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
-                    Account
-                  </span>
-
-                  <div className="relative">
-                    <select
-                      value={
-                        statementAccountId
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setStatementAccountId(
-                          event
-                            .target
-                            .value
-                        )
-                      }
-                      className="h-10 w-full appearance-none border border-gray-200 bg-white px-3 pr-8 text-sm text-gray-900 outline-none focus:border-emerald-900"
-                    >
-                      <option value="">
-                        Select account
-                      </option>
-
-                      {accounts
-                        .filter(
-                          (
-                            account
-                          ) =>
-                            account.currency ===
-                            statementCurrency
-                        )
-                        .map(
-                          (
-                            account
-                          ) => (
-                            <option
-                              key={
-                                account.id
-                              }
-                              value={
-                                account.id
-                              }
-                            >
-                              {
-                                account.name
-                              }
-                            </option>
-                          )
-                        )}
                     </select>
 
                     <ChevronDown
@@ -4787,8 +4672,7 @@ export default function TransactionsPage() {
                 }
                 disabled={
                   uploadingStatement ||
-                  !statementFile ||
-                  !statementAccountId
+                  !canSubmitStatement
                 }
                 className="flex h-10 items-center justify-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
