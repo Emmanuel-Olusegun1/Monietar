@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 const createSupabaseAdmin = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -136,6 +137,115 @@ function parseDateValue(value: string | null | undefined) {
   }
 
   return null;
+}
+
+function normalizeStatementText(text: string) {
+  return text
+    .replace(/\r/g, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\t+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function parsePlainTextTransactions(rawText: string) {
+  const lines = normalizeStatementText(rawText)
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const parsed: Array<{
+    type: 'income' | 'expense';
+    amount: number;
+    date: string;
+    description: string;
+    reference: string | null;
+  }> = [];
+
+  for (const line of lines) {
+    const match = line.match(
+      /(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s+(.+?)\s+([+-]?\d[\d,]*\.\d{2}|[+-]?\d[\d,]*)(?:\s|$)/
+    );
+
+    if (!match) {
+      continue;
+    }
+
+    const [, dateText, descriptionPart, amountText] = match;
+    const parsedDate = parseDateValue(dateText);
+    const parsedAmount = parseDecimal(amountText);
+
+    if (!parsedDate || parsedAmount === null || parsedAmount === 0) {
+      continue;
+    }
+
+    const description = descriptionPart.trim();
+    const hasDebitSignal = /debit|withdrawal|payment|expense|outflow|transferout|dr|charge|purchase/i.test(description);
+    const hasCreditSignal = /credit|deposit|income|inflow|transferin|cr|refund|salary|reversal/i.test(description);
+
+    const transactionType =
+      hasDebitSignal && !hasCreditSignal
+        ? 'expense'
+        : hasCreditSignal && !hasDebitSignal
+          ? 'income'
+          : parsedAmount < 0
+            ? 'expense'
+            : 'income';
+
+    const finalAmount = Math.abs(parsedAmount);
+
+    parsed.push({
+      type: transactionType,
+      amount: finalAmount,
+      date: parsedDate,
+      description: description.slice(0, 180) || 'Imported transaction',
+      reference: null,
+    });
+  }
+
+  return parsed;
+}
+
+function parseStatementText(rawText: string) {
+  const csvLike = rawText
+    .replace(/\s{2,}/g, ',')
+    .replace(/\t+/g, ',')
+    .replace(/\|+/g, ',');
+
+  const csvTransactions = parseCsvTransactions(csvLike);
+
+  if (csvTransactions.length) {
+    return csvTransactions;
+  }
+
+  return parsePlainTextTransactions(rawText);
+}
+
+async function extractPdfText(file: File) {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  let text = '';
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+
+    const pageText = content.items
+      .map((item) => {
+        if ('str' in item) {
+          return item.str;
+        }
+
+        return '';
+      })
+      .join(' ');
+
+    text += `${pageText}\n`;
+  }
+
+  return text;
 }
 
 function parseCsvTransactions(csvText: string) {
@@ -278,29 +388,22 @@ export async function POST(request: NextRequest) {
     const fileName = file.name.toLowerCase();
     const mimeType = file.type.toLowerCase();
 
-    if (fileName.endsWith('.pdf') || mimeType.includes('pdf')) {
+    const isPdf = fileName.endsWith('.pdf') || mimeType.includes('pdf');
+    const isCsv = fileName.endsWith('.csv') || mimeType.includes('csv') || mimeType.includes('excel');
+
+    if (!isPdf && !isCsv) {
       return NextResponse.json(
-        {
-          error:
-            'PDF statement imports are not enabled in this environment yet. Please upload a CSV export from your bank or add the transactions manually.',
-        },
+        { error: 'Only PDF and CSV bank statements are supported for import right now.' },
         { status: 400 }
       );
     }
 
-    if (!fileName.endsWith('.csv') && !mimeType.includes('csv') && !mimeType.includes('excel')) {
-      return NextResponse.json(
-        { error: 'Only CSV bank statements are supported for import right now.' },
-        { status: 400 }
-      );
-    }
-
-    const csvText = await file.text();
-    const transactions = parseCsvTransactions(csvText);
+    const extractedText = isPdf ? await extractPdfText(file) : await file.text();
+    const transactions = parseStatementText(extractedText);
 
     if (!transactions.length) {
       return NextResponse.json(
-        { error: 'No valid transactions were found in the uploaded CSV file.' },
+        { error: 'No valid transactions were found in the uploaded statement file.' },
         { status: 400 }
       );
     }
