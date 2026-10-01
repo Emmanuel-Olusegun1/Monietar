@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import {
+  AlertCircle,
   Bell,
   Building2,
   Check,
@@ -18,7 +18,15 @@ import {
   Smartphone,
   User,
   WalletCards,
+  X,
 } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+
+import { createClient } from '@/lib/supabase/client';
 
 type SettingsSection =
   | 'profile'
@@ -28,6 +36,47 @@ type SettingsSection =
   | 'security'
   | 'connections'
   | 'plan';
+
+type Plan =
+  | 'retail-starter'
+  | 'growing-merchant'
+  | 'borderless-pro';
+
+interface ProfileState {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+}
+
+interface BusinessState {
+  name: string;
+  type: string;
+  country: string;
+  currency: string;
+}
+
+interface PreferencesState {
+  language: string;
+  timezone: string;
+  dateFormat: string;
+  weekStarts: string;
+}
+
+interface NotificationsState {
+  transactions: boolean;
+  lowStock: boolean;
+  cashFlow: boolean;
+  weeklyReport: boolean;
+  productUpdates: boolean;
+}
+
+interface SettingsMetadata {
+  phone?: string;
+  business?: Partial<BusinessState>;
+  preferences?: Partial<PreferencesState>;
+  notifications?: Partial<NotificationsState>;
+}
 
 const sections: {
   id: SettingsSection;
@@ -79,96 +128,316 @@ const sections: {
   },
 ];
 
+function normalizePlan(value: unknown): Plan {
+  if (
+    value === 'growing-merchant' ||
+    value === 'borderless-pro'
+  ) {
+    return value;
+  }
+
+  return 'retail-starter';
+}
+
+function getPlanName(plan: Plan) {
+  switch (plan) {
+    case 'growing-merchant':
+      return 'Growing Merchant';
+
+    case 'borderless-pro':
+      return 'Borderless Pro';
+
+    default:
+      return 'Retail Starter';
+  }
+}
+
 export default function SettingsPage() {
+  const [supabase] = useState(() =>
+    createClient(),
+  );
+
   const [activeSection, setActiveSection] =
     useState<SettingsSection>('profile');
 
-  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [profile, setProfile] = useState({
-    firstName: 'Emmanuel',
-    lastName: 'Olusegun',
-    email: 'emmanuel@example.com',
-    phone: '+234 800 000 0000',
-  });
+  const [saving, setSaving] =
+    useState(false);
 
-  const [business, setBusiness] = useState({
-    name: 'My Business',
-    type: 'Retail',
-    country: 'Nigeria',
-    currency: 'NGN',
-  });
+  const [saved, setSaved] =
+    useState(false);
 
-  const [preferences, setPreferences] = useState({
-    language: 'English',
-    timezone: 'Africa/Lagos',
-    dateFormat: 'DD/MM/YYYY',
-    weekStarts: 'Monday',
-  });
+  const [error, setError] =
+    useState<string | null>(null);
 
-  const [notifications, setNotifications] = useState({
-    transactions: true,
-    lowStock: true,
-    cashFlow: true,
-    weeklyReport: true,
-    productUpdates: false,
-  });
+  const [currentPlan, setCurrentPlan] =
+    useState<Plan>('retail-starter');
 
-  const handleSave = () => {
-    setSaved(true);
+  const [profile, setProfile] =
+    useState<ProfileState>({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+    });
 
-    window.setTimeout(() => {
-      setSaved(false);
-    }, 2500);
-  };
+  const [business, setBusiness] =
+    useState<BusinessState>({
+      name: '',
+      type: 'Retail',
+      country: 'Nigeria',
+      currency: 'NGN',
+    });
 
-  const renderSection = () => {
-    switch (activeSection) {
-      case 'profile':
-        return (
-          <ProfileSettings
-            profile={profile}
-            setProfile={setProfile}
-          />
+  const [preferences, setPreferences] =
+    useState<PreferencesState>({
+      language: 'English',
+      timezone: 'Africa/Lagos',
+      dateFormat: 'DD/MM/YYYY',
+      weekStarts: 'Monday',
+    });
+
+  const [notifications, setNotifications] =
+    useState<NotificationsState>({
+      transactions: true,
+      lowStock: true,
+      cashFlow: true,
+      weeklyReport: true,
+      productUpdates: false,
+    });
+
+  const loadSettings = useCallback(
+    async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError) {
+          throw userError;
+        }
+
+        if (!user) {
+          setError(
+            'Your session could not be found. Please sign in again.',
+          );
+          return;
+        }
+
+        const metadata =
+          (user.user_metadata ??
+            {}) as SettingsMetadata & {
+            first_name?: string;
+            last_name?: string;
+            name?: string;
+            subscription_plan?: string;
+            plan?: string;
+          };
+
+        const metadataName =
+          metadata.name?.trim() ?? '';
+
+        const firstName =
+          metadata.first_name?.trim() ||
+          (metadataName
+            ? metadataName.split(' ')[0]
+            : '');
+
+        const lastName =
+          metadata.last_name?.trim() ||
+          (metadataName
+            ? metadataName
+                .split(' ')
+                .slice(1)
+                .join(' ')
+            : '');
+
+        setProfile({
+          firstName,
+          lastName,
+          email: user.email ?? '',
+          phone:
+            metadata.phone?.trim() ?? '',
+        });
+
+        setBusiness({
+          name:
+            metadata.business?.name?.trim() ??
+            '',
+          type:
+            metadata.business?.type ??
+            'Retail',
+          country:
+            metadata.business?.country ??
+            'Nigeria',
+          currency:
+            metadata.business?.currency ??
+            'NGN',
+        });
+
+        setPreferences({
+          language:
+            metadata.preferences?.language ??
+            'English',
+          timezone:
+            metadata.preferences?.timezone ??
+            'Africa/Lagos',
+          dateFormat:
+            metadata.preferences?.dateFormat ??
+            'DD/MM/YYYY',
+          weekStarts:
+            metadata.preferences?.weekStarts ??
+            'Monday',
+        });
+
+        setNotifications({
+          transactions:
+            metadata.notifications
+              ?.transactions ??
+            true,
+          lowStock:
+            metadata.notifications?.lowStock ??
+            true,
+          cashFlow:
+            metadata.notifications?.cashFlow ??
+            true,
+          weeklyReport:
+            metadata.notifications
+              ?.weeklyReport ??
+            true,
+          productUpdates:
+            metadata.notifications
+              ?.productUpdates ??
+            false,
+        });
+
+        setCurrentPlan(
+          normalizePlan(
+            metadata.subscription_plan ??
+              metadata.plan,
+          ),
         );
-
-      case 'business':
-        return (
-          <BusinessSettings
-            business={business}
-            setBusiness={setBusiness}
-          />
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : 'Unable to load your settings.',
         );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [supabase],
+  );
 
-      case 'preferences':
-        return (
-          <PreferencesSettings
-            preferences={preferences}
-            setPreferences={setPreferences}
-          />
+  useEffect(() => {
+    void loadSettings();
+  }, [loadSettings]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error(
+          'Your session has expired. Please sign in again.',
         );
+      }
 
-      case 'notifications':
-        return (
-          <NotificationSettings
-            notifications={notifications}
-            setNotifications={setNotifications}
-          />
-        );
+      const existingMetadata =
+        user.user_metadata ?? {};
 
-      case 'security':
-        return <SecuritySettings />;
+      const displayName = [
+        profile.firstName.trim(),
+        profile.lastName.trim(),
+      ]
+        .filter(Boolean)
+        .join(' ');
 
-      case 'connections':
-        return <ConnectionSettings />;
+      const nextMetadata = {
+        ...existingMetadata,
 
-      case 'plan':
-        return <PlanSettings />;
+        name:
+          displayName ||
+          existingMetadata.name ||
+          undefined,
 
-      default:
-        return null;
+        first_name:
+          profile.firstName.trim(),
+
+        last_name:
+          profile.lastName.trim(),
+
+        phone:
+          profile.phone.trim(),
+
+        business: {
+          ...(existingMetadata.business ??
+            {}),
+          ...business,
+        },
+
+        preferences: {
+          ...(existingMetadata.preferences ??
+            {}),
+          ...preferences,
+        },
+
+        notifications: {
+          ...(existingMetadata.notifications ??
+            {}),
+          ...notifications,
+        },
+      };
+
+      const { error: updateError } =
+        await supabase.auth.updateUser({
+          data: nextMetadata,
+        });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      setSaved(true);
+
+      window.setTimeout(() => {
+        setSaved(false);
+      }, 2500);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to save your settings.',
+      );
+    } finally {
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#f1f1f1] text-gray-900">
+        <div className="mx-auto flex min-h-[70vh] max-w-[1500px] items-center justify-center px-5 sm:px-8 lg:px-10">
+          <div className="text-sm text-gray-400">
+            Loading your settings...
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#f1f1f1] text-gray-900">
@@ -186,7 +455,8 @@ export default function SettingsPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
-                Manage your account, business information, preferences,
+                Manage your account, business
+                information, preferences,
                 connections, and Monietar plan.
               </p>
             </div>
@@ -194,17 +464,38 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={handleSave}
-              className="flex w-fit items-center gap-2 border border-emerald-900 bg-emerald-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
+              disabled={saving}
+              className="flex w-fit items-center gap-2 border border-emerald-900 bg-emerald-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saved ? <Check size={16} /> : <Save size={16} />}
-              {saved ? 'Changes saved' : 'Save changes'}
+              {saved ? (
+                <Check size={16} />
+              ) : (
+                <Save size={16} />
+              )}
+
+              {saving
+                ? 'Saving...'
+                : saved
+                  ? 'Changes saved'
+                  : 'Save changes'}
             </button>
           </div>
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        {error && (
+          <div className="mb-6 flex items-start gap-3 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertCircle
+              size={17}
+              className="mt-0.5 shrink-0"
+            />
+
+            <p>{error}</p>
+          </div>
+        )}
+
+        <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
           {/* Settings navigation */}
-          <aside>
+          <aside className="lg:self-start">
             <div className="border border-gray-200 bg-white">
               <div className="border-b border-gray-200 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
@@ -215,20 +506,28 @@ export default function SettingsPage() {
               <nav className="p-2">
                 {sections.map((section) => {
                   const Icon = section.icon;
-                  const active = activeSection === section.id;
+                  const active =
+                    activeSection === section.id;
 
                   return (
                     <button
                       key={section.id}
                       type="button"
-                      onClick={() => setActiveSection(section.id)}
+                      onClick={() =>
+                        setActiveSection(
+                          section.id,
+                        )
+                      }
                       className={`mb-1 flex w-full items-center gap-3 border px-3 py-3 text-left transition ${
                         active
                           ? 'border-emerald-900 bg-emerald-900 text-white'
                           : 'border-transparent text-gray-700 hover:border-gray-200 hover:bg-[#f1f1f1]'
                       }`}
                     >
-                      <Icon size={17} className="shrink-0" />
+                      <Icon
+                        size={17}
+                        className="shrink-0"
+                      />
 
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium">
@@ -246,7 +545,11 @@ export default function SettingsPage() {
                         </span>
                       </span>
 
-                      {active && <ChevronRight size={15} />}
+                      {active && (
+                        <ChevronRight
+                          size={15}
+                        />
+                      )}
                     </button>
                   );
                 })}
@@ -256,7 +559,10 @@ export default function SettingsPage() {
             {/* Help */}
             <div className="mt-4 border border-gray-200 bg-white p-5">
               <div className="mb-3 flex h-9 w-9 items-center justify-center bg-gray-100">
-                <HelpCircle size={17} className="text-gray-700" />
+                <HelpCircle
+                  size={17}
+                  className="text-gray-700"
+                />
               </div>
 
               <h3 className="text-sm font-semibold">
@@ -264,7 +570,8 @@ export default function SettingsPage() {
               </h3>
 
               <p className="mt-1 text-xs leading-5 text-gray-500">
-                Find answers or contact the Monietar support team.
+                Find answers or contact the
+                Monietar support team.
               </p>
 
               <button
@@ -279,7 +586,59 @@ export default function SettingsPage() {
 
           {/* Content */}
           <section className="min-w-0">
-            {renderSection()}
+            {activeSection === 'profile' && (
+              <ProfileSettings
+                profile={profile}
+                setProfile={setProfile}
+              />
+            )}
+
+            {activeSection === 'business' && (
+              <BusinessSettings
+                business={business}
+                setBusiness={setBusiness}
+              />
+            )}
+
+            {activeSection ===
+              'preferences' && (
+              <PreferencesSettings
+                preferences={preferences}
+                setPreferences={
+                  setPreferences
+                }
+              />
+            )}
+
+            {activeSection ===
+              'notifications' && (
+              <NotificationSettings
+                notifications={
+                  notifications
+                }
+                setNotifications={
+                  setNotifications
+                }
+              />
+            )}
+
+            {activeSection === 'security' && (
+              <SecuritySettings
+                supabase={supabase}
+                setError={setError}
+              />
+            )}
+
+            {activeSection ===
+              'connections' && (
+              <ConnectionSettings />
+            )}
+
+            {activeSection === 'plan' && (
+              <PlanSettings
+                currentPlan={currentPlan}
+              />
+            )}
           </section>
         </div>
       </div>
@@ -295,21 +654,16 @@ function ProfileSettings({
   profile,
   setProfile,
 }: {
-  profile: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-  };
+  profile: ProfileState;
   setProfile: React.Dispatch<
-    React.SetStateAction<{
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone: string;
-    }>
+    React.SetStateAction<ProfileState>
   >;
 }) {
+  const initials =
+    `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`
+      .trim()
+      .toUpperCase() || 'M';
+
   return (
     <SettingsPanel
       eyebrow="Personal"
@@ -318,12 +672,15 @@ function ProfileSettings({
     >
       <div className="mb-8 flex items-center gap-4 border-b border-gray-200 pb-6">
         <div className="flex h-16 w-16 items-center justify-center bg-emerald-900 text-xl font-semibold text-white">
-          EO
+          {initials}
         </div>
 
         <div>
           <p className="font-semibold">
-            {profile.firstName} {profile.lastName}
+            {profile.firstName ||
+            profile.lastName
+              ? `${profile.firstName} ${profile.lastName}`.trim()
+              : 'Monietar account'}
           </p>
 
           <p className="mt-1 text-sm text-gray-500">
@@ -355,17 +712,25 @@ function ProfileSettings({
           }
         />
 
-        <InputField
-          label="Email address"
-          type="email"
-          value={profile.email}
-          onChange={(value) =>
-            setProfile((current) => ({
-              ...current,
-              email: value,
-            }))
-          }
-        />
+        <div>
+          <label className="block">
+            <span className="mb-2 block text-xs font-medium text-gray-600">
+              Email address
+            </span>
+
+            <input
+              type="email"
+              value={profile.email}
+              disabled
+              className="w-full border border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-500 outline-none"
+            />
+          </label>
+
+          <p className="mt-1.5 text-[11px] leading-4 text-gray-400">
+            Your login email is managed by your
+            authentication account.
+          </p>
+        </div>
 
         <InputField
           label="Phone number"
@@ -411,19 +776,9 @@ function BusinessSettings({
   business,
   setBusiness,
 }: {
-  business: {
-    name: string;
-    type: string;
-    country: string;
-    currency: string;
-  };
+  business: BusinessState;
   setBusiness: React.Dispatch<
-    React.SetStateAction<{
-      name: string;
-      type: string;
-      country: string;
-      currency: string;
-    }>
+    React.SetStateAction<BusinessState>
   >;
 }) {
   return (
@@ -443,6 +798,7 @@ function BusinessSettings({
                 name: value,
               }))
             }
+            placeholder="Enter your business name"
           />
         </div>
 
@@ -467,7 +823,12 @@ function BusinessSettings({
         <SelectField
           label="Country"
           value={business.country}
-          options={['Nigeria', 'Benin', 'Togo', 'Côte d’Ivoire']}
+          options={[
+            'Nigeria',
+            'Benin',
+            'Togo',
+            'Côte d’Ivoire',
+          ]}
           onChange={(value) =>
             setBusiness((current) => ({
               ...current,
@@ -501,9 +862,11 @@ function BusinessSettings({
             </p>
 
             <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
-              Your business information helps Monietar organise your
-              financial activity, reports, currency settings, and
-              business insights correctly.
+              Your business information helps
+              Monietar organise your financial
+              activity, reports, currency
+              settings, and business insights
+              correctly.
             </p>
           </div>
         </div>
@@ -520,19 +883,9 @@ function PreferencesSettings({
   preferences,
   setPreferences,
 }: {
-  preferences: {
-    language: string;
-    timezone: string;
-    dateFormat: string;
-    weekStarts: string;
-  };
+  preferences: PreferencesState;
   setPreferences: React.Dispatch<
-    React.SetStateAction<{
-      language: string;
-      timezone: string;
-      dateFormat: string;
-      weekStarts: string;
-    }>
+    React.SetStateAction<PreferencesState>
   >;
 }) {
   return (
@@ -574,7 +927,11 @@ function PreferencesSettings({
         <SelectField
           label="Date format"
           value={preferences.dateFormat}
-          options={['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']}
+          options={[
+            'DD/MM/YYYY',
+            'MM/DD/YYYY',
+            'YYYY-MM-DD',
+          ]}
           onChange={(value) =>
             setPreferences((current) => ({
               ...current,
@@ -615,21 +972,9 @@ function NotificationSettings({
   notifications,
   setNotifications,
 }: {
-  notifications: {
-    transactions: boolean;
-    lowStock: boolean;
-    cashFlow: boolean;
-    weeklyReport: boolean;
-    productUpdates: boolean;
-  };
+  notifications: NotificationsState;
   setNotifications: React.Dispatch<
-    React.SetStateAction<{
-      transactions: boolean;
-      lowStock: boolean;
-      cashFlow: boolean;
-      weeklyReport: boolean;
-      productUpdates: boolean;
-    }>
+    React.SetStateAction<NotificationsState>
   >;
 }) {
   const notificationItems = [
@@ -678,7 +1023,9 @@ function NotificationSettings({
             className="flex items-center justify-between gap-5 py-5"
           >
             <div>
-              <p className="text-sm font-medium">{item.title}</p>
+              <p className="text-sm font-medium">
+                {item.title}
+              </p>
 
               <p className="mt-1 max-w-xl text-sm leading-5 text-gray-500">
                 {item.description}
@@ -690,12 +1037,22 @@ function NotificationSettings({
               onChange={() =>
                 setNotifications((current) => ({
                   ...current,
-                  [item.key]: !current[item.key],
+                  [item.key]:
+                    !current[item.key],
                 }))
               }
             />
           </div>
         ))}
+      </div>
+
+      <div className="mt-6 border border-gray-200 bg-gray-50 p-4">
+        <p className="text-xs leading-5 text-gray-500">
+          Your notification preferences are saved to
+          your Monietar account. Actual email or
+          in-app delivery depends on the notification
+          service configured for your workspace.
+        </p>
       </div>
     </SettingsPanel>
   );
@@ -705,34 +1062,231 @@ function NotificationSettings({
 /* Security                                                                   */
 /* -------------------------------------------------------------------------- */
 
-function SecuritySettings() {
+function SecuritySettings({
+  supabase,
+  setError,
+}: {
+  supabase: ReturnType<typeof createClient>;
+  setError: (value: string | null) => void;
+}) {
+  const [showPasswordForm, setShowPasswordForm] =
+    useState(false);
+
+  const [password, setPassword] =
+    useState('');
+
+  const [confirmPassword, setConfirmPassword] =
+    useState('');
+
+  const [changingPassword, setChangingPassword] =
+    useState(false);
+
+  const [passwordMessage, setPasswordMessage] =
+    useState<string | null>(null);
+
+  const [signingOutOthers, setSigningOutOthers] =
+    useState(false);
+
+  const handlePasswordChange = async () => {
+    setError(null);
+    setPasswordMessage(null);
+
+    if (password.length < 8) {
+      setError(
+        'Your new password must contain at least 8 characters.',
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError(
+        'Your new passwords do not match.',
+      );
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const { error: updateError } =
+        await supabase.auth.updateUser({
+          password,
+        });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      setPassword('');
+      setConfirmPassword('');
+      setShowPasswordForm(false);
+
+      setPasswordMessage(
+        'Your password has been updated.',
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to update your password.',
+      );
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleSignOutOthers = async () => {
+    setError(null);
+    setSigningOutOthers(true);
+
+    try {
+      const { error: signOutError } =
+        await supabase.auth.signOut({
+          scope: 'others',
+        });
+
+      if (signOutError) {
+        throw signOutError;
+      }
+
+      setPasswordMessage(
+        'Other active sessions have been signed out.',
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to sign out other sessions.',
+      );
+    } finally {
+      setSigningOutOthers(false);
+    }
+  };
+
   return (
     <SettingsPanel
       eyebrow="Security"
       title="Account security"
       description="Protect your Monietar account and financial information."
     >
+      {passwordMessage && (
+        <div className="mb-5 flex items-start gap-3 border border-emerald-200 bg-emerald-50 p-4">
+          <Check
+            size={16}
+            className="mt-0.5 shrink-0 text-emerald-800"
+          />
+
+          <p className="text-sm text-emerald-800">
+            {passwordMessage}
+          </p>
+        </div>
+      )}
+
       <div className="space-y-3">
-        <ActionRow
-          icon={KeyRound}
-          title="Change password"
-          description="Update your account password."
-          action="Change"
-        />
+        <button
+          type="button"
+          onClick={() =>
+            setShowPasswordForm(
+              (current) => !current,
+            )
+          }
+          className="flex w-full items-center gap-4 border border-gray-200 bg-white p-5 text-left transition hover:border-emerald-900"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-gray-100">
+            <KeyRound
+              size={17}
+              className="text-gray-700"
+            />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">
+              Change password
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              Update your account password.
+            </p>
+          </div>
+
+          <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-900">
+            {showPasswordForm
+              ? 'Close'
+              : 'Change'}
+            <ChevronRight size={14} />
+          </span>
+        </button>
+
+        {showPasswordForm && (
+          <div className="border border-gray-200 bg-gray-50 p-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PasswordField
+                label="New password"
+                value={password}
+                onChange={setPassword}
+              />
+
+              <PasswordField
+                label="Confirm new password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+              />
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={handlePasswordChange}
+                disabled={changingPassword}
+                className="flex items-center gap-2 bg-emerald-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {changingPassword
+                  ? 'Updating...'
+                  : 'Update password'}
+              </button>
+            </div>
+          </div>
+        )}
 
         <ActionRow
           icon={ShieldCheck}
           title="Two-factor authentication"
           description="Add another layer of protection to your account."
-          action="Set up"
+          action="Coming soon"
+          disabled
         />
 
-        <ActionRow
-          icon={Smartphone}
-          title="Active sessions"
-          description="Review devices currently signed in to your account."
-          action="Review"
-        />
+        <button
+          type="button"
+          onClick={handleSignOutOthers}
+          disabled={signingOutOthers}
+          className="flex w-full items-center gap-4 border border-gray-200 bg-white p-5 text-left transition hover:border-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-gray-100">
+            <Smartphone
+              size={17}
+              className="text-gray-700"
+            />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">
+              Active sessions
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              Sign out other devices currently
+              signed in to your account.
+            </p>
+          </div>
+
+          <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-900">
+            {signingOutOthers
+              ? 'Signing out...'
+              : 'Sign out others'}
+            <ChevronRight size={14} />
+          </span>
+        </button>
       </div>
 
       <div className="mt-8 border-t border-gray-200 pt-6">
@@ -748,8 +1302,8 @@ function SecuritySettings() {
             </p>
 
             <p className="mt-1 text-xs leading-5 text-emerald-800/80">
-              Monietar uses secure authentication and controlled access
-              to protect your account.
+              Monietar uses secure authentication and
+              controlled access to protect your account.
             </p>
           </div>
         </div>
@@ -777,13 +1331,14 @@ function ConnectionSettings() {
 
           <div>
             <p className="text-sm font-semibold">
-              Retail Starter connection limit
+              Retail Starter connection
             </p>
 
             <p className="mt-1 text-sm leading-6 text-gray-500">
-              Your current plan supports one connected merchant bank
-              account and up to 500 automatically logged bank
-              transactions monthly.
+              Retail Starter supports one connected
+              merchant bank account. Connect your
+              account when you're ready to bring
+              transaction activity into Monietar.
             </p>
           </div>
         </div>
@@ -841,15 +1396,25 @@ function ConnectionSettings() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Plan                                                                        */
+/* Plan                                                                       */
 /* -------------------------------------------------------------------------- */
 
-function PlanSettings() {
+function PlanSettings({
+  currentPlan,
+}: {
+  currentPlan: Plan;
+}) {
+  const planName =
+    getPlanName(currentPlan);
+
+  const isStarter =
+    currentPlan === 'retail-starter';
+
   return (
     <SettingsPanel
       eyebrow="Subscription"
       title="Plan & billing"
-      description="Review your current Monietar plan and usage limits."
+      description="Review your current Monietar plan and available features."
     >
       <div className="border border-emerald-900 bg-emerald-900 p-6 text-white">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
@@ -859,72 +1424,88 @@ function PlanSettings() {
             </p>
 
             <h2 className="mt-2 text-2xl font-semibold">
-              Retail Starter
+              {planName}
             </h2>
 
             <p className="mt-2 text-sm text-white/70">
-              A real Monietar workspace for getting started.
+              {isStarter
+                ? 'The essential Monietar workspace for getting started.'
+                : 'Your active Monietar workspace plan.'}
             </p>
           </div>
 
           <div className="text-left sm:text-right">
-            <p className="text-2xl font-semibold">₦0</p>
-            <p className="text-xs text-white/60">per month</p>
+            {isStarter ? (
+              <>
+                <p className="text-2xl font-semibold">
+                  ₦0
+                </p>
+
+                <p className="text-xs text-white/60">
+                  per month
+                </p>
+              </>
+            ) : (
+              <p className="text-sm font-medium text-white/80">
+                Active
+              </p>
+            )}
           </div>
         </div>
       </div>
 
       <div className="mt-6">
         <p className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">
-          Plan usage
+          Included with your plan
         </p>
 
-        <div className="space-y-4">
-          <UsageRow
-            label="Automatic transactions"
-            used="327"
-            limit="500"
-            percentage={65}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <PlanFeature
+            title="Product catalogue"
+            description="Record your products and basic product information."
           />
 
-          <UsageRow
-            label="Connected bank accounts"
-            used="0"
-            limit="1"
-            percentage={0}
+          <PlanFeature
+            title="Manual stock management"
+            description="Add and adjust physical stock quantities yourself."
           />
 
-          <UsageRow
-            label="Manual bookkeeping entries"
-            used="Unlimited"
-            limit="Unlimited"
-            percentage={0}
+          <PlanFeature
+            title="Sales summaries"
+            description="Track your recorded sales activity."
+          />
+
+          <PlanFeature
+            title="Cash Vault"
+            description="Record and manage physical cash activity."
           />
         </div>
       </div>
 
-      <div className="mt-8 border-t border-gray-200 pt-6">
-        <div className="flex flex-col gap-4 border border-gray-200 bg-[#f1f1f1] p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+      {isStarter && (
+        <div className="mt-8 border-t border-gray-200 pt-6">
+          <div className="border border-gray-200 bg-[#f1f1f1] p-5">
             <p className="text-sm font-semibold">
-              Need more capacity?
+              When you're ready to grow
             </p>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Unlock deeper automation, more connected accounts, and
-              advanced financial intelligence.
+            <p className="mt-1 text-sm leading-6 text-gray-500">
+              Growing Merchant adds deeper automation,
+              analytics, automated inventory tracking,
+              and other advanced financial intelligence
+              features.
             </p>
+
+            <button
+              type="button"
+              className="mt-4 flex items-center gap-1 text-xs font-semibold text-emerald-900 hover:underline"
+            >
+              Compare plans
+              <ChevronRight size={13} />
+            </button>
           </div>
-
-          <button
-            type="button"
-            className="flex shrink-0 items-center justify-center gap-2 bg-emerald-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-800"
-          >
-            Compare plans
-            <ChevronRight size={14} />
-          </button>
         </div>
-      </div>
+      )}
     </SettingsPanel>
   );
 }
@@ -960,7 +1541,9 @@ function SettingsPanel({
         </p>
       </div>
 
-      <div className="p-6 sm:p-8">{children}</div>
+      <div className="p-6 sm:p-8">
+        {children}
+      </div>
     </div>
   );
 }
@@ -970,11 +1553,13 @@ function InputField({
   value,
   onChange,
   type = 'text',
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -985,7 +1570,37 @@ function InputField({
       <input
         type={type}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        className="w-full border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-emerald-900"
+      />
+    </label>
+  );
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-medium text-gray-600">
+        {label}
+      </span>
+
+      <input
+        type="password"
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         className="w-full border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 outline-none transition focus:border-emerald-900"
       />
     </label>
@@ -1011,11 +1626,16 @@ function SelectField({
 
       <select
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         className="w-full border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 outline-none transition focus:border-emerald-900"
       >
         {options.map((option) => (
-          <option key={option} value={option}>
+          <option
+            key={option}
+            value={option}
+          >
             {option}
           </option>
         ))}
@@ -1065,15 +1685,22 @@ function InfoRow({
   return (
     <div className="flex items-center gap-3 border border-gray-200 p-4">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-gray-100">
-        <Icon size={15} className="text-gray-600" />
+        <Icon
+          size={15}
+          className="text-gray-600"
+        />
       </div>
 
       <div className="min-w-0">
-        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-xs text-gray-500">
+          {label}
+        </p>
 
         <p
           className={`mt-0.5 truncate text-sm font-medium ${
-            positive ? 'text-emerald-900' : 'text-gray-900'
+            positive
+              ? 'text-emerald-900'
+              : 'text-gray-900'
           }`}
         >
           {value}
@@ -1088,23 +1715,35 @@ function ActionRow({
   title,
   description,
   action,
+  disabled = false,
 }: {
   icon: typeof User;
   title: string;
   description: string;
   action: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-4 border border-gray-200 bg-white p-5 text-left transition hover:border-emerald-900"
+      disabled={disabled}
+      className={`flex w-full items-center gap-4 border border-gray-200 bg-white p-5 text-left transition ${
+        disabled
+          ? 'cursor-not-allowed opacity-60'
+          : 'hover:border-emerald-900'
+      }`}
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-gray-100">
-        <Icon size={17} className="text-gray-700" />
+        <Icon
+          size={17}
+          className="text-gray-700"
+        />
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{title}</p>
+        <p className="text-sm font-medium">
+          {title}
+        </p>
 
         <p className="mt-1 text-xs leading-5 text-gray-500">
           {description}
@@ -1113,38 +1752,37 @@ function ActionRow({
 
       <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-900">
         {action}
-        <ChevronRight size={14} />
+        {!disabled && (
+          <ChevronRight size={14} />
+        )}
       </span>
     </button>
   );
 }
 
-function UsageRow({
-  label,
-  used,
-  limit,
-  percentage,
+function PlanFeature({
+  title,
+  description,
 }: {
-  label: string;
-  used: string;
-  limit: string;
-  percentage: number;
+  title: string;
+  description: string;
 }) {
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between gap-4">
-        <p className="text-sm font-medium">{label}</p>
+    <div className="border border-gray-200 p-4">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center bg-emerald-50 text-emerald-800">
+          <Check size={14} />
+        </div>
 
-        <p className="text-xs text-gray-500">
-          {used} / {limit}
-        </p>
-      </div>
+        <div>
+          <p className="text-sm font-medium text-gray-900">
+            {title}
+          </p>
 
-      <div className="h-1.5 bg-gray-200">
-        <div
-          className="h-full bg-emerald-900 transition-all"
-          style={{ width: `${percentage}%` }}
-        />
+          <p className="mt-1 text-xs leading-5 text-gray-500">
+            {description}
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -50,10 +50,7 @@ interface PeriodData {
   cashOut: number;
 }
 
-const periodData: Record<
-  Period,
-  PeriodData
-> = {
+const periodData: Record<Period, PeriodData> = {
   Today: {
     revenue: 185000,
     expenses: 68000,
@@ -223,9 +220,7 @@ const topProducts = [
   },
 ];
 
-function normalizePlan(
-  value: unknown,
-): Plan {
+function normalizePlan(value: unknown): Plan {
   if (
     value === 'growing-merchant' ||
     value === 'borderless-pro'
@@ -236,9 +231,7 @@ function normalizePlan(
   return 'retail-starter';
 }
 
-function formatCurrency(
-  amount: number,
-) {
+function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-NG', {
     style: 'currency',
     currency: 'NGN',
@@ -246,12 +239,8 @@ function formatCurrency(
   }).format(amount);
 }
 
-function formatPercentage(
-  value: number,
-) {
-  return `${
-    value >= 0 ? '+' : ''
-  }${value.toFixed(1)}%`;
+function formatPercentage(value: number) {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
 export default function AnalyticsPage() {
@@ -261,17 +250,13 @@ export default function AnalyticsPage() {
   );
 
   const [currentPlan, setCurrentPlan] =
-    useState<Plan>(
-      'retail-starter',
-    );
+    useState<Plan>('retail-starter');
 
   const [planLoading, setPlanLoading] =
     useState(true);
 
   const [period, setPeriod] =
-    useState<Period>(
-      'This month',
-    );
+    useState<Period>('This month');
 
   const loadPlan = useCallback(
     async () => {
@@ -283,9 +268,7 @@ export default function AnalyticsPage() {
         } = await supabase.auth.getUser();
 
         if (!user) {
-          setCurrentPlan(
-            'retail-starter',
-          );
+          setCurrentPlan('retail-starter');
           return;
         }
 
@@ -295,14 +278,10 @@ export default function AnalyticsPage() {
           user.user_metadata?.plan;
 
         setCurrentPlan(
-          normalizePlan(
-            metadataPlan,
-          ),
+          normalizePlan(metadataPlan),
         );
       } catch {
-        setCurrentPlan(
-          'retail-starter',
-        );
+        setCurrentPlan('retail-starter');
       } finally {
         setPlanLoading(false);
       }
@@ -315,45 +294,37 @@ export default function AnalyticsPage() {
   }, [loadPlan]);
 
   const hasAnalyticsAccess =
-    currentPlan ===
-      'growing-merchant' ||
-    currentPlan ===
-      'borderless-pro';
+    currentPlan === 'growing-merchant' ||
+    currentPlan === 'borderless-pro';
 
-  const data =
-    periodData[period];
+  const data = periodData[period];
 
   const profitMargin =
     data.revenue > 0
-      ? (data.grossProfit /
-          data.revenue) *
+      ? (data.grossProfit / data.revenue) *
         100
       : 0;
 
   const expenseRatio =
     data.revenue > 0
-      ? (data.expenses /
-          data.revenue) *
+      ? (data.expenses / data.revenue) *
         100
       : 0;
 
   const revenueToExpenseRatio =
     data.expenses > 0
-      ? data.revenue /
-        data.expenses
+      ? data.revenue / data.expenses
       : 0;
 
-  const highestRevenue =
-    useMemo(
-      () =>
-        Math.max(
-          ...revenueTrend.map(
-            (item) =>
-              item.revenue,
-          ),
+  const highestRevenue = useMemo(
+    () =>
+      Math.max(
+        ...revenueTrend.map(
+          (item) => item.revenue,
         ),
-      [],
-    );
+      ),
+    [],
+  );
 
   if (planLoading) {
     return (
@@ -380,9 +351,7 @@ export default function AnalyticsPage() {
             <div className="border-b border-gray-200 px-5 py-5 sm:px-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gray-100 text-gray-600">
-                  <BarChart3
-                    size={17}
-                  />
+                  <BarChart3 size={17} />
                 </div>
 
                 <div>
@@ -391,7 +360,8 @@ export default function AnalyticsPage() {
                   </p>
 
                   <h1 className="mt-1 text-lg font-semibold text-gray-950">
-                    Understand your business performance
+                    Understand your business
+                    performance
                   </h1>
                 </div>
               </div>
@@ -400,9 +370,7 @@ export default function AnalyticsPage() {
             <div className="flex min-h-[420px] items-center justify-center px-6 py-16">
               <div className="max-w-md text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center bg-gray-100 text-gray-500">
-                  <BarChart3
-                    size={21}
-                  />
+                  <BarChart3 size={21} />
                 </div>
 
                 <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
@@ -410,7 +378,8 @@ export default function AnalyticsPage() {
                 </p>
 
                 <h2 className="mt-2 text-xl font-semibold tracking-tight text-gray-950">
-                  Turn your business data into insight
+                  Turn your business data into
+                  insight
                 </h2>
 
                 <p className="mt-3 text-sm leading-6 text-gray-500">
@@ -418,8 +387,8 @@ export default function AnalyticsPage() {
                   revenue, expenses, cash flow,
                   profitability, and product
                   performance together so you can
-                  understand what is happening across
-                  your business.
+                  understand what is happening
+                  across your business.
                 </p>
 
                 <div className="mt-6 border border-gray-200 bg-gray-50 p-4 text-left">
@@ -431,7 +400,8 @@ export default function AnalyticsPage() {
 
                     <div>
                       <p className="text-xs font-semibold text-gray-800">
-                        Analytics is not included in Retail Starter
+                        Analytics is not included
+                        in Retail Starter
                       </p>
 
                       <p className="mt-1 text-xs leading-5 text-gray-500">
@@ -488,24 +458,15 @@ export default function AnalyticsPage() {
               value={period}
               onChange={(event) =>
                 setPeriod(
-                  event.target
-                    .value as Period,
+                  event.target.value as Period,
                 )
               }
               className="appearance-none border border-gray-200 bg-white py-2.5 pl-9 pr-10 text-sm text-gray-700 outline-none focus:border-emerald-900"
             >
-              <option>
-                Today
-              </option>
-              <option>
-                This week
-              </option>
-              <option>
-                This month
-              </option>
-              <option>
-                Last month
-              </option>
+              <option>Today</option>
+              <option>This week</option>
+              <option>This month</option>
+              <option>Last month</option>
             </select>
 
             <ChevronDown
@@ -519,16 +480,10 @@ export default function AnalyticsPage() {
         <div className="mb-8 grid grid-cols-1 border border-gray-200 bg-white sm:grid-cols-2 lg:grid-cols-4">
           <AnalyticsMetric
             label="Revenue"
-            value={formatCurrency(
-              data.revenue,
-            )}
-            change={
-              data.revenueChange
-            }
+            value={formatCurrency(data.revenue)}
+            change={data.revenueChange}
             icon={
-              <CircleDollarSign
-                size={18}
-              />
+              <CircleDollarSign size={18} />
             }
             description={period.toLowerCase()}
           />
@@ -538,14 +493,8 @@ export default function AnalyticsPage() {
             value={formatCurrency(
               data.grossProfit,
             )}
-            change={
-              data.profitChange
-            }
-            icon={
-              <TrendingUp
-                size={18}
-              />
-            }
+            change={data.profitChange}
+            icon={<TrendingUp size={18} />}
             description={`${profitMargin.toFixed(
               1,
             )}% margin`}
@@ -556,30 +505,16 @@ export default function AnalyticsPage() {
             value={formatCurrency(
               data.netCashFlow,
             )}
-            change={
-              data.cashFlowChange
-            }
-            icon={
-              <Wallet
-                size={18}
-              />
-            }
+            change={data.cashFlowChange}
+            icon={<Wallet size={18} />}
             description="Cash in less cash out"
           />
 
           <AnalyticsMetric
             label="Expenses"
-            value={formatCurrency(
-              data.expenses,
-            )}
-            change={
-              data.expenseChange
-            }
-            icon={
-              <TrendingDown
-                size={18}
-              />
-            }
+            value={formatCurrency(data.expenses)}
+            change={data.expenseChange}
+            icon={<TrendingDown size={18} />}
             description={`${expenseRatio.toFixed(
               1,
             )}% of revenue`}
@@ -588,7 +523,8 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Main content */}
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+          {/* Left column */}
           <div className="min-w-0 space-y-6">
             {/* Revenue vs expenses */}
             <section className="border border-gray-200 bg-white p-5 sm:p-6">
@@ -617,58 +553,52 @@ export default function AnalyticsPage() {
               </div>
 
               <div className="flex h-[280px] items-end gap-2 border-b border-gray-200 pb-0 sm:gap-5">
-                {revenueTrend.map(
-                  (item) => {
-                    const revenueHeight =
-                      (item.revenue /
-                        highestRevenue) *
-                      100;
+                {revenueTrend.map((item) => {
+                  const revenueHeight =
+                    (item.revenue /
+                      highestRevenue) *
+                    100;
 
-                    const expenseHeight =
-                      (item.expenses /
-                        highestRevenue) *
-                      100;
+                  const expenseHeight =
+                    (item.expenses /
+                      highestRevenue) *
+                    100;
 
-                    return (
-                      <div
-                        key={
-                          item.label
-                        }
-                        className="flex h-full flex-1 items-end justify-center gap-1"
-                      >
-                        <div className="flex h-full max-w-[34px] flex-1 flex-col justify-end">
-                          <div
-                            className="w-full bg-emerald-900"
-                            style={{
-                              height: `${revenueHeight}%`,
-                            }}
-                            title={`${item.label} revenue: ${formatCurrency(
-                              item.revenue,
-                            )}`}
-                          />
-                        </div>
-
-                        <div className="flex h-full max-w-[34px] flex-1 flex-col justify-end">
-                          <div
-                            className="w-full bg-gray-300"
-                            style={{
-                              height: `${expenseHeight}%`,
-                            }}
-                            title={`${item.label} expenses: ${formatCurrency(
-                              item.expenses,
-                            )}`}
-                          />
-                        </div>
-
-                        <span className="absolute translate-y-[145px] text-[11px] text-gray-500">
-                          {
-                            item.label
-                          }
-                        </span>
+                  return (
+                    <div
+                      key={item.label}
+                      className="relative flex h-full flex-1 items-end justify-center gap-1"
+                    >
+                      <div className="flex h-full max-w-[34px] flex-1 flex-col justify-end">
+                        <div
+                          className="w-full bg-emerald-900"
+                          style={{
+                            height: `${revenueHeight}%`,
+                          }}
+                          title={`${item.label} revenue: ${formatCurrency(
+                            item.revenue,
+                          )}`}
+                        />
                       </div>
-                    );
-                  },
-                )}
+
+                      <div className="flex h-full max-w-[34px] flex-1 flex-col justify-end">
+                        <div
+                          className="w-full bg-gray-300"
+                          style={{
+                            height: `${expenseHeight}%`,
+                          }}
+                          title={`${item.label} expenses: ${formatCurrency(
+                            item.expenses,
+                          )}`}
+                        />
+                      </div>
+
+                      <span className="absolute translate-y-[145px] text-[11px] text-gray-500">
+                        {item.label}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
@@ -678,9 +608,7 @@ export default function AnalyticsPage() {
                 label="Sales"
                 value={data.sales.toLocaleString()}
                 description={`${data.unitsSold} units sold`}
-                icon={
-                  <ShoppingBagIcon />
-                }
+                icon={<ShoppingBagIcon />}
               />
 
               <PerformanceCard
@@ -690,9 +618,7 @@ export default function AnalyticsPage() {
                 )}
                 description="Average revenue per sale"
                 icon={
-                  <CircleDollarSign
-                    size={18}
-                  />
+                  <CircleDollarSign size={18} />
                 }
               />
 
@@ -702,11 +628,7 @@ export default function AnalyticsPage() {
                   2,
                 )}×`}
                 description="Revenue generated per ₦1 spent"
-                icon={
-                  <BarChart3
-                    size={18}
-                  />
-                }
+                icon={<BarChart3 size={18} />}
               />
             </section>
 
@@ -718,8 +640,8 @@ export default function AnalyticsPage() {
                 </p>
 
                 <p className="mt-1 text-xs text-gray-500">
-                  Revenue contribution by
-                  product category
+                  Revenue contribution by product
+                  category
                 </p>
               </div>
 
@@ -727,24 +649,18 @@ export default function AnalyticsPage() {
                 {categoryPerformance.map(
                   (category) => (
                     <div
-                      key={
-                        category.name
-                      }
+                      key={category.name}
                       className="p-5"
                     >
                       <div className="mb-3 flex items-center justify-between gap-4">
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            {
-                              category.name
-                            }
+                            {category.name}
                           </p>
 
                           <p className="mt-0.5 text-xs text-gray-500">
-                            {
-                              category.units
-                            }{' '}
-                            units sold
+                            {category.units} units
+                            sold
                           </p>
                         </div>
 
@@ -756,10 +672,8 @@ export default function AnalyticsPage() {
                           </p>
 
                           <p className="mt-0.5 text-xs text-gray-500">
-                            {
-                              category.percentage
-                            }
-                            % of revenue
+                            {category.percentage}%
+                            of revenue
                           </p>
                         </div>
                       </div>
@@ -786,8 +700,7 @@ export default function AnalyticsPage() {
                 </p>
 
                 <p className="mt-1 text-xs text-gray-500">
-                  Where business spending is
-                  going
+                  Where business spending is going
                 </p>
               </div>
 
@@ -795,17 +708,13 @@ export default function AnalyticsPage() {
                 {expenseBreakdown.map(
                   (expense) => (
                     <div
-                      key={
-                        expense.name
-                      }
+                      key={expense.name}
                       className="flex items-center gap-4 p-5"
                     >
                       <div className="flex-1">
                         <div className="mb-2 flex items-center justify-between gap-4">
                           <span className="text-sm text-gray-700">
-                            {
-                              expense.name
-                            }
+                            {expense.name}
                           </span>
 
                           <span className="text-sm font-medium text-gray-900">
@@ -826,10 +735,7 @@ export default function AnalyticsPage() {
                       </div>
 
                       <span className="w-10 text-right text-xs text-gray-500">
-                        {
-                          expense.percentage
-                        }
-                        %
+                        {expense.percentage}%
                       </span>
                     </div>
                   ),
@@ -839,7 +745,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Right column */}
-          <aside className="space-y-6">
+          <aside className="min-w-0 space-y-6 self-start">
             {/* Key signals */}
             <section className="border border-gray-200 bg-white">
               <div className="border-b border-gray-200 p-5">
@@ -893,14 +799,9 @@ export default function AnalyticsPage() {
 
               <div className="space-y-5">
                 {topProducts.map(
-                  (
-                    product,
-                    index,
-                  ) => (
+                  (product, index) => (
                     <div
-                      key={
-                        product.name
-                      }
+                      key={product.name}
                       className="flex items-start gap-3"
                     >
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center border border-gray-200 text-xs font-semibold text-gray-500">
@@ -909,17 +810,12 @@ export default function AnalyticsPage() {
 
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-gray-900">
-                          {
-                            product.name
-                          }
+                          {product.name}
                         </p>
 
                         <div className="mt-1 flex items-center gap-2">
                           <span className="text-xs text-gray-500">
-                            {
-                              product.units
-                            }{' '}
-                            units
+                            {product.units} units
                           </span>
 
                           <span className="text-gray-300">
@@ -927,11 +823,7 @@ export default function AnalyticsPage() {
                           </span>
 
                           <span className="text-xs font-medium text-emerald-700">
-                            +
-                            {
-                              product.growth
-                            }
-                            %
+                            +{product.growth}%
                           </span>
                         </div>
                       </div>
@@ -998,9 +890,7 @@ export default function AnalyticsPage() {
             {/* Monietar insight */}
             <section className="border border-emerald-900 bg-emerald-900 p-5 text-white">
               <div className="mb-4 flex items-center gap-2">
-                <TrendingUp
-                  size={17}
-                />
+                <TrendingUp size={17} />
 
                 <span className="text-xs font-semibold uppercase tracking-[0.14em]">
                   Monietar Insight
@@ -1008,16 +898,13 @@ export default function AnalyticsPage() {
               </div>
 
               <p className="text-sm leading-6 text-emerald-50">
-                Your revenue is currently
-                growing faster than your
-                expenses. That is keeping
-                your cash flow positive, but
-                inventory purchases remain the
-                largest expense category.
-                Watch replenishment closely so
-                growing sales do not
-                unnecessarily tighten
-                available cash.
+                Your revenue is currently growing
+                faster than your expenses. That is
+                keeping your cash flow positive, but
+                inventory purchases remain the largest
+                expense category. Watch replenishment
+                closely so growing sales do not
+                unnecessarily tighten available cash.
               </p>
             </section>
           </aside>
@@ -1029,10 +916,9 @@ export default function AnalyticsPage() {
             <span className="font-medium text-gray-700">
               Temporary dashboard data.
             </span>{' '}
-            Analytics shown here are
-            placeholders and are not connected
-            to your live Monietar financial,
-            sales, or inventory data yet.
+            Analytics shown here are placeholders and
+            are not connected to your live Monietar
+            financial, sales, or inventory data yet.
           </p>
         </div>
       </div>
@@ -1079,13 +965,9 @@ function AnalyticsMetric({
               : 'text-emerald-700'
           }`}
         >
-          <ArrowUpRight
-            size={13}
-          />
+          <ArrowUpRight size={13} />
 
-          {formatPercentage(
-            change,
-          )}
+          {formatPercentage(change)}
         </span>
       </div>
 
@@ -1150,13 +1032,9 @@ function Signal({
           }`}
         >
           {positive ? (
-            <ArrowUpRight
-              size={15}
-            />
+            <ArrowUpRight size={15} />
           ) : (
-            <TrendingDown
-              size={15}
-            />
+            <TrendingDown size={15} />
           )}
         </span>
 
@@ -1194,13 +1072,9 @@ function CashMovement({
           }
         >
           {positive ? (
-            <ArrowUpRight
-              size={15}
-            />
+            <ArrowUpRight size={15} />
           ) : (
-            <ArrowDownRight
-              size={15}
-            />
+            <ArrowDownRight size={15} />
           )}
         </span>
 
@@ -1210,16 +1084,12 @@ function CashMovement({
       </div>
 
       <span className="text-sm font-medium text-gray-900">
-        {formatCurrency(
-          amount,
-        )}
+        {formatCurrency(amount)}
       </span>
     </div>
   );
 }
 
 function ShoppingBagIcon() {
-  return (
-    <Package size={18} />
-  );
+  return <Package size={18} />;
 }

@@ -44,6 +44,8 @@ type InventoryFilter =
   | 'out'
   | 'services';
 
+type StockAction = 'add' | 'adjust';
+
 interface ProductCategory {
   id: string;
   name: string;
@@ -62,7 +64,7 @@ interface Product {
   unit: string | null;
   cost_price: number;
   selling_price: number;
-  currency: string;
+  currency: Currency;
   minimum_stock: number;
   reorder_level: number;
   current_stock: number;
@@ -90,6 +92,38 @@ interface ProductForm {
   is_service: boolean;
 }
 
+interface StockForm {
+  quantity: string;
+}
+
+interface ProductQueryRow {
+  id: string;
+  user_id: string;
+  category_id: string | null;
+  sku: string | null;
+  barcode: string | null;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  unit: string | null;
+  cost_price: number | string | null;
+  selling_price: number | string | null;
+  currency: string | null;
+  minimum_stock: number | string | null;
+  reorder_level: number | string | null;
+  current_stock: number | string | null;
+  reserved_stock: number | string | null;
+  available_stock: number | string | null;
+  is_service: boolean | null;
+  is_active: boolean | null;
+  created_at: string;
+  updated_at: string;
+  product_categories:
+    | ProductCategory
+    | ProductCategory[]
+    | null;
+}
+
 const EMPTY_FORM: ProductForm = {
   name: '',
   sku: '',
@@ -106,16 +140,24 @@ const EMPTY_FORM: ProductForm = {
   is_service: false,
 };
 
-function formatMoney(amount: number, currency = 'NGN') {
-  try {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `${currency} ${Math.round(amount).toLocaleString()}`;
+const EMPTY_STOCK_FORM: StockForm = {
+  quantity: '',
+};
+
+function formatMoney(
+  amount: number,
+  currency: Currency = 'NGN'
+) {
+  if (currency === 'XOF') {
+    return `CFA ${Math.round(amount).toLocaleString(
+      'en-US'
+    )}`;
   }
+
+  return `₦${amount.toLocaleString('en-NG', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })}`;
 }
 
 function formatNumber(amount: number) {
@@ -124,7 +166,9 @@ function formatNumber(amount: number) {
   }).format(amount);
 }
 
-function toNumber(value: number | string | null | undefined) {
+function toNumber(
+  value: number | string | null | undefined
+) {
   if (value === null || value === undefined) {
     return 0;
   }
@@ -134,19 +178,34 @@ function toNumber(value: number | string | null | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function normalizeCurrency(
+  value: unknown
+): Currency {
+  return String(value).toUpperCase() === 'XOF'
+    ? 'XOF'
+    : 'NGN';
+}
+
 function getAvailableStock(product: Product) {
-  return toNumber(
-    product.available_stock ??
-      product.current_stock - product.reserved_stock
+  return Math.max(
+    toNumber(
+      product.available_stock ??
+        product.current_stock -
+          product.reserved_stock
+    ),
+    0
   );
 }
 
-function getProductStatus(product: Product): ProductStatus {
+function getProductStatus(
+  product: Product
+): ProductStatus {
   if (product.is_service) {
     return 'Service';
   }
 
-  const availableStock = getAvailableStock(product);
+  const availableStock =
+    getAvailableStock(product);
 
   if (availableStock <= 0) {
     return 'Out of stock';
@@ -157,7 +216,10 @@ function getProductStatus(product: Product): ProductStatus {
     toNumber(product.minimum_stock)
   );
 
-  if (threshold > 0 && availableStock <= threshold) {
+  if (
+    threshold > 0 &&
+    availableStock <= threshold
+  ) {
     return 'Low stock';
   }
 
@@ -169,10 +231,15 @@ function getStockValue(product: Product) {
     return 0;
   }
 
-  return getAvailableStock(product) * toNumber(product.cost_price);
+  return (
+    getAvailableStock(product) *
+    toNumber(product.cost_price)
+  );
 }
 
-function getStatusClasses(status: ProductStatus) {
+function getStatusClasses(
+  status: ProductStatus
+) {
   switch (status) {
     case 'Out of stock':
       return 'border-red-200 bg-red-50 text-red-700';
@@ -188,6 +255,80 @@ function getStatusClasses(status: ProductStatus) {
   }
 }
 
+function getCategoryName(
+  relation:
+    | ProductCategory
+    | ProductCategory[]
+    | null
+    | undefined
+) {
+  if (Array.isArray(relation)) {
+    return relation[0]?.name ?? 'Uncategorized';
+  }
+
+  return relation?.name ?? 'Uncategorized';
+}
+
+function normalizeProduct(
+  product: ProductQueryRow
+): Product {
+  const currentStock = toNumber(
+    product.current_stock
+  );
+
+  const reservedStock = toNumber(
+    product.reserved_stock
+  );
+
+  const availableStock = toNumber(
+    product.available_stock ??
+      currentStock - reservedStock
+  );
+
+  return {
+    id: product.id,
+    user_id: product.user_id,
+    category_id:
+      product.category_id ?? null,
+    category_name: getCategoryName(
+      product.product_categories
+    ),
+    sku: product.sku ?? null,
+    barcode: product.barcode ?? null,
+    name: product.name,
+    description:
+      product.description ?? null,
+    image_url:
+      product.image_url ?? null,
+    unit: product.unit ?? 'pcs',
+    cost_price: toNumber(
+      product.cost_price
+    ),
+    selling_price: toNumber(
+      product.selling_price
+    ),
+    currency: normalizeCurrency(
+      product.currency
+    ),
+    minimum_stock: toNumber(
+      product.minimum_stock
+    ),
+    reorder_level: toNumber(
+      product.reorder_level
+    ),
+    current_stock: currentStock,
+    reserved_stock: reservedStock,
+    available_stock: availableStock,
+    is_service: Boolean(
+      product.is_service
+    ),
+    is_active:
+      product.is_active !== false,
+    created_at: product.created_at,
+    updated_at: product.updated_at,
+  };
+}
+
 function ProductImage({
   product,
   large = false,
@@ -199,7 +340,9 @@ function ProductImage({
     return (
       <div
         className={`shrink-0 overflow-hidden border border-gray-200 bg-gray-50 ${
-          large ? 'h-14 w-14' : 'h-11 w-11'
+          large
+            ? 'h-14 w-14'
+            : 'h-11 w-11'
         }`}
       >
         <img
@@ -214,7 +357,9 @@ function ProductImage({
   return (
     <div
       className={`flex shrink-0 items-center justify-center border border-gray-200 bg-gray-50 text-emerald-900 ${
-        large ? 'h-14 w-14' : 'h-11 w-11'
+        large
+          ? 'h-14 w-14'
+          : 'h-11 w-11'
       }`}
     >
       <Package
@@ -230,13 +375,11 @@ function MetricCard({
   value,
   detail,
   icon: Icon,
-  locked = false,
 }: {
   label: string;
   value: string;
   detail: string;
   icon: typeof Package;
-  locked?: boolean;
 }) {
   return (
     <div className="border border-gray-200 bg-white p-5">
@@ -248,22 +391,19 @@ function MetricCard({
             className="text-emerald-900"
           />
         </div>
-
-        {locked && (
-          <span className="inline-flex items-center gap-1 border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-gray-500">
-            <Lock size={10} />
-            Upgrade
-          </span>
-        )}
       </div>
 
-      <p className="text-sm text-gray-500">{label}</p>
+      <p className="text-sm text-gray-500">
+        {label}
+      </p>
 
       <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-950">
         {value}
       </p>
 
-      <p className="mt-2 text-xs text-gray-500">{detail}</p>
+      <p className="mt-2 text-xs text-gray-500">
+        {detail}
+      </p>
     </div>
   );
 }
@@ -285,35 +425,45 @@ function StatusBadge({
 }
 
 export default function InventoryPage() {
-  /*
-   * Keep one Supabase client instance for the lifetime
-   * of this page.
-   *
-   * This prevents loadData from being recreated on every
-   * render and makes the visibility refresh reliable.
-   */
-  const [supabase] = useState(() => createClient());
+  const [supabase] = useState(() =>
+    createClient()
+  );
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [products, setProducts] =
+    useState<Product[]>([]);
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] =
+    useState<ProductCategory[]>([]);
 
-  const [search, setSearch] = useState('');
+  const [loading, setLoading] =
+    useState(true);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [search, setSearch] =
+    useState('');
+
   const [categoryFilter, setCategoryFilter] =
     useState('all');
+
   const [inventoryFilter, setInventoryFilter] =
     useState<InventoryFilter>('all');
-  const [showFilters, setShowFilters] = useState(false);
+
+  const [showFilters, setShowFilters] =
+    useState(false);
 
   const [showAddProduct, setShowAddProduct] =
     useState(false);
-  const [savingProduct, setSavingProduct] = useState(false);
-  const [formError, setFormError] = useState<string | null>(
-    null
-  );
+
+  const [savingProduct, setSavingProduct] =
+    useState(false);
+
+  const [formError, setFormError] =
+    useState<string | null>(null);
 
   const [productForm, setProductForm] =
     useState<ProductForm>(EMPTY_FORM);
@@ -321,16 +471,21 @@ export default function InventoryPage() {
   const [openProductMenu, setOpenProductMenu] =
     useState<string | null>(null);
 
-  /*
-   * showLoader = true
-   *   Used for the initial page load.
-   *
-   * showLoader = false
-   *   Used when returning from Sales or manually refreshing.
-   *
-   * This allows the inventory numbers to update without
-   * replacing the entire table with the loading state.
-   */
+  const [stockAction, setStockAction] =
+    useState<StockAction | null>(null);
+
+  const [selectedStockProduct, setSelectedStockProduct] =
+    useState<Product | null>(null);
+
+  const [stockForm, setStockForm] =
+    useState<StockForm>(EMPTY_STOCK_FORM);
+
+  const [savingStock, setSavingStock] =
+    useState(false);
+
+  const [stockFormError, setStockFormError] =
+    useState<string | null>(null);
+
   const loadData = useCallback(
     async (showLoader = true) => {
       setError(null);
@@ -360,49 +515,51 @@ export default function InventoryPage() {
         return;
       }
 
-      const [productsResult, categoriesResult] =
-        await Promise.all([
-          supabase
-            .from('products')
-            .select(`
+      const [
+        productsResult,
+        categoriesResult,
+      ] = await Promise.all([
+        supabase
+          .from('products')
+          .select(`
+            id,
+            user_id,
+            category_id,
+            sku,
+            barcode,
+            name,
+            description,
+            image_url,
+            unit,
+            cost_price,
+            selling_price,
+            currency,
+            minimum_stock,
+            reorder_level,
+            current_stock,
+            reserved_stock,
+            available_stock,
+            is_service,
+            is_active,
+            created_at,
+            updated_at,
+            product_categories (
               id,
-              user_id,
-              category_id,
-              sku,
-              barcode,
-              name,
-              description,
-              image_url,
-              unit,
-              cost_price,
-              selling_price,
-              currency,
-              minimum_stock,
-              reorder_level,
-              current_stock,
-              reserved_stock,
-              available_stock,
-              is_service,
-              is_active,
-              created_at,
-              updated_at,
-              product_categories (
-                id,
-                name
-              )
-            `)
-            .eq('user_id', user.id)
-            .order('created_at', {
-              ascending: false,
-            }),
+              name
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', {
+            ascending: false,
+          }),
 
-          supabase
-            .from('product_categories')
-            .select('id, name')
-            .order('name', {
-              ascending: true,
-            }),
-        ]);
+        supabase
+          .from('product_categories')
+          .select('id, name')
+          .order('name', {
+            ascending: true,
+          }),
+      ]);
 
       if (productsResult.error) {
         console.error(
@@ -425,7 +582,8 @@ export default function InventoryPage() {
         setError(
           productsResult.error
             ? `We could not load your products. ${
-                productsResult.error.message || ''
+                productsResult.error.message ||
+                ''
               }`.trim()
             : 'We could not load your product categories.'
         );
@@ -434,83 +592,21 @@ export default function InventoryPage() {
         return;
       }
 
-      const normalizedProducts: Product[] = (
-        productsResult.data ?? []
-      ).map((product: any) => {
-        const categoryRelation = Array.isArray(
-          product.product_categories
-        )
-          ? product.product_categories[0]
-          : product.product_categories;
+      const rawProducts =
+        (productsResult.data ??
+          []) as ProductQueryRow[];
 
-        const currentStock = toNumber(
-          product.current_stock
+      const normalizedProducts: Product[] =
+        rawProducts.map(
+          (product: ProductQueryRow) =>
+            normalizeProduct(product)
         );
 
-        const reservedStock = toNumber(
-          product.reserved_stock
-        );
-
-        /*
-         * available_stock comes directly from Supabase.
-         *
-         * This is important because after a sale,
-         * current_stock is reduced in the database and
-         * the generated available_stock column reflects
-         * that new value.
-         */
-        const availableStock = toNumber(
-          product.available_stock ??
-            currentStock - reservedStock
-        );
-
-        return {
-          id: product.id,
-          user_id: product.user_id,
-          category_id: product.category_id ?? null,
-          category_name:
-            categoryRelation?.name ??
-            'Uncategorized',
-          sku: product.sku ?? null,
-          barcode: product.barcode ?? null,
-          name: product.name,
-          description: product.description ?? null,
-          image_url: product.image_url ?? null,
-          unit: product.unit ?? 'pcs',
-          cost_price: toNumber(
-            product.cost_price
-          ),
-          selling_price: toNumber(
-            product.selling_price
-          ),
-          currency: product.currency ?? 'NGN',
-          minimum_stock: toNumber(
-            product.minimum_stock
-          ),
-          reorder_level: toNumber(
-            product.reorder_level
-          ),
-          current_stock: currentStock,
-          reserved_stock: reservedStock,
-          available_stock: availableStock,
-          is_service: Boolean(product.is_service),
-          is_active: product.is_active !== false,
-          created_at: product.created_at,
-          updated_at: product.updated_at,
-        };
-      });
-
-      /*
-       * This replaces the old product state with the
-       * latest database state.
-       *
-       * Therefore, if Sales reduced 20 -> 17,
-       * the Inventory page becomes 17 here.
-       */
       setProducts(normalizedProducts);
 
       setCategories(
-        (categoriesResult.data ?? []) as ProductCategory[]
+        (categoriesResult.data ??
+          []) as ProductCategory[]
       );
 
       setLoading(false);
@@ -518,36 +614,18 @@ export default function InventoryPage() {
     [supabase]
   );
 
-  /*
-   * Initial load + automatic refresh when returning
-   * to the Inventory page.
-   *
-   * Example:
-   *
-   * Inventory: 20 units
-   *       ↓
-   * Go to Sales
-   *       ↓
-   * Record sale of 3
-   *       ↓
-   * Database: 17 units
-   *       ↓
-   * Return to Inventory
-   *       ↓
-   * visibilitychange fires
-   *       ↓
-   * loadData(false)
-   *       ↓
-   * Inventory: 17 units
-   */
   useEffect(() => {
     loadData(true);
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadData(false);
-      }
-    };
+    const handleVisibilityChange =
+      () => {
+        if (
+          document.visibilityState ===
+          'visible'
+        ) {
+          loadData(false);
+        }
+      };
 
     document.addEventListener(
       'visibilitychange',
@@ -565,7 +643,8 @@ export default function InventoryPage() {
   const totalProducts = useMemo(
     () =>
       products.filter(
-        (product) => product.is_active
+        (product: Product) =>
+          product.is_active
       ).length,
     [products]
   );
@@ -574,12 +653,15 @@ export default function InventoryPage() {
     () =>
       products
         .filter(
-          (product) =>
+          (product: Product) =>
             product.is_active &&
             !product.is_service
         )
         .reduce(
-          (total, product) =>
+          (
+            total: number,
+            product: Product
+          ) =>
             total +
             Math.max(
               getAvailableStock(product),
@@ -593,7 +675,7 @@ export default function InventoryPage() {
   const lowStock = useMemo(
     () =>
       products.filter(
-        (product) =>
+        (product: Product) =>
           product.is_active &&
           getProductStatus(product) ===
             'Low stock'
@@ -604,7 +686,7 @@ export default function InventoryPage() {
   const outOfStock = useMemo(
     () =>
       products.filter(
-        (product) =>
+        (product: Product) =>
           product.is_active &&
           getProductStatus(product) ===
             'Out of stock'
@@ -612,30 +694,43 @@ export default function InventoryPage() {
     [products]
   );
 
-  const stockValueByCurrency = useMemo(() => {
-    const totals: Record<string, number> = {};
+  const stockValueByCurrency =
+    useMemo(() => {
+      const totals: Record<
+        Currency,
+        number
+      > = {
+        NGN: 0,
+        XOF: 0,
+      };
 
-    products
-      .filter(
-        (product) =>
-          product.is_active &&
-          !product.is_service
-      )
-      .forEach((product) => {
-        const currency =
-          product.currency || 'NGN';
+      products
+        .filter(
+          (product: Product) =>
+            product.is_active &&
+            !product.is_service
+        )
+        .forEach(
+          (product: Product) => {
+            totals[product.currency] +=
+              getStockValue(product);
+          }
+        );
 
-        totals[currency] =
-          (totals[currency] ?? 0) +
-          getStockValue(product);
-      });
-
-    return totals;
-  }, [products]);
+      return totals;
+    }, [products]);
 
   const stockValueDisplay = useMemo(() => {
-    const entries = Object.entries(
-      stockValueByCurrency
+    const entries = (
+      Object.entries(
+        stockValueByCurrency
+      ) as [
+        Currency,
+        number
+      ][]
+    ).filter(
+      ([, value]: [Currency, number]) =>
+        value > 0
     );
 
     if (entries.length === 0) {
@@ -643,78 +738,105 @@ export default function InventoryPage() {
     }
 
     if (entries.length === 1) {
-      const [currency, value] = entries[0];
+      const [currency, value] =
+        entries[0];
 
-      return formatMoney(value, currency);
+      return formatMoney(
+        value,
+        currency
+      );
     }
 
-    return 'Multiple currencies';
+    return `${formatMoney(
+      entries.find(
+        ([currency]: [
+          Currency,
+          number
+        ]) => currency === 'NGN'
+      )?.[1] ?? 0,
+      'NGN'
+    )} · ${formatMoney(
+      entries.find(
+        ([currency]: [
+          Currency,
+          number
+        ]) => currency === 'XOF'
+      )?.[1] ?? 0,
+      'XOF'
+    )}`;
   }, [stockValueByCurrency]);
 
   const filteredProducts = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query =
+      search.trim().toLowerCase();
 
-    return products.filter((product) => {
-      if (!product.is_active) {
-        return false;
+    return products.filter(
+      (product: Product) => {
+        if (!product.is_active) {
+          return false;
+        }
+
+        const matchesSearch =
+          !query ||
+          product.name
+            .toLowerCase()
+            .includes(query) ||
+          product.sku
+            ?.toLowerCase()
+            .includes(query) ||
+          product.barcode
+            ?.toLowerCase()
+            .includes(query) ||
+          product.category_name
+            .toLowerCase()
+            .includes(query);
+
+        const matchesCategory =
+          categoryFilter ===
+            'all' ||
+          product.category_id ===
+            categoryFilter;
+
+        const status =
+          getProductStatus(product);
+
+        let matchesInventory = true;
+
+        switch (
+          inventoryFilter
+        ) {
+          case 'healthy':
+            matchesInventory =
+              status === 'Healthy';
+            break;
+
+          case 'low':
+            matchesInventory =
+              status === 'Low stock';
+            break;
+
+          case 'out':
+            matchesInventory =
+              status ===
+              'Out of stock';
+            break;
+
+          case 'services':
+            matchesInventory =
+              status === 'Service';
+            break;
+
+          default:
+            matchesInventory = true;
+        }
+
+        return (
+          matchesSearch &&
+          matchesCategory &&
+          matchesInventory
+        );
       }
-
-      const matchesSearch =
-        !query ||
-        product.name
-          .toLowerCase()
-          .includes(query) ||
-        product.sku
-          ?.toLowerCase()
-          .includes(query) ||
-        product.barcode
-          ?.toLowerCase()
-          .includes(query) ||
-        product.category_name
-          .toLowerCase()
-          .includes(query);
-
-      const matchesCategory =
-        categoryFilter === 'all' ||
-        product.category_id ===
-          categoryFilter;
-
-      const status =
-        getProductStatus(product);
-
-      let matchesInventory = true;
-
-      switch (inventoryFilter) {
-        case 'healthy':
-          matchesInventory =
-            status === 'Healthy';
-          break;
-
-        case 'low':
-          matchesInventory =
-            status === 'Low stock';
-          break;
-
-        case 'out':
-          matchesInventory =
-            status === 'Out of stock';
-          break;
-
-        case 'services':
-          matchesInventory =
-            status === 'Service';
-          break;
-
-        default:
-          matchesInventory = true;
-      }
-
-      return (
-        matchesSearch &&
-        matchesCategory &&
-        matchesInventory
-      );
-    });
+    );
   }, [
     products,
     search,
@@ -722,51 +844,65 @@ export default function InventoryPage() {
     inventoryFilter,
   ]);
 
-  const attentionProducts = useMemo(
-    () =>
-      products
-        .filter(
-          (product) =>
-            product.is_active &&
-            !product.is_service &&
-            (getProductStatus(product) ===
-              'Low stock' ||
-              getProductStatus(product) ===
-                'Out of stock')
-        )
-        .sort((a, b) => {
-          const aStatus =
-            getProductStatus(a);
-          const bStatus =
-            getProductStatus(b);
+  const attentionProducts =
+    useMemo(
+      () =>
+        products
+          .filter(
+            (product: Product) =>
+              product.is_active &&
+              !product.is_service &&
+              (getProductStatus(
+                product
+              ) === 'Low stock' ||
+                getProductStatus(
+                  product
+                ) === 'Out of stock')
+          )
+          .sort(
+            (
+              a: Product,
+              b: Product
+            ) => {
+              const aStatus =
+                getProductStatus(a);
 
-          if (
-            aStatus === 'Out of stock' &&
-            bStatus !== 'Out of stock'
-          ) {
-            return -1;
-          }
+              const bStatus =
+                getProductStatus(b);
 
-          if (
-            aStatus !== 'Out of stock' &&
-            bStatus === 'Out of stock'
-          ) {
-            return 1;
-          }
+              if (
+                aStatus ===
+                  'Out of stock' &&
+                bStatus !==
+                  'Out of stock'
+              ) {
+                return -1;
+              }
 
-          return (
-            getAvailableStock(a) -
-            getAvailableStock(b)
-          );
-        })
-        .slice(0, 5),
-    [products]
-  );
+              if (
+                aStatus !==
+                  'Out of stock' &&
+                bStatus ===
+                  'Out of stock'
+              ) {
+                return 1;
+              }
+
+              return (
+                getAvailableStock(a) -
+                getAvailableStock(b)
+              );
+            }
+          )
+          .slice(0, 5),
+      [products]
+    );
 
   function resetProductForm() {
     setProductForm({
       ...EMPTY_FORM,
     });
+
     setFormError(null);
   }
 
@@ -780,10 +916,14 @@ export default function InventoryPage() {
     field: keyof ProductForm,
     value: string | boolean
   ) {
-    setProductForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
+    setProductForm(
+      (
+        current: ProductForm
+      ) => ({
+        ...current,
+        [field]: value,
+      })
+    );
   }
 
   async function handleCreateProduct(
@@ -811,23 +951,30 @@ export default function InventoryPage() {
 
     const currentStock =
       Number(
-        productForm.current_stock || 0
+        productForm.current_stock ||
+          0
       );
 
     const minimumStock =
       Number(
-        productForm.minimum_stock || 0
+        productForm.minimum_stock ||
+          0
       );
 
     const reorderLevel =
       Number(
-        productForm.reorder_level || 0
+        productForm.reorder_level ||
+          0
       );
 
     if (
-      !Number.isFinite(costPrice) ||
+      !Number.isFinite(
+        costPrice
+      ) ||
       costPrice < 0 ||
-      !Number.isFinite(sellingPrice) ||
+      !Number.isFinite(
+        sellingPrice
+      ) ||
       sellingPrice < 0
     ) {
       setFormError(
@@ -837,15 +984,33 @@ export default function InventoryPage() {
     }
 
     if (
-      !Number.isFinite(currentStock) ||
+      !Number.isFinite(
+        currentStock
+      ) ||
       currentStock < 0 ||
-      !Number.isFinite(minimumStock) ||
+      !Number.isFinite(
+        minimumStock
+      ) ||
       minimumStock < 0 ||
-      !Number.isFinite(reorderLevel) ||
+      !Number.isFinite(
+        reorderLevel
+      ) ||
       reorderLevel < 0
     ) {
       setFormError(
         'Enter valid stock values.'
+      );
+      return;
+    }
+
+    if (
+      !productForm.is_service &&
+      !Number.isInteger(
+        currentStock
+      )
+    ) {
+      setFormError(
+        'Initial stock must be a whole number.'
       );
       return;
     }
@@ -857,7 +1022,8 @@ export default function InventoryPage() {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     if (authError || !user) {
       setFormError(
@@ -870,76 +1036,86 @@ export default function InventoryPage() {
       return;
     }
 
-    const { data, error: productError } =
-      await supabase
-        .from('products')
-        .insert({
-          user_id: user.id,
-          category_id:
-            productForm.category_id ||
-            null,
-          sku:
-            productForm.sku.trim() ||
-            null,
-          barcode:
-            productForm.barcode.trim() ||
-            null,
-          name,
-          description:
-            productForm.description.trim() ||
-            null,
-          unit:
-            productForm.unit.trim() ||
-            'pcs',
-          cost_price: costPrice,
-          selling_price: sellingPrice,
-          currency:
-            productForm.currency,
-          minimum_stock: Math.round(
+    const {
+      data,
+      error: productError,
+    } = await supabase
+      .from('products')
+      .insert({
+        user_id: user.id,
+        category_id:
+          productForm.category_id ||
+          null,
+        sku:
+          productForm.sku.trim() ||
+          null,
+        barcode:
+          productForm.barcode.trim() ||
+          null,
+        name,
+        description:
+          productForm.description.trim() ||
+          null,
+        unit:
+          productForm.unit.trim() ||
+          'pcs',
+        cost_price: costPrice,
+        selling_price:
+          sellingPrice,
+        currency:
+          productForm.currency,
+        minimum_stock:
+          Math.round(
             minimumStock
           ),
-          reorder_level: Math.round(
+        reorder_level:
+          Math.round(
             reorderLevel
           ),
-          current_stock:
-            productForm.is_service
-              ? 0
-              : Math.round(currentStock),
-          reserved_stock: 0,
-          is_service:
-            productForm.is_service,
-          is_active: true,
-        })
-        .select(`
+        current_stock:
+          productForm.is_service
+            ? 0
+            : Math.round(
+                currentStock
+              ),
+        reserved_stock: 0,
+        is_service:
+          productForm.is_service,
+        is_active: true,
+      })
+      .select(`
+        id,
+        user_id,
+        category_id,
+        sku,
+        barcode,
+        name,
+        description,
+        image_url,
+        unit,
+        cost_price,
+        selling_price,
+        currency,
+        minimum_stock,
+        reorder_level,
+        current_stock,
+        reserved_stock,
+        available_stock,
+        is_service,
+        is_active,
+        created_at,
+        updated_at,
+        product_categories (
           id,
-          user_id,
-          category_id,
-          sku,
-          barcode,
-          name,
-          description,
-          image_url,
-          unit,
-          cost_price,
-          selling_price,
-          currency,
-          minimum_stock,
-          reorder_level,
-          current_stock,
-          reserved_stock,
-          available_stock,
-          is_service,
-          is_active,
-          created_at,
-          updated_at,
-          product_categories (
-            id,
-            name
-          )
-        `)
-        .single();
+          name
+        )
+      `)
+      .single();
 
-    if (productError || !data) {
+    if (
+      productError ||
+      !data
+    ) {
       console.error(
         'Product creation error:',
         productError
@@ -955,72 +1131,349 @@ export default function InventoryPage() {
       return;
     }
 
-    const categoryRelation =
-      Array.isArray(
-        data.product_categories
-      )
-        ? data.product_categories[0]
-        : data.product_categories;
+    const newProduct =
+      normalizeProduct(
+        data as ProductQueryRow
+      );
 
-    const currentStockValue =
-      toNumber(data.current_stock);
-
-    const reservedStockValue =
-      toNumber(data.reserved_stock);
-
-    const newProduct: Product = {
-      id: data.id,
-      user_id: data.user_id,
-      category_id:
-        data.category_id ?? null,
-      category_name:
-        categoryRelation?.name ??
-        'Uncategorized',
-      sku: data.sku ?? null,
-      barcode: data.barcode ?? null,
-      name: data.name,
-      description:
-        data.description ?? null,
-      image_url:
-        data.image_url ?? null,
-      unit: data.unit ?? 'pcs',
-      cost_price:
-        toNumber(data.cost_price),
-      selling_price:
-        toNumber(data.selling_price),
-      currency:
-        data.currency ?? 'NGN',
-      minimum_stock:
-        toNumber(data.minimum_stock),
-      reorder_level:
-        toNumber(data.reorder_level),
-      current_stock:
-        currentStockValue,
-      reserved_stock:
-        reservedStockValue,
-      available_stock: toNumber(
-        data.available_stock ??
-          currentStockValue -
-            reservedStockValue
-      ),
-      is_service:
-        Boolean(data.is_service),
-      is_active:
-        data.is_active !== false,
-      created_at:
-        data.created_at,
-      updated_at:
-        data.updated_at,
-    };
-
-    setProducts((current) => [
-      newProduct,
-      ...current,
-    ]);
+    setProducts(
+      (current: Product[]) => [
+        newProduct,
+        ...current,
+      ]
+    );
 
     setShowAddProduct(false);
     resetProductForm();
     setSavingProduct(false);
+  }
+
+  function openStockModal(
+    product: Product | null,
+    action: StockAction
+  ) {
+    if (product?.is_service) {
+      return;
+    }
+
+    setOpenProductMenu(null);
+    setSelectedStockProduct(
+      product
+    );
+    setStockAction(action);
+    setStockForm({
+      ...EMPTY_STOCK_FORM,
+    });
+    setStockFormError(null);
+  }
+
+  function closeStockModal() {
+    if (savingStock) {
+      return;
+    }
+
+    setStockAction(null);
+    setSelectedStockProduct(
+      null
+    );
+    setStockForm({
+      ...EMPTY_STOCK_FORM,
+    });
+    setStockFormError(null);
+  }
+
+  function handleStockProductChange(
+    productId: string
+  ) {
+    const product =
+      products.find(
+        (item: Product) =>
+          item.id === productId
+      ) ?? null;
+
+    setSelectedStockProduct(
+      product
+    );
+
+    setStockFormError(null);
+    setStockForm({
+      ...EMPTY_STOCK_FORM,
+    });
+  }
+
+  async function handleStockUpdate(
+    event?: FormEvent
+  ) {
+    event?.preventDefault();
+
+    if (!stockAction) {
+      return;
+    }
+
+    if (!selectedStockProduct) {
+      setStockFormError(
+        'Select a product first.'
+      );
+      return;
+    }
+
+    const quantity = Number(
+      stockForm.quantity
+    );
+
+    if (
+      !Number.isFinite(
+        quantity
+      ) ||
+      quantity <= 0
+    ) {
+      setStockFormError(
+        'Enter a quantity greater than zero.'
+      );
+      return;
+    }
+
+    if (
+      !Number.isInteger(quantity)
+    ) {
+      setStockFormError(
+        'Stock quantity must be a whole number.'
+      );
+      return;
+    }
+
+    const product =
+      selectedStockProduct;
+
+    const currentStock =
+      toNumber(
+        product.current_stock
+      );
+
+    const reservedStock =
+      toNumber(
+        product.reserved_stock
+      );
+
+    let nextCurrentStock =
+      currentStock;
+
+    if (
+      stockAction === 'add'
+    ) {
+      nextCurrentStock =
+        currentStock +
+        quantity;
+    } else {
+      nextCurrentStock =
+        quantity;
+
+      if (
+        nextCurrentStock <
+        reservedStock
+      ) {
+        setStockFormError(
+          `Stock cannot be set below the ${formatNumber(
+            reservedStock
+          )} unit(s) currently reserved.`
+        );
+        return;
+      }
+    }
+
+    setSavingStock(true);
+    setStockFormError(null);
+
+    const {
+      data: { user },
+      error: authError,
+    } =
+      await supabase.auth.getUser();
+
+    if (
+      authError ||
+      !user
+    ) {
+      setStockFormError(
+        authError
+          ? 'We could not verify your account.'
+          : 'You need to be signed in to update stock.'
+      );
+      setSavingStock(false);
+      return;
+    }
+
+    /*
+     * Fetch the latest stock value before updating.
+     * This prevents the update from being based only
+     * on an older value in the UI.
+     */
+    const {
+      data: latestProduct,
+      error: latestProductError,
+    } = await supabase
+      .from('products')
+      .select(
+        'id, current_stock, reserved_stock, is_service'
+      )
+      .eq(
+        'id',
+        product.id
+      )
+      .eq(
+        'user_id',
+        user.id
+      )
+      .single();
+
+    if (
+      latestProductError ||
+      !latestProduct
+    ) {
+      setStockFormError(
+        latestProductError?.message
+          ? `We could not verify the latest stock. ${latestProductError.message}`
+          : 'We could not verify the latest stock.'
+      );
+
+      setSavingStock(false);
+      return;
+    }
+
+    if (
+      latestProduct.is_service
+    ) {
+      setStockFormError(
+        'Services do not use physical stock.'
+      );
+      setSavingStock(false);
+      return;
+    }
+
+    const latestCurrentStock =
+      toNumber(
+        latestProduct.current_stock
+      );
+
+    const latestReservedStock =
+      toNumber(
+        latestProduct.reserved_stock
+      );
+
+    let finalCurrentStock =
+      latestCurrentStock;
+
+    if (
+      stockAction === 'add'
+    ) {
+      finalCurrentStock =
+        latestCurrentStock +
+        quantity;
+    } else {
+      finalCurrentStock =
+        quantity;
+
+      if (
+        finalCurrentStock <
+        latestReservedStock
+      ) {
+        setStockFormError(
+          `Stock cannot be set below the ${formatNumber(
+            latestReservedStock
+          )} unit(s) currently reserved.`
+        );
+        setSavingStock(false);
+        return;
+      }
+    }
+
+    const {
+      data,
+      error: updateError,
+    } = await supabase
+      .from('products')
+      .update({
+        current_stock:
+          Math.round(
+            finalCurrentStock
+          ),
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        'id',
+        product.id
+      )
+      .eq(
+        'user_id',
+        user.id
+      )
+      .select(`
+        id,
+        user_id,
+        category_id,
+        sku,
+        barcode,
+        name,
+        description,
+        image_url,
+        unit,
+        cost_price,
+        selling_price,
+        currency,
+        minimum_stock,
+        reorder_level,
+        current_stock,
+        reserved_stock,
+        available_stock,
+        is_service,
+        is_active,
+        created_at,
+        updated_at,
+        product_categories (
+          id,
+          name
+        )
+      `)
+      .single();
+
+    if (
+      updateError ||
+      !data
+    ) {
+      console.error(
+        'Stock update error:',
+        updateError
+      );
+
+      setStockFormError(
+        updateError?.message
+          ? `We could not update the stock. ${updateError.message}`
+          : 'We could not update the stock.'
+      );
+
+      setSavingStock(false);
+      return;
+    }
+
+    const updatedProduct =
+      normalizeProduct(
+        data as ProductQueryRow
+      );
+
+    setProducts(
+      (current: Product[]) =>
+        current.map(
+          (item: Product) =>
+            item.id ===
+            updatedProduct.id
+              ? updatedProduct
+              : item
+        )
+    );
+
+    setSavingStock(false);
+    closeStockModal();
   }
 
   async function refreshInventory() {
@@ -1034,9 +1487,10 @@ export default function InventoryPage() {
     }
   }
 
-  function handleLockedAction(
+  function handleUnavailableAction(
     message: string
   ) {
+    setOpenProductMenu(null);
     setError(message);
   }
 
@@ -1056,24 +1510,28 @@ export default function InventoryPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-              Manage your products, prices and stock
-              in one place.
+              Manage your products, prices and
+              stock in one place.
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
-              onClick={refreshInventory}
+              onClick={
+                refreshInventory
+              }
               disabled={
-                loading || refreshing
+                loading ||
+                refreshing
               }
               className="flex h-11 items-center justify-center gap-2 border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw
                 size={16}
                 className={
-                  loading || refreshing
+                  loading ||
+                  refreshing
                     ? 'animate-spin'
                     : ''
                 }
@@ -1083,23 +1541,9 @@ export default function InventoryPage() {
 
             <button
               type="button"
-              onClick={() =>
-                handleLockedAction(
-                  'Stock adjustment is available on the Growing Merchant plan.'
-                )
+              onClick={
+                openAddProduct
               }
-              className="flex h-11 items-center justify-center gap-2 border border-gray-300 bg-white px-4 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50"
-            >
-              <Lock size={15} />
-              Stock adjustment
-              <span className="text-[10px] uppercase tracking-[0.06em]">
-                Upgrade
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={openAddProduct}
               disabled={loading}
               className="flex h-11 items-center justify-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-gray-300"
             >
@@ -1141,7 +1585,9 @@ export default function InventoryPage() {
             value={
               loading
                 ? '—'
-                : String(totalProducts)
+                : String(
+                    totalProducts
+                  )
             }
             detail="Active products in your catalogue"
             icon={Package}
@@ -1152,7 +1598,9 @@ export default function InventoryPage() {
             value={
               loading
                 ? '—'
-                : formatNumber(totalUnits)
+                : formatNumber(
+                    totalUnits
+                  )
             }
             detail="Current available physical stock"
             icon={Boxes}
@@ -1167,7 +1615,6 @@ export default function InventoryPage() {
             }
             detail="Based on recorded cost prices"
             icon={DollarSign}
-            locked
           />
 
           <MetricCard
@@ -1175,11 +1622,12 @@ export default function InventoryPage() {
             value={
               loading
                 ? '—'
-                : String(lowStock)
+                : String(
+                    lowStock
+                  )
             }
             detail="Based on your recorded stock levels"
             icon={CircleAlert}
-            locked
           />
         </section>
 
@@ -1197,9 +1645,12 @@ export default function InventoryPage() {
 
                   <input
                     value={search}
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       setSearch(
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="Search products..."
@@ -1208,10 +1659,15 @@ export default function InventoryPage() {
                 </div>
 
                 <select
-                  value={categoryFilter}
-                  onChange={(event) =>
+                  value={
+                    categoryFilter
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     setCategoryFilter(
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                   className="h-11 border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-emerald-900"
@@ -1221,12 +1677,20 @@ export default function InventoryPage() {
                   </option>
 
                   {categories.map(
-                    (category) => (
+                    (
+                      category: ProductCategory
+                    ) => (
                       <option
-                        key={category.id}
-                        value={category.id}
+                        key={
+                          category.id
+                        }
+                        value={
+                          category.id
+                        }
                       >
-                        {category.name}
+                        {
+                          category.name
+                        }
                       </option>
                     )
                   )}
@@ -1236,7 +1700,9 @@ export default function InventoryPage() {
                   type="button"
                   onClick={() =>
                     setShowFilters(
-                      (current) =>
+                      (
+                        current
+                      ) =>
                         !current
                     )
                   }
@@ -1282,7 +1748,10 @@ export default function InventoryPage() {
                       ],
                     ] as const
                   ).map(
-                    ([value, label]) => (
+                    ([
+                      value,
+                      label,
+                    ]) => (
                       <button
                         key={value}
                         type="button"
@@ -1341,7 +1810,9 @@ export default function InventoryPage() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={7}>
+                        <td
+                          colSpan={7}
+                        >
                           <div className="flex min-h-[320px] items-center justify-center">
                             <div className="flex items-center gap-2 text-sm text-gray-500">
                               <Loader2
@@ -1356,7 +1827,9 @@ export default function InventoryPage() {
                     ) : filteredProducts.length ===
                       0 ? (
                       <tr>
-                        <td colSpan={7}>
+                        <td
+                          colSpan={7}
+                        >
                           <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
                             <div className="flex h-12 w-12 items-center justify-center bg-gray-50 text-gray-400">
                               <Package
@@ -1391,7 +1864,9 @@ export default function InventoryPage() {
                                 className="mt-5 flex h-10 items-center gap-2 bg-emerald-900 px-4 text-sm font-medium text-white hover:bg-emerald-800"
                               >
                                 <Plus
-                                  size={15}
+                                  size={
+                                    15
+                                  }
                                 />
                                 Add product
                               </button>
@@ -1401,7 +1876,9 @@ export default function InventoryPage() {
                       </tr>
                     ) : (
                       filteredProducts.map(
-                        (product) => {
+                        (
+                          product: Product
+                        ) => {
                           const status =
                             getProductStatus(
                               product
@@ -1556,17 +2033,19 @@ export default function InventoryPage() {
                                   aria-label={`Actions for ${product.name}`}
                                 >
                                   <MoreHorizontal
-                                    size={17}
+                                    size={
+                                      17
+                                    }
                                   />
                                 </button>
 
                                 {openProductMenu ===
                                   product.id && (
-                                  <div className="absolute right-3 top-12 z-20 w-48 border border-gray-200 bg-white py-1 shadow-lg">
+                                  <div className="absolute right-3 top-12 z-20 w-52 border border-gray-200 bg-white py-1 shadow-lg">
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        handleLockedAction(
+                                        handleUnavailableAction(
                                           'Product editing is not available yet.'
                                         )
                                       }
@@ -1580,27 +2059,9 @@ export default function InventoryPage() {
                                         <button
                                           type="button"
                                           onClick={() =>
-                                            handleLockedAction(
-                                              'Stock adjustment is available on the Growing Merchant plan.'
-                                            )
-                                          }
-                                          className="flex w-full items-center justify-between px-4 py-2.5 text-left text-xs text-gray-700 hover:bg-gray-50"
-                                        >
-                                          <span>
-                                            Adjust
-                                            stock
-                                          </span>
-
-                                          <span className="text-[9px] uppercase tracking-[0.06em] text-gray-400">
-                                            Upgrade
-                                          </span>
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleLockedAction(
-                                              'Adding stock is available on the Growing Merchant plan.'
+                                            openStockModal(
+                                              product,
+                                              'add'
                                             )
                                           }
                                           className="flex w-full items-center justify-between px-4 py-2.5 text-left text-xs text-gray-700 hover:bg-gray-50"
@@ -1609,9 +2070,21 @@ export default function InventoryPage() {
                                             Add
                                             stock
                                           </span>
+                                        </button>
 
-                                          <span className="text-[9px] uppercase tracking-[0.06em] text-gray-400">
-                                            Upgrade
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            openStockModal(
+                                              product,
+                                              'adjust'
+                                            )
+                                          }
+                                          className="flex w-full items-center justify-between px-4 py-2.5 text-left text-xs text-gray-700 hover:bg-gray-50"
+                                        >
+                                          <span>
+                                            Adjust
+                                            stock
                                           </span>
                                         </button>
                                       </>
@@ -1646,7 +2119,9 @@ export default function InventoryPage() {
                     <div className="flex h-12 w-12 items-center justify-center bg-gray-50 text-gray-400">
                       <Package
                         size={20}
-                        strokeWidth={1.7}
+                        strokeWidth={
+                          1.7
+                        }
                       />
                     </div>
 
@@ -1681,7 +2156,9 @@ export default function InventoryPage() {
                 ) : (
                   <div className="divide-y divide-gray-100">
                     {filteredProducts.map(
-                      (product) => {
+                      (
+                        product: Product
+                      ) => {
                         const status =
                           getProductStatus(
                             product
@@ -1733,7 +2210,8 @@ export default function InventoryPage() {
                             <div className="mt-5 grid grid-cols-2 gap-4">
                               <div>
                                 <p className="text-xs text-gray-400">
-                                  Selling price
+                                  Selling
+                                  price
                                 </p>
 
                                 <p className="mt-1 text-sm font-medium text-gray-900">
@@ -1763,48 +2241,97 @@ export default function InventoryPage() {
                             </div>
 
                             {!product.is_service && (
-                              <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
-                                <span className="text-xs text-gray-400">
-                                  Reorder level
-                                </span>
+                              <>
+                                <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+                                  <span className="text-xs text-gray-400">
+                                    Reorder
+                                    level
+                                  </span>
 
-                                <span className="text-xs font-medium text-gray-700">
-                                  {product.reorder_level >
-                                  0
-                                    ? formatNumber(
-                                        product.reorder_level
-                                      )
-                                    : 'Not set'}
-                                </span>
-                              </div>
+                                  <span className="text-xs font-medium text-gray-700">
+                                    {product.reorder_level >
+                                    0
+                                      ? formatNumber(
+                                          product.reorder_level
+                                        )
+                                      : 'Not set'}
+                                  </span>
+                                </div>
+
+                                <div className="mt-4 flex items-center justify-between">
+                                  <span className="text-xs text-gray-400">
+                                    Stock
+                                    value
+                                  </span>
+
+                                  <span className="text-xs font-medium text-gray-700">
+                                    {formatMoney(
+                                      getStockValue(
+                                        product
+                                      ),
+                                      product.currency
+                                    )}
+                                  </span>
+                                </div>
+                              </>
                             )}
 
-                            <div className="mt-4 flex gap-2">
+                            <div className="mt-4 grid grid-cols-2 gap-2">
+                              {!product.is_service && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openStockModal(
+                                        product,
+                                        'add'
+                                      )
+                                    }
+                                    className="flex items-center justify-center gap-2 border border-gray-300 bg-white px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                  >
+                                    <Plus
+                                      size={
+                                        14
+                                      }
+                                    />
+                                    Add stock
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openStockModal(
+                                        product,
+                                        'adjust'
+                                      )
+                                    }
+                                    className="flex items-center justify-center gap-2 border border-gray-300 bg-white px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                  >
+                                    <Settings2
+                                      size={
+                                        14
+                                      }
+                                    />
+                                    Adjust
+                                  </button>
+                                </>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleLockedAction(
+                                  handleUnavailableAction(
                                     'Product editing is not available yet.'
                                   )
                                 }
-                                className="flex-1 border border-gray-300 bg-white px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                className={`border border-gray-300 bg-white px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 ${
+                                  product.is_service
+                                    ? 'col-span-2'
+                                    : ''
+                                }`}
                               >
-                                Edit
+                                Edit product
                               </button>
-
-                              {!product.is_service && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleLockedAction(
-                                      'Stock adjustment is available on the Growing Merchant plan.'
-                                    )
-                                  }
-                                  className="flex-1 border border-gray-300 bg-white px-3 py-2.5 text-xs font-medium text-gray-500 hover:bg-gray-50"
-                                >
-                                  Adjust stock
-                                </button>
-                              )}
                             </div>
                           </div>
                         );
@@ -1814,102 +2341,9 @@ export default function InventoryPage() {
                 )}
               </div>
             </section>
-          </div>
 
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Needs Attention */}
-            <section className="border border-gray-200 bg-white">
-              <div className="border-b border-gray-200 p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-sm font-semibold text-gray-950">
-                      Needs attention
-                    </h2>
-
-                    <p className="mt-1 text-xs text-gray-500">
-                      Products currently below the levels
-                      you've recorded
-                    </p>
-                  </div>
-
-                  <CircleAlert
-                    size={17}
-                    className="text-amber-600"
-                  />
-                </div>
-              </div>
-
-              {attentionProducts.length ===
-              0 ? (
-                <div className="px-5 py-8 text-center">
-                  <CheckCircle2
-                    size={20}
-                    className="mx-auto text-emerald-700"
-                  />
-
-                  <p className="mt-3 text-sm font-medium text-gray-900">
-                    Nothing needs attention
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-gray-400">
-                    Your recorded product levels do not
-                    currently show any low or out-of-stock
-                    products.
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {attentionProducts.map(
-                    (product) => {
-                      const status =
-                        getProductStatus(
-                          product
-                        );
-
-                      return (
-                        <div
-                          key={product.id}
-                          className="flex items-center gap-3 px-5 py-4"
-                        >
-                          <ProductImage
-                            product={product}
-                          />
-
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-gray-900">
-                              {product.name}
-                            </p>
-
-                            <p className="mt-1 text-xs text-gray-400">
-                              {getAvailableStock(
-                                product
-                              )}{' '}
-                              available
-                            </p>
-                          </div>
-
-                          <StatusBadge
-                            status={status}
-                          />
-                        </div>
-                      );
-                    }
-                  )}
-                </div>
-              )}
-
-              <div className="border-t border-gray-200 bg-gray-50 px-5 py-3">
-                <p className="text-[11px] leading-5 text-gray-500">
-                  These are catalogue-level stock indicators.
-                  Automated inventory monitoring and alerts
-                  require an upgrade.
-                </p>
-              </div>
-            </section>
-
-            {/* Inventory Overview */}
-            <section className="border border-gray-200 bg-white p-5">
+                  {/* Inventory Overview */}
+            <section className="mt-4 border border-gray-200 bg-white p-5">
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center border border-gray-200 bg-[#f8f8f8]">
                   <Layers3
@@ -1996,8 +2430,8 @@ export default function InventoryPage() {
               </div>
             </section>
 
-            {/* Monietar Insight */}
-            <section className="border border-gray-200 bg-white p-5">
+                 {/* Monietar Insight */}
+            <section className=" mt-4 border border-gray-200 bg-white p-5">
               <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center bg-emerald-900 text-white">
                   <TrendingUp size={15} />
@@ -2011,9 +2445,7 @@ export default function InventoryPage() {
               {products.length ===
               0 ? (
                 <p className="text-sm leading-6 text-gray-600">
-                  Add your products so Monietar can give
-                  you a clearer view of what you sell and
-                  the stock information you've recorded.
+                  Add your products so Monietar can give you a clearer view of what you sell and the stock information you've recorded.
                 </p>
               ) : outOfStock > 0 ? (
                 <p className="text-sm leading-6 text-gray-600">
@@ -2035,81 +2467,21 @@ export default function InventoryPage() {
                       ? 'product'
                       : 'products'}
                   </span>{' '}
-                  at or below the stock level you've
-                  recorded.
+                  at or below the stock level you've recorded.
                 </p>
               ) : (
                 <p className="text-sm leading-6 text-gray-600">
-                  Your current catalogue does not have any
-                  products flagged as low or out of stock.
+                  Your current catalogue does not have any products flagged as low or out of stock.
                 </p>
               )}
 
               <p className="mt-3 text-xs leading-5 text-gray-400">
-                These insights are based on the product
-                information you've recorded.
+                These insights are based on the product information you've recorded.
               </p>
             </section>
 
-            {/* Inventory Tracking */}
-            <section className="border border-gray-200 bg-white p-5">
-              <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center border border-gray-200 bg-[#f8f8f8]">
-                  <Lock
-                    size={17}
-                    className="text-emerald-900"
-                  />
-                </div>
-
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-950">
-                    Inventory tracking
-                  </h2>
-
-                  <p className="text-xs text-gray-500">
-                    Automated stock monitoring
-                  </p>
-                </div>
-              </div>
-
-              <div className="border border-gray-200 bg-gray-50 p-4">
-                <div className="flex items-start gap-3">
-                  <Lock
-                    size={17}
-                    className="mt-0.5 shrink-0 text-gray-500"
-                  />
-
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Upgrade to inventory tracking
-                    </p>
-
-                    <p className="mt-1 text-xs leading-5 text-gray-500">
-                      Retail Starter includes a basic product
-                      catalogue. Automated inventory tracking
-                      is available on the Growing Merchant
-                      plan.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleLockedAction(
-                      'Inventory tracking is available on the Growing Merchant plan.'
-                    )
-                  }
-                  className="mt-4 flex h-10 w-full items-center justify-center gap-2 border border-gray-300 bg-white text-xs font-medium text-gray-700 hover:bg-gray-100"
-                >
-                  Upgrade to inventory tracking
-                  <ArrowUp size={14} />
-                </button>
-              </div>
-            </section>
-
-            {/* Running Low Alerts */}
-            <section className="border border-gray-200 bg-white p-5">
+                   {/* Running Low Alerts */}
+            <section className=" mt-4 border border-gray-200 bg-white p-5">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-semibold text-gray-950">
@@ -2133,16 +2505,14 @@ export default function InventoryPage() {
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-amber-800">
-                  Monietar can automatically monitor your
-                  stock and alert you when products are
-                  running low on the Growing Merchant plan.
+                  Monietar can automatically monitor your stock and alert you when products are running low on the Growing Merchant plan.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() =>
-                  handleLockedAction(
+                  handleUnavailableAction(
                     'Running-low stock alerts are available on the Growing Merchant plan.'
                   )
                 }
@@ -2151,6 +2521,162 @@ export default function InventoryPage() {
                 Upgrade to alerts
                 <ArrowUp size={14} />
               </button>
+            </section>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-6 xl:self-start">
+            {/* Needs Attention */}
+            <section className="border border-gray-200 bg-white">
+              <div className="border-b border-gray-200 p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-gray-950">
+                      Needs attention
+                    </h2>
+
+                    <p className="mt-1 text-xs text-gray-500">
+                      Products currently below the levels you've recorded
+                    </p>
+                  </div>
+
+                  <CircleAlert
+                    size={17}
+                    className="text-amber-600"
+                  />
+                </div>
+              </div>
+
+              {attentionProducts.length ===
+              0 ? (
+                <div className="px-5 py-8 text-center">
+                  <CheckCircle2
+                    size={20}
+                    className="mx-auto text-emerald-700"
+                  />
+
+                  <p className="mt-3 text-sm font-medium text-gray-900">
+                    Nothing needs attention
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-gray-400">
+                    Your recorded product levels do not currently show any low or out-of-stock products.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {attentionProducts.map(
+                    (
+                      product: Product
+                    ) => {
+                      const status =
+                        getProductStatus(
+                          product
+                        );
+
+                      return (
+                        <div
+                          key={
+                            product.id
+                          }
+                          className="flex items-center gap-3 px-5 py-4"
+                        >
+                          <ProductImage
+                            product={
+                              product
+                            }
+                          />
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-gray-900">
+                              {
+                                product.name
+                              }
+                            </p>
+
+                            <p className="mt-1 text-xs text-gray-400">
+                              {formatNumber(
+                                getAvailableStock(
+                                  product
+                                )
+                              )}{' '}
+                              available
+                            </p>
+                          </div>
+
+                          <StatusBadge
+                            status={
+                              status
+                            }
+                          />
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+
+              <div className="border-t border-gray-200 bg-gray-50 px-5 py-3">
+                <p className="text-[11px] leading-5 text-gray-500">
+                  These indicators use the stock levels you have recorded manually. Automated monitoring and alerts are available on Growing Merchant.
+                </p>
+              </div>
+            </section>
+
+      
+
+            {/* Automated Inventory Tracking */}
+            <section className="border border-gray-200 bg-white p-5">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center border border-gray-200 bg-[#f8f8f8]">
+                  <Lock
+                    size={17}
+                    className="text-emerald-900"
+                  />
+                </div>
+
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-950">
+                    Automated inventory tracking
+                  </h2>
+
+                  <p className="text-xs text-gray-500">
+                    Let Monietar keep stock updated automatically
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-start gap-3">
+                  <Lock
+                    size={17}
+                    className="mt-0.5 shrink-0 text-gray-500"
+                  />
+
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      Upgrade to automated inventory
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                      Retail Starter gives you a basic product catalogue and manual stock management. Growing Merchant adds automated inventory tracking so your stock can stay updated as business activity is recorded.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleUnavailableAction(
+                      'Automated inventory tracking is available on the Growing Merchant plan.'
+                    )
+                  }
+                  className="mt-4 flex h-10 w-full items-center justify-center gap-2 border border-gray-300 bg-white text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  Upgrade to automated inventory
+                  <ArrowUp size={14} />
+                </button>
+              </div>
             </section>
 
             {/* Quick Actions */}
@@ -2188,52 +2714,92 @@ export default function InventoryPage() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    handleLockedAction(
-                      'Adding stock is available on the Growing Merchant plan.'
-                    )
-                  }
+                  onClick={() => {
+                    const hasPhysicalProduct =
+                      products.some(
+                        (
+                          product: Product
+                        ) =>
+                          product.is_active &&
+                          !product.is_service
+                      );
+
+                    if (
+                      !hasPhysicalProduct
+                    ) {
+                      setError(
+                        'Add a physical product before adding stock.'
+                      );
+                      return;
+                    }
+
+                    openStockModal(
+                      null,
+                      'add'
+                    );
+                  }}
                   className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-gray-50"
                 >
                   <span className="flex items-center gap-3">
                     <Plus
                       size={16}
-                      className="text-gray-400"
+                      className="text-emerald-900"
                     />
 
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-700">
                       Add stock
                     </span>
                   </span>
 
-                  <span className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400">
-                    Upgrade
-                  </span>
+                  <ArrowUp
+                    size={15}
+                    className="rotate-45 text-gray-400"
+                  />
                 </button>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    handleLockedAction(
-                      'Stock adjustment is available on the Growing Merchant plan.'
-                    )
-                  }
+                  onClick={() => {
+                    const hasPhysicalProduct =
+                      products.some(
+                        (
+                          product: Product
+                        ) =>
+                          product.is_active &&
+                          !product.is_service
+                      );
+
+                    if (
+                      !hasPhysicalProduct
+                    ) {
+                      setError(
+                        'Add a physical product before adjusting stock.'
+                      );
+                      return;
+                    }
+
+                    openStockModal(
+                      null,
+                      'adjust'
+                    );
+                  }}
                   className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-gray-50"
                 >
                   <span className="flex items-center gap-3">
                     <Settings2
                       size={16}
-                      className="text-gray-400"
+                      className="text-emerald-900"
                     />
 
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-700">
                       Adjust stock
                     </span>
                   </span>
 
-                  <span className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400">
-                    Upgrade
-                  </span>
+                  <ArrowUp
+                    size={15}
+                    className="rotate-45 text-gray-400"
+                  />
                 </button>
               </div>
             </section>
@@ -2244,13 +2810,11 @@ export default function InventoryPage() {
         <div className="mt-6 border-t border-gray-200 pt-5">
           <div className="flex flex-col gap-2 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
             <p>
-              Retail Starter includes a basic local product
-              catalogue and sales summaries.
+              Retail Starter includes your basic product catalogue, manual stock management and sales summaries.
             </p>
 
             <p className="text-gray-400">
-              Automated inventory tracking and running-low
-              alerts require an upgrade.
+              Automated inventory tracking and running-low alerts require Growing Merchant.
             </p>
           </div>
         </div>
@@ -2274,7 +2838,9 @@ export default function InventoryPage() {
               <button
                 type="button"
                 onClick={() =>
-                  setShowAddProduct(false)
+                  setShowAddProduct(
+                    false
+                  )
                 }
                 disabled={
                   savingProduct
@@ -2293,7 +2859,9 @@ export default function InventoryPage() {
                   className="mt-0.5 shrink-0"
                 />
 
-                <span>{formError}</span>
+                <span>
+                  {formError}
+                </span>
               </div>
             )}
 
@@ -2313,10 +2881,13 @@ export default function InventoryPage() {
                     value={
                       productForm.name
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'name',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="e.g. Wireless keyboard"
@@ -2334,10 +2905,13 @@ export default function InventoryPage() {
                     value={
                       productForm.category_id
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'category_id',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     className="h-11 w-full border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-emerald-900"
@@ -2347,7 +2921,9 @@ export default function InventoryPage() {
                     </option>
 
                     {categories.map(
-                      (category) => (
+                      (
+                        category: ProductCategory
+                      ) => (
                         <option
                           key={
                             category.id
@@ -2356,7 +2932,9 @@ export default function InventoryPage() {
                             category.id
                           }
                         >
-                          {category.name}
+                          {
+                            category.name
+                          }
                         </option>
                       )
                     )}
@@ -2372,10 +2950,13 @@ export default function InventoryPage() {
                     value={
                       productForm.unit
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'unit',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="pcs"
@@ -2392,10 +2973,13 @@ export default function InventoryPage() {
                     value={
                       productForm.sku
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'sku',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="Optional"
@@ -2412,10 +2996,13 @@ export default function InventoryPage() {
                     value={
                       productForm.barcode
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'barcode',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="Optional"
@@ -2432,10 +3019,13 @@ export default function InventoryPage() {
                     value={
                       productForm.description
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'description',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="Optional product description"
@@ -2453,10 +3043,13 @@ export default function InventoryPage() {
                     value={
                       productForm.currency
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'currency',
-                        event.target.value as Currency
+                        event.target
+                          .value as Currency
                       )
                     }
                     className="h-11 w-full border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-emerald-900"
@@ -2483,10 +3076,13 @@ export default function InventoryPage() {
                     value={
                       productForm.cost_price
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'cost_price',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="0"
@@ -2506,10 +3102,13 @@ export default function InventoryPage() {
                     value={
                       productForm.selling_price
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'selling_price',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="0"
@@ -2529,10 +3128,13 @@ export default function InventoryPage() {
                     value={
                       productForm.current_stock
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'current_stock',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="0"
@@ -2555,10 +3157,13 @@ export default function InventoryPage() {
                     value={
                       productForm.reorder_level
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'reorder_level',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="0"
@@ -2578,10 +3183,13 @@ export default function InventoryPage() {
                     value={
                       productForm.minimum_stock
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateProductForm(
                         'minimum_stock',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                     placeholder="0"
@@ -2596,10 +3204,13 @@ export default function InventoryPage() {
                       checked={
                         productForm.is_service
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event
+                      ) =>
                         updateProductForm(
                           'is_service',
-                          event.target.checked
+                          event.target
+                            .checked
                         )
                       }
                       className="mt-0.5 h-4 w-4 accent-emerald-900"
@@ -2611,32 +3222,27 @@ export default function InventoryPage() {
                       </span>
 
                       <span className="mt-1 block text-xs leading-5 text-gray-500">
-                        Services do not use physical stock
-                        quantities.
+                        Services do not use physical stock quantities.
                       </span>
                     </span>
                   </label>
                 </div>
 
                 <div className="sm:col-span-2">
-                  <div className="border border-amber-100 bg-amber-50 p-4">
+                  <div className="border border-gray-200 bg-gray-50 p-4">
                     <div className="flex items-start gap-3">
-                      <Lock
+                      <Boxes
                         size={16}
-                        className="mt-0.5 shrink-0 text-amber-700"
+                        className="mt-0.5 shrink-0 text-emerald-800"
                       />
 
                       <div>
-                        <p className="text-xs font-medium text-amber-900">
-                          Retail Starter
+                        <p className="text-xs font-medium text-gray-900">
+                          Basic inventory is included
                         </p>
 
-                        <p className="mt-1 text-xs leading-5 text-amber-800">
-                          You can record your product and
-                          stock information here. Automated
-                          inventory tracking and running-low
-                          alerts require the Growing Merchant
-                          plan.
+                        <p className="mt-1 text-xs leading-5 text-gray-500">
+                          Retail Starter lets you record products, stock levels and reorder information manually. Automated inventory tracking and running-low alerts are available on Growing Merchant.
                         </p>
                       </div>
                     </div>
@@ -2649,7 +3255,9 @@ export default function InventoryPage() {
               <button
                 type="button"
                 onClick={() =>
-                  setShowAddProduct(false)
+                  setShowAddProduct(
+                    false
+                  )
                 }
                 disabled={
                   savingProduct
@@ -2679,6 +3287,299 @@ export default function InventoryPage() {
                 Add product
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Modal */}
+      {stockAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-5 py-6">
+          <div className="w-full max-w-md border border-gray-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-gray-950">
+                  {stockAction ===
+                  'add'
+                    ? 'Add stock'
+                    : 'Adjust stock'}
+                </h2>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  {selectedStockProduct
+                    ? selectedStockProduct.name
+                    : 'Select a product to continue'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  closeStockModal
+                }
+                disabled={
+                  savingStock
+                }
+                className="text-gray-400 hover:text-gray-700 disabled:opacity-50"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {stockFormError && (
+              <div className="mx-5 mt-5 flex items-start gap-3 border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+                <AlertCircle
+                  size={15}
+                  className="mt-0.5 shrink-0"
+                />
+
+                <span>
+                  {
+                    stockFormError
+                  }
+                </span>
+              </div>
+            )}
+
+            <form
+              onSubmit={
+                handleStockUpdate
+              }
+              className="p-5"
+            >
+              {!selectedStockProduct && (
+                <div className="mb-5">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-600">
+                    Select product
+                  </label>
+
+                  <select
+                    value=""
+                    onChange={(
+                      event
+                    ) =>
+                      handleStockProductChange(
+                        event.target
+                          .value
+                      )
+                    }
+                    className="h-11 w-full border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-emerald-900"
+                    autoFocus
+                  >
+                    <option value="">
+                      Select a product
+                    </option>
+
+                    {products
+                      .filter(
+                        (
+                          product: Product
+                        ) =>
+                          product.is_active &&
+                          !product.is_service
+                      )
+                      .map(
+                        (
+                          product: Product
+                        ) => (
+                          <option
+                            key={
+                              product.id
+                            }
+                            value={
+                              product.id
+                            }
+                          >
+                            {product.name} —{' '}
+                            {formatNumber(
+                              getAvailableStock(
+                                product
+                              )
+                            )}{' '}
+                            {product.unit ||
+                              'units'}{' '}
+                            in stock
+                          </option>
+                        )
+                      )}
+                  </select>
+                </div>
+              )}
+
+              {selectedStockProduct && (
+                <>
+                  <div className="mb-5">
+                    <label className="mb-1.5 block text-xs font-medium text-gray-600">
+                      Product
+                    </label>
+
+                    <select
+                      value={
+                        selectedStockProduct.id
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        handleStockProductChange(
+                          event.target
+                            .value
+                        )
+                      }
+                      className="h-11 w-full border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-emerald-900"
+                    >
+                      <option value="">
+                        Select a product
+                      </option>
+
+                      {products
+                        .filter(
+                          (
+                            product: Product
+                          ) =>
+                            product.is_active &&
+                            !product.is_service
+                        )
+                        .map(
+                          (
+                            product: Product
+                          ) => (
+                            <option
+                              key={
+                                product.id
+                              }
+                              value={
+                                product.id
+                              }
+                            >
+                              {product.name} —{' '}
+                              {formatNumber(
+                                getAvailableStock(
+                                  product
+                                )
+                              )}{' '}
+                              {product.unit ||
+                                'units'}{' '}
+                              in stock
+                            </option>
+                          )
+                        )}
+                    </select>
+                  </div>
+
+                  <div className="mb-5 border border-gray-200 bg-gray-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        Current stock
+                      </span>
+
+                      <span className="text-sm font-semibold text-gray-900">
+                        {formatNumber(
+                          getAvailableStock(
+                            selectedStockProduct
+                          )
+                        )}{' '}
+                        {selectedStockProduct.unit ||
+                          'units'}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        Status
+                      </span>
+
+                      <StatusBadge
+                        status={getProductStatus(
+                          selectedStockProduct
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-600">
+                      {stockAction ===
+                      'add'
+                        ? 'Quantity to add'
+                        : 'New stock quantity'}
+                    </label>
+
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={
+                        stockForm.quantity
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setStockForm(
+                          (
+                            current: StockForm
+                          ) => ({
+                            ...current,
+                            quantity:
+                              event
+                                .target
+                                .value,
+                          })
+                        )
+                      }
+                      placeholder={
+                        stockAction ===
+                        'add'
+                          ? 'e.g. 10'
+                          : 'e.g. 25'
+                      }
+                      className="h-11 w-full border border-gray-300 px-3 text-sm text-gray-900 outline-none focus:border-emerald-900"
+                    />
+                  </div>
+
+                  <div className="mt-4 border border-gray-200 bg-gray-50 p-3">
+                    <p className="text-xs leading-5 text-gray-500">
+                      This is manual stock management included with Retail Starter. Automated stock updates, monitoring and running-low alerts are separate features.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={
+                    closeStockModal
+                  }
+                  disabled={
+                    savingStock
+                  }
+                  className="h-10 border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    savingStock ||
+                    !selectedStockProduct
+                  }
+                  className="flex h-10 items-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingStock && (
+                    <Loader2
+                      size={15}
+                      className="animate-spin"
+                    />
+                  )}
+
+                  {stockAction ===
+                  'add'
+                    ? 'Add stock'
+                    : 'Save adjustment'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
