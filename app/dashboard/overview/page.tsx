@@ -2218,6 +2218,9 @@ export default function OverviewPage() {
   let insightTitle =
     'Start recording your business activity to see useful money insights.';
 
+  const overviewName =
+    business?.name?.trim() || userName;
+
   let insightDescription =
     'As you record sales, expenses and other money movements, Monietar will help you understand what is happening with your money.';
 
@@ -2271,7 +2274,7 @@ export default function OverviewPage() {
 
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-                {getGreeting()}, {userName}.
+                {getGreeting()}, {overviewName}.
               </h2>
 
               <span className="border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-emerald-900">

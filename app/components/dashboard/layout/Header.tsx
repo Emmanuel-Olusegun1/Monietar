@@ -2,7 +2,6 @@
 
 import {
   Bell,
-  Search,
   ChevronDown,
   Menu,
   Settings,
@@ -12,7 +11,6 @@ import {
   ArrowRightLeft,
   Activity,
   Lock,
-  X,
   Loader2,
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -183,7 +181,6 @@ export default function Header() {
   const { setMobileOpen } = useSidebar();
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -199,8 +196,6 @@ export default function Header() {
     useState(true);
 
   const profileRef = useRef<HTMLDivElement>(null);
-  const mobileSearchRef =
-    useRef<HTMLInputElement>(null);
 
   const plan = PLAN_CONFIG[currentPlan];
   const title = titles[pathname] ?? 'Dashboard';
@@ -353,16 +348,7 @@ export default function Header() {
 
   useEffect(() => {
     setProfileOpen(false);
-    setSearchOpen(false);
   }, [pathname]);
-
-  useEffect(() => {
-    if (searchOpen) {
-      requestAnimationFrame(() => {
-        mobileSearchRef.current?.focus();
-      });
-    }
-  }, [searchOpen]);
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -445,67 +431,6 @@ export default function Header() {
 
         {/* Right */}
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          {/* Desktop Search */}
-          <div className="hidden lg:flex">
-            <div className="flex h-10 w-[280px] items-center border border-gray-200 bg-white px-3">
-              <Search
-                size={17}
-                strokeWidth={1.7}
-                className="shrink-0 text-gray-400"
-              />
-
-              <input
-                type="search"
-                placeholder="Search transactions, reports..."
-                aria-label="Search"
-                className="
-                  ml-2.5 w-full
-                  bg-transparent
-                  text-sm text-gray-900
-                  outline-none
-                  placeholder:text-gray-400
-                "
-              />
-            </div>
-          </div>
-
-          {/* Mobile Search Toggle */}
-          <button
-            type="button"
-            onClick={() =>
-              setSearchOpen((open) => !open)
-            }
-            aria-label={
-              searchOpen
-                ? 'Close search'
-                : 'Open search'
-            }
-            aria-expanded={searchOpen}
-            className="
-              flex h-10 w-10 shrink-0
-              items-center justify-center
-              border border-gray-200
-              bg-white
-              text-gray-600
-              transition-colors
-              hover:bg-gray-50
-              hover:text-gray-900
-              lg:hidden
-            "
-          >
-            {searchOpen ? (
-              <X
-                size={18}
-                strokeWidth={1.7}
-              />
-            ) : (
-              <Search
-                size={18}
-                strokeWidth={1.7}
-              />
-            )}
-          </button>
-
           {/* Plan-aware Indicator */}
           {currentPlan === 'BORDERLESS_PRO' ? (
             <button
@@ -907,36 +832,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile Search Panel */}
-      {searchOpen && (
-        <div className="border-t border-gray-200 px-4 py-3 sm:px-6 lg:hidden">
-          <div className="flex h-11 items-center border border-gray-200 bg-white px-3">
-            <Search
-              size={17}
-              strokeWidth={1.7}
-              className="shrink-0 text-gray-400"
-            />
-
-            <input
-              ref={mobileSearchRef}
-              type="search"
-              placeholder="Search transactions, reports..."
-              aria-label="Search"
-              className="
-                ml-2.5 w-full
-                bg-transparent
-                text-sm text-gray-900
-                outline-none
-                placeholder:text-gray-400
-              "
-            />
-
-            <kbd className="hidden border border-gray-200 px-1.5 py-0.5 text-[9px] text-gray-400 sm:block">
-              ESC
-            </kbd>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

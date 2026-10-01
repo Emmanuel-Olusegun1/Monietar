@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ChevronDown, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -17,23 +17,57 @@ type Plan =
 
 type PlanConfig = {
   name: string;
-  transactionLimit: number | null;
+
+  /**
+   * Number of bank accounts that can be connected.
+   * null = unlimited
+   */
+  bankAccountLimit: number | null;
+
+  /**
+   * Number of automatically logged bank transactions
+   * allowed per month.
+   * null = unlimited
+   */
+  automaticTransactionLimit: number | null;
+
+  /**
+   * Whether manual transaction entries are unlimited.
+   */
+  manualEntriesUnlimited: boolean;
+
+  /**
+   * Short label shown in the sidebar.
+   */
+  sidebarDescription: string;
 };
 
 const PLAN_CONFIG: Record<Plan, PlanConfig> = {
   RETAIL_STARTER: {
     name: 'Retail Starter',
-    transactionLimit: 500,
+    bankAccountLimit: 1,
+    automaticTransactionLimit: 30,
+    manualEntriesUnlimited: true,
+    sidebarDescription:
+      '30 auto transactions / month',
   },
 
   GROWING_MERCHANT: {
     name: 'Growing Merchant',
-    transactionLimit: 2500,
+    bankAccountLimit: 3,
+    automaticTransactionLimit: 2500,
+    manualEntriesUnlimited: true,
+    sidebarDescription:
+      '2,500 auto transactions / month',
   },
 
   BORDERLESS_PRO: {
     name: 'Borderless Pro',
-    transactionLimit: null,
+    bankAccountLimit: null,
+    automaticTransactionLimit: null,
+    manualEntriesUnlimited: true,
+    sidebarDescription:
+      'Unlimited transactions',
   },
 };
 
@@ -57,6 +91,7 @@ const normalizePlan = (
       return 'BORDERLESS_PRO';
 
     case 'RETAIL_STARTER':
+    case 'FREE':
     default:
       return 'RETAIL_STARTER';
   }
@@ -129,8 +164,19 @@ const getInitials = (
     .toUpperCase();
 };
 
+const formatLimit = (
+  value: number | null
+) => {
+  if (value === null) {
+    return 'Unlimited';
+  }
+
+  return value.toLocaleString('en-NG');
+};
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const {
     collapsed,
@@ -181,9 +227,8 @@ export default function Sidebar() {
        * - GROWING_MERCHANT
        * - BORDERLESS_PRO
        *
-       * We support both `subscription_plan`
-       * and `plan` so the sidebar remains compatible
-       * with either metadata key.
+       * Both `subscription_plan` and `plan`
+       * are supported for compatibility.
        */
       const userPlan = normalizePlan(
         metadata.subscription_plan ??
@@ -198,7 +243,7 @@ export default function Sidebar() {
       setLoadingUser(false);
     };
 
-    loadUser();
+    void loadUser();
 
     return () => {
       mounted = false;
@@ -210,6 +255,11 @@ export default function Sidebar() {
 
   const initials =
     getInitials(userName);
+
+  const handleNavigate = (href: string) => {
+    setMobileOpen(false);
+    router.push(href);
+  };
 
   return (
     <>
@@ -277,9 +327,10 @@ export default function Sidebar() {
         >
           <Link
             href="/dashboard/overview"
-            onClick={() =>
-              setMobileOpen(false)
-            }
+            onClick={(event) => {
+              event.preventDefault();
+              handleNavigate('/dashboard/overview');
+            }}
             className="flex items-center justify-center"
           >
             <Image
@@ -345,11 +396,10 @@ export default function Sidebar() {
                               ? item.name
                               : undefined
                           }
-                          onClick={() =>
-                            setMobileOpen(
-                              false
-                            )
-                          }
+                          onClick={(event) => {
+                            event.preventDefault();
+                            handleNavigate(item.href);
+                          }}
                           className={`
                             group flex min-h-[42px] items-center
                             border
@@ -444,8 +494,12 @@ export default function Sidebar() {
             }
           `}
         >
-          <button
-            type="button"
+          <Link
+            href="/dashboard/settings"
+            onClick={(event) => {
+              event.preventDefault();
+              handleNavigate('/dashboard/settings');
+            }}
             className={`
               flex w-full items-center
               transition-colors
@@ -496,36 +550,56 @@ export default function Sidebar() {
                 className="shrink-0 text-gray-400"
               />
             )}
-          </button>
+          </Link>
 
-          {/* Plan limit */}
-          {!collapsed &&
-            planConfig.transactionLimit !==
-              null && (
-              <div className="mt-3 px-2">
-                <div className="flex items-center justify-between">
+          {/* Plan information */}
+          {!collapsed && (
+            <div className="mt-3 space-y-2 px-2">
+              {/* Automatic transactions */}
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[10px] text-gray-400">
+                  Auto transactions
+                </span>
+
+                <span className="text-[10px] font-medium text-gray-500">
+                  {formatLimit(
+                    planConfig.automaticTransactionLimit
+                  )}
+                </span>
+              </div>
+
+              {/* Bank accounts */}
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[10px] text-gray-400">
+                  Bank accounts
+                </span>
+
+                <span className="text-[10px] font-medium text-gray-500">
+                  {formatLimit(
+                    planConfig.bankAccountLimit
+                  )}
+                </span>
+              </div>
+
+              {/* Manual entries */}
+              {planConfig.manualEntriesUnlimited && (
+                <div className="flex items-center justify-between gap-3">
                   <span className="text-[10px] text-gray-400">
-                    Transaction limit
+                    Manual entries
                   </span>
 
                   <span className="text-[10px] font-medium text-gray-500">
-                    {planConfig.transactionLimit.toLocaleString(
-                      'en-NG'
-                    )}
+                    Unlimited
                   </span>
                 </div>
-              </div>
-            )}
+              )}
 
-          {!collapsed &&
-            planConfig.transactionLimit ===
-              null && (
-              <div className="mt-3 px-2">
-                <span className="text-[10px] text-gray-400">
-                  Unlimited transactions
-                </span>
-              </div>
-            )}
+              {/* Plan description */}
+              <p className="pt-1 text-[10px] text-gray-400">
+                {planConfig.sidebarDescription}
+              </p>
+            </div>
+          )}
         </div>
       </aside>
     </>
