@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+import * as XLSX from 'xlsx';
 
 const createSupabaseAdmin = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -143,9 +145,10 @@ function normalizeStatementText(text: string) {
   return text
     .replace(/\r/g, '')
     .replace(/\u00a0/g, ' ')
-    .replace(/\t+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n');
 }
 
 function parsePlainTextTransactions(rawText: string) {
@@ -164,24 +167,26 @@ function parsePlainTextTransactions(rawText: string) {
 
   for (const line of lines) {
     const match = line.match(
-      /(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s+(.+?)\s+([+-]?\d[\d,]*\.\d{2}|[+-]?\d[\d,]*)(?:\s|$)/
+      /^(\d{1,2}(?:[/-]\d{1,2}[/-]\d{2,4}|\s+[A-Za-z]{3,9}\s+\d{4}))(?:\s+\d{1,2}:\d{2}:\d{2})?\s+(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\s+(.+?)\s+((?:--\s+)?[₦$]?\s*[+-]?\d[\d,]*(?:\.\d{2})?|--)(?:\s+((?:--\s+)?[₦$]?\s*[+-]?\d[\d,]*(?:\.\d{2})?|--))?/
     );
 
     if (!match) {
       continue;
     }
 
-    const [, dateText, descriptionPart, amountText] = match;
+    const [, dateText, descriptionPart, firstAmountText, secondAmountText] = match;
     const parsedDate = parseDateValue(dateText);
-    const parsedAmount = parseDecimal(amountText);
+    const debitValue = firstAmountText === '--' ? '' : firstAmountText;
+    const creditValue = secondAmountText && secondAmountText !== '--' ? secondAmountText : '';
+    const parsedAmount = parseDecimal(debitValue || creditValue);
 
     if (!parsedDate || parsedAmount === null || parsedAmount === 0) {
       continue;
     }
 
     const description = descriptionPart.trim();
-    const hasDebitSignal = /debit|withdrawal|payment|expense|outflow|transferout|dr|charge|purchase/i.test(description);
-    const hasCreditSignal = /credit|deposit|income|inflow|transferin|cr|refund|salary|reversal/i.test(description);
+    const hasDebitSignal = Boolean(debitValue) || /debit|withdrawal|payment|expense|outflow|transferout|dr|charge|purchase/i.test(description);
+    const hasCreditSignal = Boolean(creditValue) || /credit|deposit|income|inflow|transferin|cr|refund|salary|reversal/i.test(description);
 
     const transactionType =
       hasDebitSignal && !hasCreditSignal
@@ -221,31 +226,89 @@ function parseStatementText(rawText: string) {
   return parsePlainTextTransactions(rawText);
 }
 
-async function extractPdfText(file: File) {
+async function extractSpreadsheetText(file: File) {
   const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
+  const workbook = XLSX.read(buffer, {
+    type: 'array',
+    cellDates: true,
+  });
+  const firstSheetName = workbook.SheetNames[0];
 
-  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-  let text = '';
-
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const content = await page.getTextContent();
-
-    const pageText = content.items
-      .map((item) => {
-        if ('str' in item) {
-          return item.str;
-        }
-
-        return '';
-      })
-      .join(' ');
-
-    text += `${pageText}\n`;
+  if (!firstSheetName) {
+    return '';
   }
 
-  return text;
+  return workbook.SheetNames
+    .map((sheetName) => XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]))
+    .join('\n');
+}
+
+class PdfPasswordRequiredError extends Error {
+  code = 'PDF_PASSWORD_REQUIRED';
+}
+
+class PdfPasswordIncorrectError extends Error {
+  code = 'PDF_PASSWORD_INCORRECT';
+}
+
+async function extractPdfText(file: File, password?: string) {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const pdfjsGlobal = globalThis as typeof globalThis & {
+    pdfjsWorker?: typeof pdfjsWorker;
+  };
+
+  pdfjsGlobal.pdfjsWorker = pdfjsWorker;
+
+  try {
+    const pdf = await pdfjsLib.getDocument({
+      data: bytes,
+      ...(password ? { password } : {}),
+    }).promise;
+    let text = '';
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+
+      let previousY: number | null = null;
+      const pageText = content.items
+        .map((item) => {
+          if (!('str' in item)) {
+            return '';
+          }
+
+          const currentY = item.transform?.[5] ?? null;
+          const separator =
+            previousY !== null &&
+            currentY !== null &&
+            Math.abs(currentY - previousY) > 2
+              ? '\n'
+              : ' ';
+
+          previousY = currentY;
+          return `${separator}${item.str}`;
+        })
+        .join('')
+        .trim();
+
+      text += `${pageText}\n`;
+    }
+
+    return text;
+  } catch (error) {
+    const pdfError = error as { code?: number; name?: string };
+
+    if (pdfError.code === 1 || pdfError.name === 'PasswordException') {
+      if (password) {
+        throw new PdfPasswordIncorrectError('The PDF password is incorrect.');
+      }
+
+      throw new PdfPasswordRequiredError('This PDF is password protected.');
+    }
+
+    throw error;
+  }
 }
 
 function parseCsvTransactions(csvText: string) {
@@ -258,11 +321,30 @@ function parseCsvTransactions(csvText: string) {
     return [];
   }
 
-  const headerRow = rows[0].map((cell) => cell.trim());
+  const headerRowIndex = rows.findIndex((row) => {
+    const headers = row.map((cell) => normalizeHeader(cell.trim()));
+    const hasDate = headers.some((header) =>
+      ['date', 'transtime', 'transactiontime', 'transactiondate', 'posteddate', 'valuedate', 'dateoftransaction', 'operationdate', 'dateposted'].includes(header)
+    );
+    const hasDescription = headers.some((header) =>
+      ['description', 'narration', 'details', 'memo', 'transaction', 'particulars', 'label'].includes(header)
+    );
+    const hasAmount = headers.some((header) =>
+      ['debit', 'withdrawal', 'outflow', 'debitamount', 'amountdebit', 'credit', 'deposit', 'inflow', 'creditamount', 'amountcredit', 'amount', 'total', 'transactionamount', 'netamount', 'value'].includes(header)
+    );
+
+    return hasDate && hasDescription && hasAmount;
+  });
+
+  if (headerRowIndex < 0) {
+    return [];
+  }
+
+  const headerRow = rows[headerRowIndex].map((cell) => cell.trim());
   const headers = headerRow.map(normalizeHeader);
 
   const dateIndex = headers.findIndex((header) =>
-    ['date', 'transactiondate', 'posteddate', 'valuedate', 'dateoftransaction', 'operationdate', 'dateposted'].includes(header)
+    ['date', 'transtime', 'transactiontime', 'transactiondate', 'posteddate', 'valuedate', 'dateoftransaction', 'operationdate', 'dateposted'].includes(header)
   );
 
   const descriptionIndex = headers.findIndex((header) =>
@@ -297,7 +379,7 @@ function parseCsvTransactions(csvText: string) {
     reference: string | null;
   }> = [];
 
-  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+  for (let rowIndex = headerRowIndex + 1; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex];
 
     const expectedDateValue = dateIndex >= 0 ? row[dateIndex] : '';
@@ -370,6 +452,7 @@ export async function POST(request: NextRequest) {
     const accountId = String(formData.get('account_id') || '').trim();
     const userId = String(formData.get('user_id') || '').trim();
     const currency = String(formData.get('currency') || 'NGN').trim().toUpperCase();
+    const password = String(formData.get('password') || '').trim();
 
     if (!(file instanceof File)) {
       return NextResponse.json(
@@ -389,16 +472,25 @@ export async function POST(request: NextRequest) {
     const mimeType = file.type.toLowerCase();
 
     const isPdf = fileName.endsWith('.pdf') || mimeType.includes('pdf');
-    const isCsv = fileName.endsWith('.csv') || mimeType.includes('csv') || mimeType.includes('excel');
+    const isCsv = fileName.endsWith('.csv') || mimeType.includes('csv');
+    const isSpreadsheet =
+      fileName.endsWith('.xls') ||
+      fileName.endsWith('.xlsx') ||
+      mimeType.includes('spreadsheet') ||
+      mimeType.includes('excel');
 
-    if (!isPdf && !isCsv) {
+    if (!isPdf && !isCsv && !isSpreadsheet) {
       return NextResponse.json(
-        { error: 'Only PDF and CSV bank statements are supported for import right now.' },
+        { error: 'Only PDF, CSV, XLS, and XLSX bank statements are supported for import right now.' },
         { status: 400 }
       );
     }
 
-    const extractedText = isPdf ? await extractPdfText(file) : await file.text();
+    const extractedText = isPdf
+      ? await extractPdfText(file, password)
+      : isSpreadsheet
+        ? await extractSpreadsheetText(file)
+        : await file.text();
     const transactions = parseStatementText(extractedText);
 
     if (!transactions.length) {
@@ -442,6 +534,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Bank statement import failed:', error);
+
+    if (error instanceof PdfPasswordRequiredError || error instanceof PdfPasswordIncorrectError) {
+      return NextResponse.json(
+        {
+          code: error.code,
+          error: error.message,
+        },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json(
       {

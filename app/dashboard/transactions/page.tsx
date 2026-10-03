@@ -1067,6 +1067,16 @@ export default function TransactionsPage() {
   );
 
   const [
+    statementPassword,
+    setStatementPassword,
+  ] = useState('');
+
+  const [
+    statementPasswordRequired,
+    setStatementPasswordRequired,
+  ] = useState(false);
+
+  const [
     uploadingStatement,
     setUploadingStatement,
   ] = useState(false);
@@ -2099,6 +2109,9 @@ export default function TransactionsPage() {
       null
     );
 
+    setStatementPassword('');
+    setStatementPasswordRequired(false);
+
     setStatementCurrency(
       selectedCurrency
     );
@@ -2129,6 +2142,9 @@ export default function TransactionsPage() {
     setStatementError(
       null
     );
+
+    setStatementPassword('');
+    setStatementPasswordRequired(false);
   }
 
   async function handleStatementUpload() {
@@ -2138,7 +2154,7 @@ export default function TransactionsPage() {
 
     if (!statementFile) {
       setStatementError(
-        'Please choose a PDF or CSV bank statement.'
+        'Please choose a PDF, CSV, XLS, or XLSX bank statement.'
       );
       return;
     }
@@ -2157,9 +2173,19 @@ export default function TransactionsPage() {
         .toLowerCase()
         .endsWith('.csv');
 
-    if (!isPdf && !isCsv) {
+    const isSpreadsheet =
+      statementFile.name
+        .toLowerCase()
+        .endsWith('.xls') ||
+      statementFile.name
+        .toLowerCase()
+        .endsWith('.xlsx') ||
+      statementFile.type.includes('spreadsheet') ||
+      statementFile.type.includes('excel');
+
+    if (!isPdf && !isCsv && !isSpreadsheet) {
       setStatementError(
-        'Only PDF and CSV bank statements are supported.'
+        'Only PDF, CSV, XLS, and XLSX bank statements are supported.'
       );
       return;
     }
@@ -2205,6 +2231,11 @@ export default function TransactionsPage() {
         user.id
       );
 
+      formData.append(
+        'password',
+        statementPassword
+      );
+
       /*
       |--------------------------------------------------------------------------
       | Statement imports must be stored as:
@@ -2238,6 +2269,18 @@ export default function TransactionsPage() {
       if (
         !response.ok
       ) {
+        if (result?.code === 'PDF_PASSWORD_REQUIRED') {
+          setStatementPasswordRequired(true);
+          setStatementError('This PDF is password protected. Enter its password to continue.');
+          return;
+        }
+
+        if (result?.code === 'PDF_PASSWORD_INCORRECT') {
+          setStatementPasswordRequired(true);
+          setStatementError('That PDF password is incorrect.');
+          return;
+        }
+
         throw new Error(
           result?.error ||
             'Unable to import this bank statement.'
@@ -2251,6 +2294,9 @@ export default function TransactionsPage() {
       setStatementFile(
         null
       );
+
+      setStatementPassword('');
+      setStatementPasswordRequired(false);
 
       await loadTransactions();
     } catch (uploadError) {
@@ -2413,7 +2459,7 @@ export default function TransactionsPage() {
 
   return (
     <main className="min-h-full bg-[#f1f1f1] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <div className="mx-auto max-w-[1500px]">
+      <div className="w-full">
 
         {/* Page Header */}
 
@@ -2773,7 +2819,7 @@ export default function TransactionsPage() {
 
             {/* Chart */}
 
-            <section className="border border-gray-200 bg-white">
+            <section className="w-full max-w-none border border-gray-200 bg-white">
               <div className="flex items-center justify-between border-b border-gray-200 px-5 py-5 sm:px-6">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">
@@ -3067,7 +3113,7 @@ export default function TransactionsPage() {
 
               {/* Desktop */}
 
-              <div className="hidden overflow-x-auto md:block">
+              <div className="hidden w-full overflow-x-auto md:block">
                 <table className="w-full min-w-[760px] border-collapse">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/70">
@@ -4485,7 +4531,7 @@ export default function TransactionsPage() {
                       </p>
 
                       <p className="mt-1 max-w-sm text-xs leading-5 text-gray-400">
-                        Select a PDF or CSV statement from your bank.
+                        Select a PDF, CSV, XLS, or XLSX statement from your bank.
                       </p>
 
                       <span className="mt-4 bg-emerald-900 px-4 py-2 text-xs font-medium text-white">
@@ -4498,7 +4544,7 @@ export default function TransactionsPage() {
                 <input
                   id="bank-statement-file"
                   type="file"
-                  accept=".pdf,.csv,application/pdf,text/csv"
+                  accept=".pdf,.csv,.xls,.xlsx,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   className="sr-only"
                   onChange={(
                     event
@@ -4512,6 +4558,9 @@ export default function TransactionsPage() {
                     setStatementError(
                       null
                     );
+
+                    setStatementPassword('');
+                    setStatementPasswordRequired(false);
 
                     if (
                       !file
@@ -4540,16 +4589,27 @@ export default function TransactionsPage() {
                           '.csv'
                         );
 
+                    const isSpreadsheet =
+                      file.name
+                        .toLowerCase()
+                        .endsWith('.xls') ||
+                      file.name
+                        .toLowerCase()
+                        .endsWith('.xlsx') ||
+                      file.type.includes('spreadsheet') ||
+                      file.type.includes('excel');
+
                     if (
                       !isPdf &&
-                      !isCsv
+                      !isCsv &&
+                      !isSpreadsheet
                     ) {
                       setStatementFile(
                         null
                       );
 
                       setStatementError(
-                        'Please upload a PDF or CSV bank statement.'
+                        'Please upload a PDF, CSV, XLS, or XLSX bank statement.'
                       );
 
                       return;
@@ -4562,9 +4622,26 @@ export default function TransactionsPage() {
                 />
 
                 <p className="mt-2 text-[10px] text-gray-400">
-                  Supported formats: PDF and CSV.
+                  Supported formats: PDF, CSV, XLS, and XLSX.
                 </p>
               </div>
+
+              {statementPasswordRequired && (
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.1em] text-gray-400">
+                    PDF password
+                  </span>
+
+                  <input
+                    type="password"
+                    value={statementPassword}
+                    onChange={(event) => setStatementPassword(event.target.value)}
+                    placeholder="Enter the statement password"
+                    autoFocus
+                    className="h-10 w-full border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-emerald-900"
+                  />
+                </label>
+              )}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
                 <label className="block">
@@ -4672,7 +4749,8 @@ export default function TransactionsPage() {
                 }
                 disabled={
                   uploadingStatement ||
-                  !canSubmitStatement
+                  !canSubmitStatement ||
+                  (statementPasswordRequired && !statementPassword.trim())
                 }
                 className="flex h-10 items-center justify-center gap-2 bg-emerald-900 px-5 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -4696,7 +4774,7 @@ export default function TransactionsPage() {
                         1.8
                       }
                     />
-                    Add statement
+                    {statementPasswordRequired ? 'Unlock & add statement' : 'Add statement'}
                   </>
                 )}
               </button>
@@ -4928,7 +5006,7 @@ function MovementRow({
     <div className="mb-5 last:mb-0">
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon
+          <Icon     
             size={14}
             strokeWidth={
               1.7
