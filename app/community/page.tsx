@@ -1,3 +1,4 @@
+
 'use client';
 
 import { motion } from 'framer-motion';
@@ -61,52 +62,59 @@ export default function CommunityPage() {
 
       <main className="bg-[#f1f1f1] text-gray-900">
         {/* HERO */}
-        <section className="border-b border-gray-300 px-5 pb-20 pt-28 sm:px-8 sm:pb-24 sm:pt-32 lg:px-12 lg:pb-32 lg:pt-40">
-          <div className="mx-auto max-w-[1440px]">
-           <div className="grid gap-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-              <div>
-               <h1 className="max-w-6xl text-[clamp(3.2rem,8vw,8rem)] font-semibold leading-[0.88] tracking-[-0.065em]">
-                Better businesses
-                <br />
-                <span className="text-emerald-900">
-                  grow together.
-                </span>
-              </h1>
-              </div>
+       
+<section className="border-b border-gray-300 px-5 pb-20 pt-28 sm:px-8 sm:pb-24 sm:pt-32 lg:px-12 lg:pb-32 lg:pt-40">
+  <div className="mx-auto max-w-[1440px]">
+    <div className="grid gap-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+      <div>
+        <h1 className="max-w-6xl text-[clamp(3.2rem,8vw,8rem)] font-semibold leading-[0.88] tracking-[-0.065em]">
+          Better businesses
+          <br />
+          <span className="text-emerald-900">
+            grow together.
+          </span>
+        </h1>
+      </div>
 
-              <div className="max-w-xl lg:pb-2">
-                <p className="text-lg leading-relaxed text-gray-600 sm:text-xl">
-                  A growing community for business owners who want to
-                  understand their numbers, learn from others, and get better
-                  at running their businesses.
-                </p>
+      <div className="max-w-xl lg:pb-2">
+        <p className="text-lg leading-relaxed text-gray-600 sm:text-xl">
+          A growing community for business owners who want to
+          understand their numbers, learn from others, and get better
+          at running their businesses.
+        </p>
 
-                <div className="mt-8 flex items-center gap-3 text-sm font-semibold text-emerald-900">
-                  <span className="h-2 w-2 bg-emerald-900" />
-                  Opening on WhatsApp
-                </div>
-              </div>
-            </div>
+        <a
+          href="https://whatsapp.com/channel/0029VbEH34Q4SpkFuRLMCA3M"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group mt-8 inline-flex items-center gap-3 border border-emerald-900 bg-emerald-900 px-6 py-4 text-sm font-semibold text-white transition-colors hover:bg-[#f1f1f1] hover:text-emerald-900"
+        >
+          Join the Community
+          <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+        </a>
+      </div>
+    </div>
 
-            <div className="mt-16 flex flex-wrap gap-x-8 gap-y-4 text-sm font-semibold">
-              <a
-                href="#what-to-expect"
-                className="group inline-flex items-center gap-3 border-b border-gray-900 pb-3"
-              >
-                See what to expect
-                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-              </a>
+    <div className="mt-16 flex flex-wrap gap-x-8 gap-y-4 text-sm font-semibold">
+      <a
+        href="#what-to-expect"
+        className="group inline-flex items-center gap-3 border-b border-gray-900 pb-3"
+      >
+        See what to expect
+        <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+      </a>
 
-              <a
-                href="#topics"
-                className="group inline-flex items-center gap-3 border-b border-gray-400 pb-3 text-gray-600"
-              >
-                Explore conversations
-                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-              </a>
-            </div>
-          </div>
-        </section>
+      <a
+        href="#topics"
+        className="group inline-flex items-center gap-3 border-b border-gray-400 pb-3 text-gray-600"
+      >
+        Explore conversations
+        <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+      </a>
+    </div>
+  </div>
+</section>
+
 
         {/* INTRODUCTION */}
         <section className="border-b border-gray-300 bg-white px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
@@ -134,7 +142,7 @@ export default function CommunityPage() {
                 </p>
 
                 <p className="mt-5 max-w-3xl text-lg leading-relaxed text-gray-600">
-                  That is what we want the Monietar community to be — a place
+                  That is what we want the Monietar community to be, a place
                   where those conversations can happen.
                 </p>
               </div>
@@ -210,7 +218,7 @@ export default function CommunityPage() {
           <div className="mx-auto max-w-[1440px]">
             <div className="grid gap-12 lg:grid-cols-[0.7fr_1.3fr]">
               <div>
-               <h2 className="max-w-md text-4xl font-semibold leading-[0.95] tracking-[-0.04em] sm:text-5xl">
+                <h2 className="max-w-md text-4xl font-semibold leading-[0.95] tracking-[-0.04em] sm:text-5xl">
                   The things that actually{' '}
                   <span className="text-emerald-900">
                     affect your business.
@@ -295,7 +303,7 @@ export default function CommunityPage() {
                 </div>
 
                 <p className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
-                  Coming soon on WhatsApp
+                  Join the Monietar Community
                 </p>
 
                 <h2 className="max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.055em] sm:text-6xl lg:text-8xl">
@@ -307,10 +315,20 @@ export default function CommunityPage() {
 
               <div className="lg:pl-12">
                 <p className="max-w-lg text-lg leading-relaxed text-emerald-50">
-                  We are opening the Monietar community on WhatsApp soon.
-                  A place to meet other business owners, exchange ideas, ask
-                  questions, and learn together.
+                  Connect with other business owners, exchange ideas, ask
+                  questions, and learn practical ways to run your business
+                  better. Join the Monietar community and grow together.
                 </p>
+
+                <a
+                  href="https://whatsapp.com/channel/0029VbEH34Q4SpkFuRLMCA3M"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group mt-8 inline-flex items-center gap-3 border border-white px-6 py-4 text-sm font-semibold text-white transition-colors hover:bg-white hover:text-emerald-900"
+                >
+                  Join the Community
+                  <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+                </a>
               </div>
             </div>
           </div>
