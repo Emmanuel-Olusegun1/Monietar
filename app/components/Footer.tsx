@@ -63,8 +63,8 @@ const socialLinks = [
     icon: SiTiktok,
   },
   {
-    title: 'WhatsApp',
-    link: 'https://wa.me/2349034010384',
+    title: 'MONIETAR Community',
+    link: 'https://whatsapp.com/channel/0029VbEH34Q4SpkFuRLMCA3M',
     icon: MessageCircle,
   },
 ];
