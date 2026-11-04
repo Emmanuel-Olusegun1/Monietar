@@ -132,7 +132,7 @@ export default function UseCasesPage() {
 
               <p className="max-w-2xl text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
                 Monietar helps merchants make sense of the money already
-                moving through their businesses — from everyday retail
+                moving through their businesses, from everyday retail
                 transactions to multi-attendant operations and cross-border
                 sourcing.
               </p>

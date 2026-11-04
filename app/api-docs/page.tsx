@@ -242,8 +242,6 @@ export default function PureApiComingSoonPage() {
 
               <div className="flex items-end">
                 <div className="max-w-md">
-                  <div className="mb-6 h-px w-10 bg-emerald-900" />
-
                   <p className="text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
                     The Monietar API is being built to make financial
                     infrastructure easier to connect, extend, and build on.

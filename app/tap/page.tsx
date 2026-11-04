@@ -181,6 +181,45 @@ export default function MonietarTapPage() {
           </div>
         </section>
 
+
+        {/* WHAT TAP MEANS — complementary brand explanation */}
+        <section className="bg-emerald-950 px-5 py-16 text-white sm:px-8 sm:py-20 lg:px-12 lg:py-24">
+          <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-end lg:gap-20">
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-300">
+                Understanding the name
+              </span>
+
+              <h2 className="mt-6 text-5xl font-bold leading-[0.9] tracking-[-0.06em] sm:text-7xl lg:text-8xl">
+                TAP<span className="text-emerald-300">.</span>
+              </h2>
+
+              <p className="mt-5 text-xl font-medium tracking-tight text-emerald-100 sm:text-2xl">
+                Trade Access Point
+              </p>
+            </div>
+
+            <div className="max-w-2xl">
+              <p className="text-base font-light leading-8 text-emerald-50/90 sm:text-lg sm:leading-9">
+                TAP stands for <strong className="font-semibold text-white">Trade Access Point</strong>, a dedicated point of access that brings merchants closer to the tools they need to manage and understand their business finances.
+              </p>
+
+              <p className="mt-5 text-sm font-light leading-7 text-emerald-100/70 sm:text-base sm:leading-8">
+                The name reflects what the device is built to do: make Monietar's business ledger and financial intelligence experience accessible through purpose-built, affordable hardware. Rather than being another general-purpose smartphone or simply a payment terminal, TAP gives everyday businesses a focused workspace for recording transactions, keeping business activity organized, and gaining clearer financial visibility.
+              </p>
+
+              <div className="mt-9 border-t border-white/20 pt-6">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300">
+                  Why Trade Access Point?
+                </p>
+                <p className="mt-3 max-w-xl text-sm font-light leading-7 text-white/80 sm:text-base sm:leading-8">
+                  Because access to useful business technology should not be limited by the cost of owning an expensive smartphone. TAP is the dedicated access point between a merchant and the Monietar tools that help make the numbers behind their business easier to see and manage.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* INTRODUCTION */}
         <section className="bg-white p-5">
           <div className="mx-auto max-w-[1440px]">
@@ -475,7 +514,6 @@ export default function MonietarTapPage() {
 
               <div className="flex items-end">
                 <div className="max-w-md">
-                  <div className="mb-6 h-px w-10 bg-emerald-900" />
 
                   <p className="text-sm font-light leading-7 text-gray-600 sm:text-base sm:leading-8">
                     TAP is built around a simple idea: access to financial
