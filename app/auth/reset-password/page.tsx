@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Toaster, toast } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -353,13 +353,6 @@ export default function ResetPasswordPage() {
   if (isCheckingSession) {
     return (
       <div className="flex min-h-screen flex-col bg-[#f1f1f1] text-gray-900">
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-          }}
-        />
-
         <Header />
 
         <main className="flex flex-1 items-center justify-center px-5 py-16">
@@ -377,13 +370,6 @@ export default function ResetPasswordPage() {
   if (currentStep === 'error') {
     return (
       <div className="flex min-h-screen flex-col bg-[#f1f1f1] text-gray-900">
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-          }}
-        />
-
         <Header />
 
         <main className="flex flex-1 bg-[#f1f1f1] px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
@@ -464,35 +450,6 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f1f1f1] text-gray-900">
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#ffffff',
-            color: '#1f2937',
-            border: '1px solid #e5e7eb',
-          },
-          success: {
-            duration: 3500,
-            iconTheme: {
-              primary: '#047857',
-              secondary: '#ffffff',
-            },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#dc2626',
-              secondary: '#ffffff',
-            },
-          },
-          loading: {
-            duration: Infinity,
-          },
-        }}
-      />
-
       <Header />
 
       <main className="flex-1 bg-[#f1f1f1] px-5 py-12 sm:px-8 sm:py-16 lg:py-20">

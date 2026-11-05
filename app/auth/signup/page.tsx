@@ -48,6 +48,20 @@ export default function Signup() {
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [formMessage, setFormMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  const showError = (text: string) => {
+    setFormMessage({ type: 'error', text });
+    toast.error(text);
+  };
+
+  const showSuccess = (text: string) => {
+    setFormMessage({ type: 'success', text });
+    toast.success(text);
+  };
 
   const t =
     translations[
@@ -185,11 +199,12 @@ export default function Signup() {
     if (isSigningup) return;
 
     if (!validateForm()) {
-      toast.error('Please fix the errors in the form.');
+      showError('Please fix the errors in the form.');
       return;
     }
 
     setIsSigningup(true);
+    setFormMessage(null);
 
     try {
       if (signupMethod === 'email') {
@@ -210,7 +225,7 @@ export default function Signup() {
               .toLowerCase()
               .includes('already registered')
           ) {
-            toast.error(
+            showError(
               'An account with this email already exists.'
             );
           } else if (
@@ -218,26 +233,24 @@ export default function Signup() {
               .toLowerCase()
               .includes('password should be')
           ) {
-            toast.error('Password is too weak.');
+            showError('Password is too weak.');
           } else {
-            toast.error(error.message);
+            showError(error.message);
           }
 
           return;
         }
 
         if (data.user && !data.user.identities?.length) {
-          toast.error('Email already registered.');
+          showError('Email already registered.');
           return;
         }
 
-        toast.success(
+        showSuccess(
           'Account created! Check your email for verification.'
         );
 
-        setTimeout(() => {
-          router.push('/auth/signin');
-        }, 2500);
+        router.replace('/auth/signin');
       } else {
         const phone = formData.phone.replace(/\s/g, '');
 
@@ -258,28 +271,26 @@ export default function Signup() {
               .toLowerCase()
               .includes('already registered')
           ) {
-            toast.error('Phone number already registered.');
+            showError('Phone number already registered.');
           } else {
-            toast.error(error.message);
+            showError(error.message);
           }
 
           return;
         }
 
-        toast.success(
+        showSuccess(
           'Verification code sent to your phone.'
         );
 
-        setTimeout(() => {
-          router.push(
-            `/auth/verify-phone?phone=${encodeURIComponent(phone)}`
-          );
-        }, 1800);
+        router.replace(
+          `/auth/verify-phone?phone=${encodeURIComponent(phone)}`
+        );
       }
     } catch (error) {
       console.error('Signup error:', error);
 
-      toast.error(
+      showError(
         'Something went wrong. Please try again.'
       );
     } finally {
@@ -424,6 +435,19 @@ export default function Signup() {
                   onSubmit={handleSubmit}
                   className="space-y-5"
                 >
+                  {formMessage && (
+                    <p
+                      role="alert"
+                      className={`border px-3 py-2 text-sm ${
+                        formMessage.type === 'error'
+                          ? 'border-red-200 bg-red-50 text-red-700'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      }`}
+                    >
+                      {formMessage.text}
+                    </p>
+                  )}
+
                   {/* Business + Name */}
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     {/* Business name */}

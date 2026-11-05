@@ -34,10 +34,11 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh the session if needed
+  // Read the session from the request cookie without making another auth API
+  // request during navigation.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
   const pathname = request.nextUrl.pathname;
 
@@ -52,19 +53,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/dashboard/settings') ||
     pathname.startsWith('/dashboard/help');
 
-  const isAuthRoute = pathname.startsWith('/auth');
-
   // Protect dashboard routes
-  if (isDashboardRoute && !user) {
+  if (isDashboardRoute && !session) {
     return NextResponse.redirect(
       new URL('/auth/signin', request.url)
-    );
-  }
-
-  // Prevent logged-in users from visiting auth pages
-  if (isAuthRoute && user) {
-    return NextResponse.redirect(
-      new URL('/dashboard/overview', request.url)
     );
   }
 
@@ -72,14 +64,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Run middleware on everything except:
-     * - api routes
-     * - next static files
-     * - images
-     * - favicon
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/dashboard/:path*'],
 };

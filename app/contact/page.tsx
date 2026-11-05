@@ -3,6 +3,7 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
+import { FormEvent, useState } from 'react';
 import {
   Mail,
   MessageSquare,
@@ -12,6 +13,11 @@ import {
 } from 'lucide-react';
 
 export default function ContactPage() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formMessage, setFormMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   const contactMethods = [
     {
@@ -190,7 +196,62 @@ export default function ContactPage() {
                   </div>
 
                   <form
-                    onSubmit={(e) => e.preventDefault()}
+                    onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+                      event.preventDefault();
+                      setIsSubmitting(true);
+                      setFormMessage(null);
+
+                      const form = event.currentTarget;
+                      const formData = new FormData(form);
+
+                      try {
+                        const response = await fetch('/api/contact', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            firstName: formData.get('firstName'),
+                            lastName: formData.get('lastName'),
+                            email: formData.get('email'),
+                            subject: formData.get('subject'),
+                            message: formData.get('message'),
+                          }),
+                        });
+                        const responseText = await response.text();
+                        let result: { message?: string } = {};
+
+                        try {
+                          result = JSON.parse(responseText);
+                        } catch {
+                          throw new Error(
+                            response.ok
+                              ? 'The server returned an invalid response.'
+                              : 'The contact service is temporarily unavailable. Please try again.'
+                          );
+                        }
+
+                        if (!response.ok) {
+                          throw new Error(
+                            result.message || 'Unable to send your message.'
+                          );
+                        }
+
+                        form.reset();
+                        setFormMessage({
+                          type: 'success',
+                          text: result.message || 'Your message was sent successfully.',
+                        });
+                      } catch (error) {
+                        setFormMessage({
+                          type: 'error',
+                          text:
+                            error instanceof Error
+                              ? error.message
+                              : 'Unable to send your message. Please try again.',
+                        });
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    }}
                     className="pt-8"
                   >
                     <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
@@ -205,6 +266,7 @@ export default function ContactPage() {
                         <input
                           type="text"
                           id="first-name"
+                          name="firstName"
                           required
                           placeholder="John"
                           className="w-full border-b border-gray-300 bg-transparent px-0 py-3 text-sm text-gray-950 placeholder:text-gray-300 focus:border-emerald-900 focus:outline-none"
@@ -222,6 +284,7 @@ export default function ContactPage() {
                         <input
                           type="text"
                           id="last-name"
+                          name="lastName"
                           required
                           placeholder="Doe"
                           className="w-full border-b border-gray-300 bg-transparent px-0 py-3 text-sm text-gray-950 placeholder:text-gray-300 focus:border-emerald-900 focus:outline-none"
@@ -240,6 +303,7 @@ export default function ContactPage() {
                       <input
                         type="email"
                         id="email"
+                        name="email"
                         required
                         placeholder="john@example.com"
                         className="w-full border-b border-gray-300 bg-transparent px-0 py-3 text-sm text-gray-950 placeholder:text-gray-300 focus:border-emerald-900 focus:outline-none"
@@ -256,6 +320,7 @@ export default function ContactPage() {
 
                       <select
                         id="subject"
+                        name="subject"
                         defaultValue="general"
                         className="w-full appearance-none border-b border-gray-300 bg-transparent px-0 py-3 text-sm text-gray-700 focus:border-emerald-900 focus:outline-none"
                       >
@@ -287,6 +352,7 @@ export default function ContactPage() {
 
                       <textarea
                         id="message"
+                        name="message"
                         rows={6}
                         required
                         placeholder="Tell us what you need..."
@@ -294,15 +360,29 @@ export default function ContactPage() {
                       />
                     </div>
 
-                    <motion.a
-                      href="mailto:support@monietar.com.ng"
+                    {formMessage && (
+                      <p
+                        role="status"
+                        className={`mt-6 text-sm leading-6 ${
+                          formMessage.type === 'success'
+                            ? 'text-emerald-800'
+                            : 'text-red-700'
+                        }`}
+                      >
+                        {formMessage.text}
+                      </p>
+                    )}
+
+                    <motion.button
+                      type="submit"
+                      disabled={isSubmitting}
                       whileHover={{ x: 3 }}
-                      className="mt-8 flex w-full items-center justify-between border border-emerald-900 pt-4 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900 transition-colors p-6 bg-[#f1f1f1] hover:bg-black hover:text-white"
+                      className="mt-8 flex w-full items-center justify-between border border-emerald-900 pt-4 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900 transition-colors p-6 bg-[#f1f1f1] hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <span>Send message</span>
+                      <span>{isSubmitting ? 'Sending...' : 'Send message'}</span>
 
                       <ArrowUpRight className="h-4 w-4" />
-                    </motion.a>
+                    </motion.button>
                   </form>
                 </div>
               </motion.div>

@@ -35,6 +35,20 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showLanguages, setShowLanguages] = useState(false);
+  const [formMessage, setFormMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  const showError = (text: string) => {
+    setFormMessage({ type: 'error', text });
+    toast.error(text);
+  };
+
+  const showSuccess = (text: string) => {
+    setFormMessage({ type: 'success', text });
+    toast.success(text);
+  };
 
   const t =
     translations[language as keyof typeof translations] ||
@@ -56,16 +70,17 @@ export default function SignInPage() {
 
   const handleEmailLogin = async () => {
     if (!email.trim()) {
-      toast.error('Please enter your email address.');
+      showError('Please enter your email address.');
       return;
     }
 
     if (!password.trim()) {
-      toast.error('Please enter your password.');
+      showError('Please enter your password.');
       return;
     }
 
     setLoading(true);
+    setFormMessage(null);
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -74,17 +89,17 @@ export default function SignInPage() {
       });
 
       if (error) {
-        toast.error(error.message);
+        showError(error.message);
         return;
       }
 
-      toast.success('Signed in successfully.');
+      showSuccess('Signed in successfully.');
 
-      router.replace('/dashboard/overview');
+      window.location.replace('/dashboard/overview');
     } catch (error) {
       console.error('Email sign-in error:', error);
 
-      toast.error('Something went wrong. Please try again.');
+      showError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -92,11 +107,12 @@ export default function SignInPage() {
 
   const handlePhoneLogin = async () => {
     if (!phone.trim()) {
-      toast.error('Please enter your phone number.');
+      showError('Please enter your phone number.');
       return;
     }
 
     setLoading(true);
+    setFormMessage(null);
 
     try {
       const formattedPhone = phone.trim().startsWith('+')
@@ -108,11 +124,11 @@ export default function SignInPage() {
       });
 
       if (error) {
-        toast.error(error.message);
+        showError(error.message);
         return;
       }
 
-      toast.success('Verification code sent.');
+      showSuccess('Verification code sent.');
 
       router.push(
         `/auth/verify-phone?phone=${encodeURIComponent(formattedPhone)}`
@@ -120,7 +136,7 @@ export default function SignInPage() {
     } catch (error) {
       console.error('Phone sign-in error:', error);
 
-      toast.error('Something went wrong. Please try again.');
+      showError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -214,6 +230,19 @@ export default function SignInPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
+                {formMessage && (
+                  <p
+                    role="alert"
+                    className={`border px-3 py-2 text-sm ${
+                      formMessage.type === 'error'
+                        ? 'border-red-200 bg-red-50 text-red-700'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    }`}
+                  >
+                    {formMessage.text}
+                  </p>
+                )}
+
                 {loginMethod === 'email' ? (
                   <>
                     {/* Email */}
