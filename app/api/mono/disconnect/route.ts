@@ -41,28 +41,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'MONO_SECRET_KEY not configured' }, { status: 500 });
     }
 
-    // Attempt to unlink in Mono (non-blocking)
+    // Unlink remotely when supported, but keep local disconnect independent
+    // so historical transactions are not lost or blocked by foreign keys.
     try {
-      await fetch(`${MONO_BASE_URL}/accounts/${monoAccountId}/unlink`, {
+      const unlinkResponse = await fetch(`${MONO_BASE_URL}/accounts/${monoAccountId}/unlink`, {
         method: 'POST',
         headers: {
           accept: 'application/json',
           'mono-sec-key': monoSecretKey
         }
       });
+
+      if (!unlinkResponse.ok) {
+        console.warn(
+          'Mono unlink was not accepted:',
+          unlinkResponse.status,
+          await unlinkResponse.text()
+        );
+      }
     } catch (unlinkError) {
       console.warn('Mono unlink failed:', unlinkError);
     }
 
     const supabase = createAdminClient();
-    const { error } = await supabase
+    const { data: disconnectedAccount, error } = await supabase
       .from('user_accounts')
-      .delete()
+      .update({
+        status: 'disconnected',
+        last_sync: null,
+      })
       .eq('id', accountId)
-      .eq('user_id', user.id);
+      .eq('mono_account_id', monoAccountId)
+      .eq('user_id', user.id)
+      .select('id')
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    if (!disconnectedAccount) {
+      return NextResponse.json(
+        { error: 'Connected account not found or already disconnected.' },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({ success: true });

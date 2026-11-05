@@ -20,7 +20,8 @@ reports, and plan-based feature access.
 - Bank account connection, synchronization, disconnection, and statement imports
   derive ownership from the authenticated session.
 - Settings can open Mono Connect, save the authorized account, sync its transactions,
-  refresh connection details, and disconnect the account.
+  refresh connection details, and disconnect the account. Disconnecting soft-deletes
+  the connection locally so historical transactions remain available.
 - Server-side bank synchronization enforces monthly automatic transaction limits.
 
 ## Completed change plan
