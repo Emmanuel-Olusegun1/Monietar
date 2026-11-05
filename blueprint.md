@@ -19,6 +19,8 @@ reports, and plan-based feature access.
 - Sign-out confirmations use an accessible in-app modal with cancel and confirm actions.
 - Bank account connection, synchronization, disconnection, and statement imports
   derive ownership from the authenticated session.
+- Settings can open Mono Connect, save the authorized account, sync its transactions,
+  refresh connection details, and disconnect the account.
 - Server-side bank synchronization enforces monthly automatic transaction limits.
 
 ## Completed change plan

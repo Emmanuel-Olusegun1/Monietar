@@ -11,8 +11,10 @@ import {
   HelpCircle,
   KeyRound,
   Lock,
+  Loader2,
   Mail,
   Monitor,
+  RefreshCw,
   Save,
   ShieldCheck,
   Smartphone,
@@ -77,6 +79,19 @@ interface SettingsMetadata {
   business?: Partial<BusinessState>;
   preferences?: Partial<PreferencesState>;
   notifications?: Partial<NotificationsState>;
+}
+
+interface ConnectedAccount {
+  id: string;
+  mono_account_id: string;
+  mono_display_id: string | null;
+  institution: string | null;
+  account_name: string | null;
+  account_number: string | null;
+  balance: number | null;
+  status: string;
+  last_sync: string | null;
+  connected_at: string | null;
 }
 
 const sections: {
@@ -1339,6 +1354,275 @@ function SecuritySettings({
 /* -------------------------------------------------------------------------- */
 
 function ConnectionSettings() {
+  const [supabase] = useState(() =>
+    createClient(),
+  );
+
+  const [account, setAccount] =
+    useState<ConnectedAccount | null>(null);
+
+  const [loadingAccount, setLoadingAccount] =
+    useState(true);
+
+  const [connecting, setConnecting] =
+    useState(false);
+
+  const [disconnecting, setDisconnecting] =
+    useState(false);
+
+  const [syncing, setSyncing] =
+    useState(false);
+
+  const [connectionError, setConnectionError] =
+    useState<string | null>(null);
+
+  const loadAccount = async () => {
+    setLoadingAccount(true);
+    setConnectionError(null);
+
+    try {
+      const {
+        data: { session },
+        error: authError,
+      } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
+
+      if (authError || !currentUser) {
+        throw authError ?? new Error('You must be signed in to view connected accounts.');
+      }
+
+      const { data, error } = await supabase
+        .from('user_accounts')
+        .select(
+          'id, mono_account_id, mono_display_id, institution, account_name, account_number, balance, status, last_sync, connected_at'
+        )
+        .eq('user_id', currentUser.id)
+        .in('status', ['active', 'connected'])
+        .order('connected_at', {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      setAccount(data as ConnectedAccount | null);
+    } catch (caughtError) {
+      console.error(
+        'Failed to load connected account:',
+        caughtError,
+      );
+      setConnectionError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to load your connected account.',
+      );
+    } finally {
+      setLoadingAccount(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAccount();
+  }, []);
+
+  const handleConnect = async () => {
+    if (connecting || account) {
+      return;
+    }
+
+    const publicKey =
+      process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY;
+
+    if (!publicKey) {
+      setConnectionError(
+        'Bank connection is not configured. Please contact support.',
+      );
+      return;
+    }
+
+    setConnecting(true);
+    setConnectionError(null);
+
+    try {
+      const { default: MonoConnect } =
+        await import('@mono.co/connect.js');
+
+      const widget = new MonoConnect({
+        key: publicKey,
+        onLoad: () => {
+          widget.open();
+        },
+        onSuccess: async ({ code }) => {
+          try {
+            const connectResponse = await fetch(
+              '/api/mono/connect',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code }),
+              },
+            );
+            const connectData =
+              await connectResponse.json();
+
+            if (!connectResponse.ok) {
+              throw new Error(
+                connectData.error ??
+                  'Unable to save the connected bank account.',
+              );
+            }
+
+            const syncResponse = await fetch(
+              '/api/mono/sync',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  accountId: connectData.accountId,
+                }),
+              },
+            );
+            const syncData =
+              await syncResponse.json();
+
+            if (!syncResponse.ok) {
+              throw new Error(
+                syncData.error ??
+                  'The account connected, but its transactions could not be synced.',
+              );
+            }
+
+            await loadAccount();
+          } catch (caughtError) {
+            console.error(
+              'Bank connection failed:',
+              caughtError,
+            );
+            setConnectionError(
+              caughtError instanceof Error
+                ? caughtError.message
+                : 'Unable to finish connecting your bank account.',
+            );
+          } finally {
+            setConnecting(false);
+          }
+        },
+        onClose: () => {
+          setConnecting(false);
+        },
+      });
+
+      widget.setup();
+    } catch (caughtError) {
+      console.error(
+        'Unable to open Mono Connect:',
+        caughtError,
+      );
+      setConnecting(false);
+      setConnectionError(
+        'Unable to open bank connection. Please try again.',
+      );
+    }
+  };
+
+  const handleSync = async () => {
+    if (!account || syncing) {
+      return;
+    }
+
+    setSyncing(true);
+    setConnectionError(null);
+
+    try {
+      const response = await fetch(
+        '/api/mono/sync',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            accountId: account.mono_account_id,
+          }),
+        },
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ?? 'Unable to sync your bank transactions.',
+        );
+      }
+
+      await loadAccount();
+    } catch (caughtError) {
+      console.error(
+        'Bank account sync failed:',
+        caughtError,
+      );
+      setConnectionError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to sync your bank transactions.',
+      );
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!account || disconnecting) {
+      return;
+    }
+
+    setDisconnecting(true);
+    setConnectionError(null);
+
+    try {
+      const response = await fetch(
+        '/api/mono/disconnect',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            accountId: account.id,
+            monoAccountId: account.mono_account_id,
+          }),
+        },
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ?? 'Unable to disconnect this bank account.',
+        );
+      }
+
+      setAccount(null);
+    } catch (caughtError) {
+      console.error(
+        'Bank account disconnect failed:',
+        caughtError,
+      );
+      setConnectionError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to disconnect this bank account.',
+      );
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
   return (
     <SettingsPanel
       eyebrow="Financial connections"
@@ -1366,6 +1650,16 @@ function ConnectionSettings() {
         </div>
       </div>
 
+      {connectionError && (
+        <div className="mb-6 flex items-start gap-3 border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle
+            size={17}
+            className="mt-0.5 shrink-0"
+          />
+          <p>{connectionError}</p>
+        </div>
+      )}
+
       <div className="border border-gray-200 bg-white">
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
@@ -1375,23 +1669,121 @@ function ConnectionSettings() {
 
             <div>
               <p className="text-sm font-semibold">
-                Merchant bank account
+                {account?.institution ??
+                  'Merchant bank account'}
               </p>
 
               <p className="mt-1 text-xs text-gray-500">
-                No account connected
+                {loadingAccount
+                  ? 'Checking connection...'
+                  : account
+                    ? [
+                        account.account_name,
+                        account.account_number
+                          ? `•••• ${account.account_number.slice(-4)}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') ||
+                      'Connected merchant account'
+                    : 'No account connected'}
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            className="flex items-center justify-center gap-2 border border-emerald-900 px-4 py-2 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-900 hover:text-white"
-          >
-            Connect account
-            <ChevronRight size={14} />
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {account && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSync}
+                  disabled={syncing || disconnecting}
+                  className="flex items-center justify-center gap-2 border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 transition hover:border-emerald-900 hover:text-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <RefreshCw
+                    size={14}
+                    className={
+                      syncing
+                        ? 'animate-spin'
+                        : undefined
+                    }
+                  />
+                  {syncing
+                    ? 'Syncing...'
+                    : 'Sync now'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDisconnect}
+                  disabled={disconnecting || syncing}
+                  className="flex items-center justify-center gap-2 border border-red-200 px-4 py-2 text-xs font-semibold text-red-600 transition hover:border-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {disconnecting && (
+                    <Loader2
+                      size={14}
+                      className="animate-spin"
+                    />
+                  )}
+                  {disconnecting
+                    ? 'Disconnecting...'
+                    : 'Disconnect'}
+                </button>
+              </>
+            )}
+
+            {!account && (
+              <button
+                type="button"
+                onClick={handleConnect}
+                disabled={connecting || loadingAccount}
+                className="flex items-center justify-center gap-2 border border-emerald-900 px-4 py-2 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {connecting && (
+                  <Loader2
+                    size={14}
+                    className="animate-spin"
+                  />
+                )}
+                {connecting
+                  ? 'Opening connection...'
+                  : 'Connect account'}
+                {!connecting && (
+                  <ChevronRight size={14} />
+                )}
+              </button>
+            )}
+          </div>
         </div>
+
+        {account && (
+          <div className="grid gap-3 border-t border-gray-200 bg-[#fafafa] px-5 py-4 text-xs text-gray-500 sm:grid-cols-3">
+            <p>
+              Status:{' '}
+              <span className="font-medium text-emerald-800">
+                {account.status}
+              </span>
+            </p>
+            <p>
+              Balance:{' '}
+              <span className="font-medium text-gray-800">
+                {account.balance === null
+                  ? 'Unavailable'
+                  : account.balance.toLocaleString()}
+              </span>
+            </p>
+            <p>
+              Last sync:{' '}
+              <span className="font-medium text-gray-800">
+                {account.last_sync
+                  ? new Date(
+                      account.last_sync,
+                    ).toLocaleString()
+                  : 'Not synced'}
+              </span>
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 border-t border-gray-200 pt-6">
