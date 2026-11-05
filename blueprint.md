@@ -14,6 +14,8 @@ reports, and plan-based feature access.
 - Premium features include additional bank accounts, higher automatic transaction
   limits, analytics, dual currency, automated inventory, alerts, AI CFO, and exports.
 - Contact submissions send branded two-way email notifications.
+- New email signups trigger a branded welcome email through Resend; email delivery
+  failures do not undo a successful account signup.
 - Authentication pages show inline feedback and navigate immediately after success.
 - Dashboard sign-out requires confirmation.
 - Sign-out confirmations use an accessible in-app modal with cancel and confirm actions.

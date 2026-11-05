@@ -243,6 +243,34 @@ export default function Signup() {
           return;
         }
 
+        try {
+          const welcomeResponse = await fetch(
+            '/api/auth/welcome',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                email: formData.email.trim(),
+                name: formData.name.trim(),
+              }),
+            },
+          );
+
+          if (!welcomeResponse.ok) {
+            console.error(
+              'Welcome email request failed:',
+              await welcomeResponse.text(),
+            );
+          }
+        } catch (welcomeError) {
+          console.error(
+            'Welcome email request failed:',
+            welcomeError,
+          );
+        }
+
         showSuccess(
           'Account created! Check your email for verification.'
         );
