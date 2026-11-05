@@ -27,6 +27,7 @@ import {
 } from 'react';
 
 import { createClient } from '@/lib/supabase/client';
+import { ConfirmModal } from '@/app/components/dashboard/ConfirmModal';
 
 type SettingsSection =
   | 'profile'
@@ -1087,6 +1088,11 @@ function SecuritySettings({
   const [signingOutOthers, setSigningOutOthers] =
     useState(false);
 
+  const [
+    showSignOutOthersConfirm,
+    setShowSignOutOthersConfirm,
+  ] = useState(false);
+
   const handlePasswordChange = async () => {
     setError(null);
     setPasswordMessage(null);
@@ -1160,6 +1166,7 @@ function SecuritySettings({
       );
     } finally {
       setSigningOutOthers(false);
+      setShowSignOutOthersConfirm(false);
     }
   };
 
@@ -1258,7 +1265,9 @@ function SecuritySettings({
 
         <button
           type="button"
-          onClick={handleSignOutOthers}
+          onClick={() =>
+            setShowSignOutOthersConfirm(true)
+          }
           disabled={signingOutOthers}
           className="flex w-full items-center gap-4 border border-gray-200 bg-white p-5 text-left transition hover:border-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -1308,6 +1317,19 @@ function SecuritySettings({
           </div>
         </div>
       </div>
+      <ConfirmModal
+        open={showSignOutOthersConfirm}
+        title="Sign out other sessions?"
+        description="Every other active Monietar session will be signed out. Your current session will remain active."
+        confirmLabel="Sign out others"
+        loading={signingOutOthers}
+        onCancel={() => {
+          if (!signingOutOthers) {
+            setShowSignOutOthersConfirm(false);
+          }
+        }}
+        onConfirm={handleSignOutOthers}
+      />
     </SettingsPanel>
   );
 }

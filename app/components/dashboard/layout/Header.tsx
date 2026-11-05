@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useSidebar } from '@/context/SidebarContext';
 import { createClient } from '@/lib/supabase/client';
+import { ConfirmModal } from '@/app/components/dashboard/ConfirmModal';
 
 type Plan =
   | 'RETAIL_STARTER'
@@ -182,6 +183,8 @@ export default function Header() {
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] =
+    useState(false);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -213,9 +216,10 @@ export default function Header() {
         const supabase = createClient();
 
         const {
-          data: { user },
+          data: { session },
           error: userError,
-        } = await supabase.auth.getUser();
+        } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
 
         if (userError || !user) {
           if (mounted) {
@@ -368,6 +372,7 @@ export default function Header() {
       );
 
       setSigningOut(false);
+      setShowSignOutConfirm(false);
     }
   };
 
@@ -801,7 +806,9 @@ export default function Header() {
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={handleSignOut}
+                    onClick={() =>
+                      setShowSignOutConfirm(true)
+                    }
                     disabled={signingOut}
                     className="
                       flex w-full items-center gap-3
@@ -832,6 +839,19 @@ export default function Header() {
         </div>
       </div>
 
+      <ConfirmModal
+        open={showSignOutConfirm}
+        title="Sign out of Monietar?"
+        description="You will need to sign in again to access your dashboard."
+        confirmLabel="Sign out"
+        loading={signingOut}
+        onCancel={() => {
+          if (!signingOut) {
+            setShowSignOutConfirm(false);
+          }
+        }}
+        onConfirm={handleSignOut}
+      />
     </header>
   );
 }

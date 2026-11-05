@@ -200,10 +200,11 @@ export default function Sidebar() {
 
     const loadUser = async () => {
       const {
-        data: { user },
+        data: { session },
         error,
       } =
-        await supabase.auth.getUser();
+        await supabase.auth.getSession();
+      const user = session?.user ?? null;
 
       if (!mounted) {
         return;

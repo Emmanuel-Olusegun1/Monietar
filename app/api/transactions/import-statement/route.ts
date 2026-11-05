@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import * as pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
 import * as XLSX from 'xlsx';
@@ -450,7 +451,6 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file');
     const accountId = String(formData.get('account_id') || '').trim();
-    const userId = String(formData.get('user_id') || '').trim();
     const currency = String(formData.get('currency') || 'NGN').trim().toUpperCase();
     const password = String(formData.get('password') || '').trim();
 
@@ -461,10 +461,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!userId) {
+    const authClient = await createServerSupabaseClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser();
+
+    if (authError || !user) {
       return NextResponse.json(
-        { error: 'The user details are required to import a statement.' },
-        { status: 400 }
+        { error: 'You must be signed in to import a statement.' },
+        { status: 401 }
       );
     }
 
@@ -502,8 +508,28 @@ export async function POST(request: NextRequest) {
 
     const supabase = createSupabaseAdmin();
 
+    if (accountId) {
+      const { data: account, error: accountError } = await supabase
+        .from('user_accounts')
+        .select('id')
+        .eq('id', accountId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (accountError) {
+        throw accountError;
+      }
+
+      if (!account) {
+        return NextResponse.json(
+          { error: 'The selected bank account does not belong to the signed-in user.' },
+          { status: 403 }
+        );
+      }
+    }
+
     const payload = transactions.map((transaction) => ({
-      user_id: userId,
+      user_id: user.id,
       type: transaction.type,
       amount: transaction.amount,
       amount_base: transaction.amount,

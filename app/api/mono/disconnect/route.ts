@@ -1,6 +1,7 @@
 // app/api/mono/disconnect/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
 
 const MONO_BASE_URL = 'https://api.withmono.com/v2';
 
@@ -19,10 +20,20 @@ const createAdminClient = () => {
 
 export async function POST(request: NextRequest) {
   try {
-    const { accountId, monoAccountId, userId } = await request.json();
+    const { accountId, monoAccountId } = await request.json();
 
-    if (!accountId || !monoAccountId || !userId) {
-      return NextResponse.json({ error: 'accountId, monoAccountId, and userId are required' }, { status: 400 });
+    if (!accountId || !monoAccountId) {
+      return NextResponse.json({ error: 'accountId and monoAccountId are required' }, { status: 400 });
+    }
+
+    const authClient = await createServerSupabaseClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'You must be signed in to disconnect a bank account.' }, { status: 401 });
     }
 
     const monoSecretKey = process.env.MONO_SECRET_KEY;
@@ -48,7 +59,7 @@ export async function POST(request: NextRequest) {
       .from('user_accounts')
       .delete()
       .eq('id', accountId)
-      .eq('user_id', userId);
+      .eq('user_id', user.id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

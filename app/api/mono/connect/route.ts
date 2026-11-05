@@ -1,8 +1,21 @@
 // app/api/mono/connect/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
 
 const MONO_BASE_URL = 'https://api.withmono.com/v2';
+
+function normalizePlan(value: unknown) {
+  if (
+    value === 'growing-merchant' ||
+    value === 'borderless-pro' ||
+    value === 'retail-starter'
+  ) {
+    return value;
+  }
+
+  return 'retail-starter';
+}
 
 const createAdminClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -19,10 +32,20 @@ const createAdminClient = () => {
 
 export async function POST(request: NextRequest) {
   try {
-    const { code, userId } = await request.json();
+    const { code } = await request.json();
 
-    if (!code || !userId) {
-      return NextResponse.json({ error: 'code and userId are required' }, { status: 400 });
+    if (!code) {
+      return NextResponse.json({ error: 'code is required' }, { status: 400 });
+    }
+
+    const authClient = await createServerSupabaseClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'You must be signed in to connect a bank account.' }, { status: 401 });
     }
 
     const monoSecretKey = process.env.MONO_SECRET_KEY;
@@ -70,10 +93,38 @@ export async function POST(request: NextRequest) {
     const monoDisplayId = authAccountId;
 
     const supabase = createAdminClient();
+    const plan = normalizePlan(
+      user.user_metadata?.subscription_plan ?? user.user_metadata?.plan
+    );
+    const connectedBankLimit =
+      plan === 'retail-starter' ? 1 : plan === 'growing-merchant' ? 3 : Infinity;
+
+    const { count: connectedBankCount, error: countError } = await supabase
+      .from('user_accounts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .in('status', ['active', 'connected']);
+
+    if (countError) {
+      throw countError;
+    }
+
+    if ((connectedBankCount ?? 0) >= connectedBankLimit) {
+      return NextResponse.json(
+        {
+          error:
+            plan === 'retail-starter'
+              ? 'Retail Starter allows one connected bank account. Upgrade your plan to connect another account.'
+              : 'You have reached the connected bank account limit for your plan.',
+        },
+        { status: 403 }
+      );
+    }
+
     const { data: accountRow, error } = await supabase
       .from('user_accounts')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         mono_account_id: monoAccountId,
         mono_display_id: monoDisplayId,
         institution: accountData?.institution || accountData?.data?.institution || authData?.institution || 'Bank Account',
