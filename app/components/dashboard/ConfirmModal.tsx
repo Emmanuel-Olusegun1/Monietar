@@ -65,7 +65,7 @@ export function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[70] flex h-[100dvh] w-screen items-center justify-center overflow-y-auto bg-black/45 p-4 backdrop-blur-[2px] sm:p-6"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !loading) {
@@ -74,7 +74,7 @@ export function ConfirmModal({
       }}
     >
       <div
-        className="w-full max-w-md border border-gray-200 bg-white p-6 shadow-2xl"
+        className="my-auto w-full max-w-md border border-gray-200 bg-white p-6 shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-modal-title"

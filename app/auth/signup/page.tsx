@@ -4,7 +4,6 @@ import { useMemo, useState, FormEvent, ChangeEvent, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-hot-toast';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -55,12 +54,10 @@ export default function Signup() {
 
   const showError = (text: string) => {
     setFormMessage({ type: 'error', text });
-    toast.error(text);
   };
 
   const showSuccess = (text: string) => {
     setFormMessage({ type: 'success', text });
-    toast.success(text);
   };
 
   const t =
