@@ -1456,6 +1456,8 @@ function ConnectionSettings() {
           widget.open();
         },
         onSuccess: async ({ code }) => {
+          let accountSaved = false;
+
           try {
             const connectResponse = await fetch(
               '/api/mono/connect',
@@ -1476,6 +1478,8 @@ function ConnectionSettings() {
                   'Unable to save the connected bank account.',
               );
             }
+
+            accountSaved = true;
 
             const syncResponse = await fetch(
               '/api/mono/sync',
@@ -1505,10 +1509,21 @@ function ConnectionSettings() {
               'Bank connection failed:',
               caughtError,
             );
+
+            if (accountSaved) {
+              await loadAccount();
+            }
+
             setConnectionError(
-              caughtError instanceof Error
-                ? caughtError.message
-                : 'Unable to finish connecting your bank account.',
+              accountSaved
+                ? `Bank account connected, but transaction sync failed: ${
+                    caughtError instanceof Error
+                      ? caughtError.message
+                      : 'Please try syncing again.'
+                  }`
+                : caughtError instanceof Error
+                  ? caughtError.message
+                  : 'Unable to finish connecting your bank account.',
             );
           } finally {
             setConnecting(false);

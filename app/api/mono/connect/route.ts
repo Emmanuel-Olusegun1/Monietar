@@ -86,11 +86,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: accountData?.message || 'Failed to fetch Mono account details' }, { status: 400 });
     }
 
-    const monoAccountId =
-      accountData?.account?.id ||
-      accountData?.data?.account?.id ||
-      authAccountId;
+    // The authentication exchange returns the canonical Mono account ID.
+    // Account-details responses may expose nested IDs for other resources.
+    const monoAccountId = authAccountId;
     const monoDisplayId = authAccountId;
+    const accountDetails =
+      accountData?.account ||
+      accountData?.data?.account ||
+      accountData?.data ||
+      accountData;
 
     const supabase = createAdminClient();
     const plan = normalizePlan(
@@ -127,13 +131,13 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         mono_account_id: monoAccountId,
         mono_display_id: monoDisplayId,
-        institution: accountData?.institution || accountData?.data?.institution || authData?.institution || 'Bank Account',
+        institution: accountDetails?.institution || authData?.institution || 'Bank Account',
         status: 'active',
         connected_at: new Date().toISOString(),
         last_sync: null,
-        account_name: accountData?.account_name || accountData?.data?.account_name || null,
-        account_number: accountData?.account_number || accountData?.data?.account_number || null,
-        balance: accountData?.balance || accountData?.data?.balance || null
+        account_name: accountDetails?.account_name || null,
+        account_number: accountDetails?.account_number || null,
+        balance: accountDetails?.balance || null
       })
       .select()
       .single();
