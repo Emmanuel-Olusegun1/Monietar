@@ -150,7 +150,7 @@ const PERIODS: Record<
 type Transaction = {
   id: string;
   user_id: string;
-  business_id: string | null;
+  business_id?: string | null;
   account_id: string | null;
   type: string;
   amount: number | string;
@@ -185,7 +185,7 @@ type Account = {
 
 type BankConnection = {
   id: string;
-  business_id: string;
+  business_id?: string | null;
   mono_account_id: string | null;
   mono_display_id: string | null;
   institution: string | null;
@@ -1703,7 +1703,6 @@ export default function OverviewPage() {
               .select(
                 `
                   id,
-                  business_id,
                   mono_account_id,
                   mono_display_id,
                   institution,
@@ -1711,12 +1710,17 @@ export default function OverviewPage() {
                   account_number,
                   balance,
                   status,
-                  last_sync
+                  last_sync,
+                  business_id
                 `
               )
               .eq(
                 'business_id',
                 businessId
+              )
+              .in(
+                'status',
+                ['active', 'connected']
               ),
 
             supabase

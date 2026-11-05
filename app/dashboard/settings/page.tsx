@@ -83,6 +83,7 @@ interface SettingsMetadata {
 
 interface ConnectedAccount {
   id: string;
+  business_id: string;
   mono_account_id: string;
   mono_display_id: string | null;
   institution: string | null;
@@ -91,7 +92,7 @@ interface ConnectedAccount {
   balance: number | null;
   status: string;
   last_sync: string | null;
-  connected_at: string | null;
+  created_at: string | null;
 }
 
 const sections: {
@@ -1391,14 +1392,31 @@ function ConnectionSettings() {
         throw authError ?? new Error('You must be signed in to view connected accounts.');
       }
 
+      const { data: business, error: businessError } = await supabase
+        .from('businesses')
+        .select('id')
+        .eq('owner_id', currentUser.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (businessError) {
+        throw businessError;
+      }
+
+      if (!business) {
+        setAccount(null);
+        return;
+      }
+
       const { data, error } = await supabase
-        .from('user_accounts')
+        .from('bank_connections')
         .select(
-          'id, mono_account_id, mono_display_id, institution, account_name, account_number, balance, status, last_sync, connected_at'
+          'id, business_id, mono_account_id, mono_display_id, institution, account_name, account_number, balance, status, last_sync, created_at'
         )
-        .eq('user_id', currentUser.id)
+        .eq('business_id', business.id)
         .in('status', ['active', 'connected'])
-        .order('connected_at', {
+        .order('created_at', {
           ascending: false,
         })
         .limit(1)

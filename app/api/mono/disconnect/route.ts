@@ -36,6 +36,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'You must be signed in to disconnect a bank account.' }, { status: 401 });
     }
 
+    const supabase = createAdminClient();
+    const { data: business, error: businessError } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (businessError) {
+      throw businessError;
+    }
+
+    if (!business) {
+      return NextResponse.json({ error: 'No active business was found for this account.' }, { status: 400 });
+    }
+
     const monoSecretKey = process.env.MONO_SECRET_KEY;
     if (!monoSecretKey) {
       return NextResponse.json({ error: 'MONO_SECRET_KEY not configured' }, { status: 500 });
@@ -63,16 +80,15 @@ export async function POST(request: NextRequest) {
       console.warn('Mono unlink failed:', unlinkError);
     }
 
-    const supabase = createAdminClient();
     const { data: disconnectedAccount, error } = await supabase
-      .from('user_accounts')
+      .from('bank_connections')
       .update({
         status: 'disconnected',
         last_sync: null,
       })
       .eq('id', accountId)
       .eq('mono_account_id', monoAccountId)
-      .eq('user_id', user.id)
+      .eq('business_id', business.id)
       .select('id')
       .maybeSingle();
 

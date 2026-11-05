@@ -114,11 +114,27 @@ export async function POST(request: NextRequest) {
     });
 
     const supabase = createAdminClient();
+    const { data: business, error: businessError } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (businessError) {
+      throw businessError;
+    }
+
+    if (!business) {
+      return NextResponse.json({ error: 'No active business was found for this account.' }, { status: 400 });
+    }
+
     const { data: account, error: accountError } = await supabase
-      .from('user_accounts')
+      .from('bank_connections')
       .select('id')
       .eq('mono_account_id', accountId)
-      .eq('user_id', user.id)
+      .eq('business_id', business.id)
       .in('status', ['active', 'connected'])
       .maybeSingle();
 
@@ -181,13 +197,13 @@ export async function POST(request: NextRequest) {
     }
 
     await supabase
-      .from('user_accounts')
+      .from('bank_connections')
       .update({
         last_sync: new Date().toISOString(),
         status: 'active'
       })
       .eq('mono_account_id', accountId)
-      .eq('user_id', user.id);
+      .eq('business_id', business.id);
 
     return NextResponse.json({ success: true, inserted: rowsToInsert.length });
   } catch (error: any) {

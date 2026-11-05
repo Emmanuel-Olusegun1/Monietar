@@ -48,6 +48,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'You must be signed in to connect a bank account.' }, { status: 401 });
     }
 
+    const supabase = createAdminClient();
+    let { data: business, error: businessError } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (businessError) {
+      throw businessError;
+    }
+
+    if (!business) {
+      const metadata = user.user_metadata ?? {};
+      const businessName =
+        typeof metadata.business_name === 'string' &&
+        metadata.business_name.trim()
+          ? metadata.business_name.trim()
+          : typeof metadata.name === 'string' &&
+              metadata.name.trim()
+            ? `${metadata.name.trim()}'s business`
+            : 'My business';
+
+      const { data: createdBusiness, error: createBusinessError } =
+        await supabase
+          .from('businesses')
+          .insert({
+            owner_id: user.id,
+            name: businessName,
+            currency: 'NGN',
+            is_active: true,
+          })
+          .select('id')
+          .single();
+
+      if (createBusinessError) {
+        throw createBusinessError;
+      }
+
+      business = createdBusiness;
+    }
+
     const monoSecretKey = process.env.MONO_SECRET_KEY;
     if (!monoSecretKey) {
       return NextResponse.json({ error: 'MONO_SECRET_KEY not configured' }, { status: 500 });
@@ -96,7 +139,6 @@ export async function POST(request: NextRequest) {
       accountData?.data ||
       accountData;
 
-    const supabase = createAdminClient();
     const plan = normalizePlan(
       user.user_metadata?.subscription_plan ?? user.user_metadata?.plan
     );
@@ -104,9 +146,9 @@ export async function POST(request: NextRequest) {
       plan === 'retail-starter' ? 1 : plan === 'growing-merchant' ? 3 : Infinity;
 
     const { count: connectedBankCount, error: countError } = await supabase
-      .from('user_accounts')
+      .from('bank_connections')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+      .eq('business_id', business.id)
       .in('status', ['active', 'connected']);
 
     if (countError) {
@@ -126,14 +168,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: accountRow, error } = await supabase
-      .from('user_accounts')
+      .from('bank_connections')
       .insert({
-        user_id: user.id,
+        business_id: business.id,
         mono_account_id: monoAccountId,
         mono_display_id: monoDisplayId,
         institution: accountDetails?.institution || authData?.institution || 'Bank Account',
         status: 'active',
-        connected_at: new Date().toISOString(),
         last_sync: null,
         account_name: accountDetails?.account_name || null,
         account_number: accountDetails?.account_number || null,

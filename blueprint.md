@@ -22,6 +22,10 @@ reports, and plan-based feature access.
 - Settings can open Mono Connect, save the authorized account, sync its transactions,
   refresh connection details, and disconnect the account. Disconnecting soft-deletes
   the connection locally so historical transactions remain available.
+- `user_accounts` is the source of truth for active bank connections; active and
+  connected records count as connected, while disconnected records do not.
+- Signup stores the requested business name in Auth metadata; the bank connection
+  endpoint provisions the primary `businesses` row when one does not yet exist.
 - Server-side bank synchronization enforces monthly automatic transaction limits.
 
 ## Completed change plan
