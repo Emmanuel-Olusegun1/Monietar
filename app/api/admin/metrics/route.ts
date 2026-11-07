@@ -39,13 +39,56 @@ export async function GET(request: NextRequest) {
 
     const [
       usersCount,
+      businessesCount,
+      activeBusinessesCount,
       transactionsCount,
-      budgetsCount
+      budgetsCount,
+      accountsCount,
+      bankConnectionsCount,
+      activeBankConnectionsCount,
+      salesCount,
+      productsCount,
+      cashVaultsCount,
+      contactMessagesCount,
+      waitlistCount,
     ] = await Promise.all([
       supabase.from('users').select('id', { count: 'exact', head: true }),
+      supabase.from('businesses').select('id', { count: 'exact', head: true }),
+      supabase.from('businesses').select('id', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('transactions').select('id', { count: 'exact', head: true }),
-      supabase.from('budgets').select('id', { count: 'exact', head: true })
+      supabase.from('budgets').select('id', { count: 'exact', head: true }),
+      supabase.from('accounts').select('id', { count: 'exact', head: true }),
+      supabase.from('bank_connections').select('id', { count: 'exact', head: true }),
+      supabase
+        .from('bank_connections')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['active', 'connected']),
+      supabase.from('sales').select('id', { count: 'exact', head: true }),
+      supabase.from('products').select('id', { count: 'exact', head: true }),
+      supabase.from('cash_vaults').select('id', { count: 'exact', head: true }),
+      supabase.from('contact_messages').select('id', { count: 'exact', head: true }),
+      supabase.from('waitlist').select('id', { count: 'exact', head: true }),
     ]);
+
+    const countErrors = [
+      usersCount,
+      businessesCount,
+      activeBusinessesCount,
+      transactionsCount,
+      budgetsCount,
+      accountsCount,
+      bankConnectionsCount,
+      activeBankConnectionsCount,
+      salesCount,
+      productsCount,
+      cashVaultsCount,
+      contactMessagesCount,
+      waitlistCount,
+    ].filter((result) => result.error);
+
+    if (countErrors.length > 0) {
+      throw countErrors[0].error;
+    }
 
     const now = new Date();
     const last7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -58,8 +101,18 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       users: usersCount.count || 0,
+      businesses: businessesCount.count || 0,
+      activeBusinesses: activeBusinessesCount.count || 0,
       transactions: transactionsCount.count || 0,
       budgets: budgetsCount.count || 0,
+      accounts: accountsCount.count || 0,
+      bankConnections: bankConnectionsCount.count || 0,
+      activeBankConnections: activeBankConnectionsCount.count || 0,
+      sales: salesCount.count || 0,
+      products: productsCount.count || 0,
+      cashVaults: cashVaultsCount.count || 0,
+      contactMessages: contactMessagesCount.count || 0,
+      waitlist: waitlistCount.count || 0,
       newUsers7d: newUsers7.count || 0,
       newUsers30d: newUsers30.count || 0
     });

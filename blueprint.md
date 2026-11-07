@@ -16,6 +16,8 @@ reports, and plan-based feature access.
 - Contact submissions send branded two-way email notifications.
 - New email signups trigger a branded welcome email through Resend; email delivery
   failures do not undo a successful account signup.
+- The Supabase Auth profile trigger handles duplicate emails in `public.users`
+  without aborting Auth signup.
 - Authentication pages show inline feedback and navigate immediately after success.
 - Dashboard sign-out requires confirmation.
 - Sign-out confirmations use an accessible in-app modal with cancel and confirm actions.
@@ -29,6 +31,12 @@ reports, and plan-based feature access.
 - Signup stores the requested business name in Auth metadata; the bank connection
   endpoint provisions the primary `businesses` row when one does not yet exist.
 - Server-side bank synchronization enforces monthly automatic transaction limits.
+- The admin workspace uses Monietar's light editorial dashboard styling across
+  its access gate, navigation, metrics, tables, support panels, flags, audit
+  log, and system-health views.
+- Admin metrics cover users, businesses, transactions, budgets, accounts, bank
+  connections, sales, products, cash vaults, contact messages, and waitlist
+  activity, with dedicated product-usage and banking-operations views.
 
 ## Completed change plan
 

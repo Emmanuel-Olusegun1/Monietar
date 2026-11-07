@@ -1,6 +1,5 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
 import AdminGate from './AdminGate';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +11,7 @@ const getAdminEmails = () =>
     .filter(Boolean);
 
 export default async function AdminPage() {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -24,10 +23,15 @@ export default async function AdminPage() {
 
   if (admins.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6">
-        <div className="max-w-md w-full rounded-2xl border border-gray-200 bg-white p-6">
-          <h1 className="text-xl font-semibold text-gray-900">Admin Access Required</h1>
-          <p className="text-sm text-gray-500 mt-2">
+      <div className="flex min-h-screen items-center justify-center bg-[#f1f1f1] px-6">
+        <div className="w-full max-w-md border border-gray-200 bg-white p-7 shadow-sm">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-900">
+            Admin workspace
+          </p>
+          <h1 className="mt-3 text-2xl font-bold tracking-[-0.04em] text-gray-900">
+            Admin access is not configured.
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-gray-500">
             ADMIN_EMAILS is not configured. Add at least one admin email in .env.
           </p>
         </div>

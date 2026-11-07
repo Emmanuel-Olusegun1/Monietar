@@ -272,7 +272,7 @@ export default function Signup() {
         }
 
         showSuccess(
-          'Account created! Check your email for verification.'
+          'Account created. Check your email for the Supabase verification link before signing in.'
         );
 
         router.replace('/auth/signin');

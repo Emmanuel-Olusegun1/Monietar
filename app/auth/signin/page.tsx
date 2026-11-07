@@ -86,7 +86,32 @@ export default function SignInPage() {
       });
 
       if (error) {
-        showError(error.message);
+        const normalizedMessage =
+          error.message.toLowerCase();
+
+        if (
+          normalizedMessage.includes(
+            'email not confirmed'
+          )
+        ) {
+          showError(
+            'Please confirm your email address using the verification email before signing in.'
+          );
+        } else if (
+          normalizedMessage.includes(
+            'invalid login credentials'
+          ) ||
+          normalizedMessage.includes(
+            'user not found'
+          )
+        ) {
+          showError(
+            'We could not find an account with those email and password details. Check your email, password, and email verification.'
+          );
+        } else {
+          showError(error.message);
+        }
+
         return;
       }
 
