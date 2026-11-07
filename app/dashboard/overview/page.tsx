@@ -1341,14 +1341,26 @@ export default function OverviewPage() {
           throw businessError;
         }
 
-        const activeBusiness =
-          (businesses?.[0] ??
-            null) as Business | null;
+        let activeBusiness =
+          (businesses?.[0] ?? null) as Business | null;
+
+        if (!activeBusiness) {
+          const provisionResponse = await fetch('/api/business/provision', {
+            method: 'POST',
+          });
+          const provisionData = await provisionResponse.json();
+
+          if (!provisionResponse.ok) {
+            throw new Error(
+              provisionData.error || 'We could not create your business profile.'
+            );
+          }
+
+          activeBusiness = (provisionData.business ?? null) as Business | null;
+        }
 
         if (mounted) {
-          setBusiness(
-            activeBusiness
-          );
+          setBusiness(activeBusiness);
         }
 
         /*
