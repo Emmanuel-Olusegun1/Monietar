@@ -1338,7 +1338,7 @@ export default function OverviewPage() {
           });
 
         if (businessError) {
-          throw businessError;
+          console.error('Failed to load business record:', businessError);
         }
 
         let activeBusiness =
@@ -1351,12 +1351,13 @@ export default function OverviewPage() {
           const provisionData = await provisionResponse.json();
 
           if (!provisionResponse.ok) {
-            throw new Error(
-              provisionData.error || 'We could not create your business profile.'
+            console.error(
+              'Could not provision a business profile for the overview:',
+              provisionData.error || 'Unknown provisioning error'
             );
+          } else {
+            activeBusiness = (provisionData.business ?? null) as Business | null;
           }
-
-          activeBusiness = (provisionData.business ?? null) as Business | null;
         }
 
         if (mounted) {
@@ -1372,7 +1373,6 @@ export default function OverviewPage() {
         const transactionSelect = `
           id,
           user_id,
-          business_id,
           account_id,
           type,
           amount,
@@ -1382,7 +1382,6 @@ export default function OverviewPage() {
           created_at,
           status,
           currency,
-          exchange_rate,
           amount_base,
           reference,
           notes,
@@ -1428,14 +1427,6 @@ export default function OverviewPage() {
         | Business Scope
         |--------------------------------------------------------------------------
         */
-
-        if (activeBusiness) {
-          currentQuery =
-            currentQuery.eq(
-              'business_id',
-              activeBusiness.id
-            );
-        }
 
         currentQuery =
           currentQuery
@@ -1490,14 +1481,6 @@ export default function OverviewPage() {
                 )
               );
 
-          if (activeBusiness) {
-            previousQuery =
-              previousQuery.eq(
-                'business_id',
-                activeBusiness.id
-              );
-          }
-
           previousQuery =
             previousQuery
               .order('date', {
@@ -1541,14 +1524,6 @@ export default function OverviewPage() {
               'is_deleted',
               false
             );
-
-        if (activeBusiness) {
-          recentQuery =
-            recentQuery.eq(
-              'business_id',
-              activeBusiness.id
-            );
-        }
 
         recentQuery =
           recentQuery
@@ -1614,14 +1589,6 @@ export default function OverviewPage() {
                 currentMonthEnd
               )
             );
-
-        if (activeBusiness) {
-          automaticQuery =
-            automaticQuery.eq(
-              'business_id',
-              activeBusiness.id
-            );
-        }
 
         /*
         |--------------------------------------------------------------------------
@@ -1852,34 +1819,27 @@ export default function OverviewPage() {
           throw automaticResult.error;
         }
 
-        if (
-          accountsResult?.error
-        ) {
-          throw accountsResult.error;
+        if (accountsResult?.error) {
+          console.error('Failed to load accounts:', accountsResult.error);
         }
 
-        if (
-          bankConnectionsResult?.error
-        ) {
-          throw bankConnectionsResult.error;
+        if (bankConnectionsResult?.error) {
+          console.error(
+            'Failed to load bank connections:',
+            bankConnectionsResult.error
+          );
         }
 
-        if (
-          cashVaultsResult?.error
-        ) {
-          throw cashVaultsResult.error;
+        if (cashVaultsResult?.error) {
+          console.error('Failed to load cash vaults:', cashVaultsResult.error);
         }
 
-        if (
-          productsResult?.error
-        ) {
-          throw productsResult.error;
+        if (productsResult?.error) {
+          console.error('Failed to load products:', productsResult.error);
         }
 
-        if (
-          salesResult?.error
-        ) {
-          throw salesResult.error;
+        if (salesResult?.error) {
+          console.error('Failed to load sales:', salesResult.error);
         }
 
         if (!mounted) {
